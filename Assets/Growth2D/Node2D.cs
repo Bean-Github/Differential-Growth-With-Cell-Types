@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+[System.Serializable]
 public class Node2D
 {
     public Vector2 position;

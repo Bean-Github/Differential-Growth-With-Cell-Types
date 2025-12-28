@@ -1,13 +1,15 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEditor.Experimental.GraphView;
+using System.Collections;
 
 // TODO: implement in a compute shader
 public class Grower2D : MonoBehaviour
 {
-    public float growthRate = 0.1f; // Units per second
+    public float growthRate = 0.1f; // time between adding new nodes
     public List<Node2D> nodes = new List<Node2D>();
+
+    public float curvatureThreshold = 0.5f; // threshold for curvature-based growth
 
     [Tooltip("Strength of repulsion between nodes")]
     public float separationForce = 0.5f; 
@@ -17,6 +19,9 @@ public class Grower2D : MonoBehaviour
     public float nodeDrag = 0.1f; 
     [Tooltip("Distance threshold for adding new nodes")]
     public float nodeAddDistance = 1.3f;
+
+    [Tooltip("Attraction force towards neighbors")]
+    public float attractionForce = 0.2f;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -32,14 +37,16 @@ public class Grower2D : MonoBehaviour
         ConnectNodes(nodes[1], nodes[2]);
         ConnectNodes(nodes[2], nodes[3]);
         ConnectNodes(nodes[3], nodes[0]);
+
+        StartCoroutine(Grow());
     }
 
     // Update is called once per frame
     void Update()
     {
         ApplySeparationForces();
+        ApplyAttractionForces();
         ApplyDrag();
-        UpdateInsertions();
 
         UpdateAllPositions(Time.deltaTime);
 
@@ -68,6 +75,18 @@ public class Grower2D : MonoBehaviour
         }
     }
 
+    void ApplyAttractionForces()
+    {
+        foreach (Node2D node in nodes)
+        {
+            foreach (var neighbor in node.neighbors.Values)
+            {
+                Vector2 attractionDir = (neighbor.position - node.position).normalized;
+                node.ApplyForce(attractionDir * attractionForce);
+            }
+        }
+    }
+
     void ApplyDrag()
     {
         foreach (Node2D node in nodes)
@@ -76,23 +95,45 @@ public class Grower2D : MonoBehaviour
         }
     }
 
-    void UpdateInsertions()
+    IEnumerator Grow()
+    {
+        while (true)
+        {
+            TryUpdateInsertions();
+
+            yield return new WaitForSeconds(growthRate);
+        }
+    }
+
+    // picks a random edge and inserts a new node between the two nodes
+    bool TryUpdateInsertions()
     {
         Node2D[] currNodes = nodes.ToArray();
 
-        foreach (Node2D node in currNodes)
-        {
-            Node2D[] neighbors = node.neighbors.Values.ToArray();
+        int randomIndex = Random.Range(0, currNodes.Length);
 
-            foreach (var neighbor in neighbors)
-            {
-                float distance = (node.position - neighbor.position).magnitude;
-                if (distance > nodeAddDistance)
-                {
-                    InsertNode(node, neighbor);
-                }
-            }
+        // pick a random neighbor to insert between
+        Node2D nodeA = currNodes[randomIndex];
+        if (nodeA.neighbors.Count == 0)
+        {
+            return false;
         }
+        Node2D nodeB = nodeA.neighbors.Values.ElementAt(Random.Range(0, nodeA.neighbors.Count));
+
+        // calculate curvature at node A
+        float curvature = GrowingHelpers2D.GetCurvature2D(nodeA, nodeB);
+        Debug.DrawLine(nodeA.position, nodeB.position, Color.red, 1.0f);
+        print(curvature);
+
+        if (Mathf.Abs(curvature) < curvatureThreshold)
+        {
+            return false;
+        }
+
+        InsertNode(nodeA, nodeB);
+
+
+        return true;
     }
 
     void UpdateAllPositions(float deltaTime)
@@ -143,7 +184,9 @@ public class Grower2D : MonoBehaviour
         {
             foreach (var neighbor in node.neighbors.Values)
             {
-                Debug.DrawLine(node.position, neighbor.position, Color.green);
+                float intensity = GrowingHelpers2D.GetCurvature2D(node, neighbor);
+                Color col = new Color(0.0f, intensity, 0.0f);
+                Debug.DrawLine(node.position, neighbor.position, col);
 
                 Debug.DrawLine(node.position + Vector2.up * 0.1f, node.position + Vector2.down * 0.1f, Color.white);
                 Debug.DrawLine(node.position + Vector2.left * 0.1f, node.position + Vector2.right * 0.1f, Color.white);
