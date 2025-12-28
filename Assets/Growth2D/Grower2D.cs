@@ -6,8 +6,14 @@ using System.Collections;
 // TODO: implement in a compute shader
 public class Grower2D : MonoBehaviour
 {
+    public float startRadius = 1.0f;
+    public int initialNodeCount = 10;
+
     public float growthRate = 0.1f; // time between adding new nodes
-    public List<Node2D> nodes = new List<Node2D>();
+
+    public float baseProbability = 0.01f;
+
+    public SpatialHash nodeHash;
 
     public float curvatureThreshold = 0.5f; // threshold for curvature-based growth
 
@@ -23,20 +29,28 @@ public class Grower2D : MonoBehaviour
     [Tooltip("Attraction force towards neighbors")]
     public float attractionForce = 0.2f;
 
+    public int currNumNodes = 0;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        // start out with a square of nodes
-        nodes.Add(new Node2D(new Vector2(-1, -1)));
-        nodes.Add(new Node2D(new Vector2(1, -1)));
-        nodes.Add(new Node2D(new Vector2(1, 1)));
-        nodes.Add(new Node2D(new Vector2(-1, 1)));
+        nodeHash = new SpatialHash(separationDistance);
 
-        // connect the nodes
-        ConnectNodes(nodes[0], nodes[1]);
-        ConnectNodes(nodes[1], nodes[2]);
-        ConnectNodes(nodes[2], nodes[3]);
-        ConnectNodes(nodes[3], nodes[0]);
+        // start out with a circle of nodes
+        for (int i = 0; i < initialNodeCount; i++)
+        {
+            float angle = (2 * Mathf.PI / initialNodeCount) * i;
+            Vector2 pos = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * startRadius;
+            Node2D newNode = CreateNode(pos);
+            // connect to previous node
+            if (i > 0)
+            {
+                ConnectNodes(newNode, nodeHash.GetNode(i-1));
+            }
+        }
+
+        // connect last node to first to close the loop
+        ConnectNodes(nodeHash.GetNode(0), nodeHash.GetNode(initialNodeCount - 1));
 
         StartCoroutine(Grow());
     }
@@ -44,9 +58,7 @@ public class Grower2D : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        ApplySeparationForces();
-        ApplyAttractionForces();
-        ApplyDrag();
+        ApplyForces();
 
         UpdateAllPositions(Time.deltaTime);
 
@@ -55,14 +67,16 @@ public class Grower2D : MonoBehaviour
 
     public void InsertNode(Node2D newNode)
     {
-        nodes.Add(newNode);
+        nodeHash.AddNode(newNode);
     }
 
-    void ApplySeparationForces()
+    void ApplyForces()
     {
-        foreach (Node2D node in nodes)
+        foreach (Node2D node in nodeHash.nodes)
         {
-            Node2D[] nearbyNodes = GetAllWithinDistance(node, separationDistance);
+            // SEPARATION
+            Node2D[] nearbyNodes = nodeHash.GetAllWithinDistance(node, separationDistance);
+
             foreach (Node2D other in nearbyNodes)
             {
                 Vector2 repulsionDir = (node.position - other.position).normalized;
@@ -72,25 +86,15 @@ public class Grower2D : MonoBehaviour
                 node.ApplyForce(repulsionDir * separationForce * separationDistance * falloffFactor);
 
             }
-        }
-    }
 
-    void ApplyAttractionForces()
-    {
-        foreach (Node2D node in nodes)
-        {
+            // ATTRACTION
             foreach (var neighbor in node.neighbors.Values)
             {
                 Vector2 attractionDir = (neighbor.position - node.position).normalized;
                 node.ApplyForce(attractionDir * attractionForce);
             }
-        }
-    }
 
-    void ApplyDrag()
-    {
-        foreach (Node2D node in nodes)
-        {
+            // DRAG
             node.ApplyForce(-node.currVelocity * nodeDrag);
         }
     }
@@ -105,40 +109,36 @@ public class Grower2D : MonoBehaviour
         }
     }
 
+    // TODO: associate a probability for each edge and then go through ALL edges each growth step, and query that probability
+
     // picks a random edge and inserts a new node between the two nodes
     bool TryUpdateInsertions()
     {
-        Node2D[] currNodes = nodes.ToArray();
-
-        int randomIndex = Random.Range(0, currNodes.Length);
-
-        // pick a random neighbor to insert between
-        Node2D nodeA = currNodes[randomIndex];
-        if (nodeA.neighbors.Count == 0)
+        foreach (Node2D node in nodeHash.nodes)
         {
-            return false;
-        }
-        Node2D nodeB = nodeA.neighbors.Values.ElementAt(Random.Range(0, nodeA.neighbors.Count));
-
-        // calculate curvature at node A
-        float curvature = GrowingHelpers2D.GetCurvature2D(nodeA, nodeB);
-        Debug.DrawLine(nodeA.position, nodeB.position, Color.red, 1.0f);
-        print(curvature);
-
-        if (Mathf.Abs(curvature) < curvatureThreshold)
-        {
-            return false;
+            foreach (var neighbor in node.neighbors.Values)
+            {
+                float edgeLength = Vector2.Distance(node.position, neighbor.position);
+                if (edgeLength > nodeAddDistance)
+                {
+                    float curvature = GrowingHelpers2D.GetCurvature2D(node, neighbor);
+                    float curvatureFactor = Mathf.Clamp01(curvature / curvatureThreshold);
+                    float insertionProbability = baseProbability * (1.0f + curvatureFactor);
+                    if (Random.value < insertionProbability)
+                    {
+                        InsertNode(node, neighbor);
+                        return true; // only insert one node per growth step
+                    }
+                }
+            }
         }
 
-        InsertNode(nodeA, nodeB);
-
-
-        return true;
+        return false;
     }
 
     void UpdateAllPositions(float deltaTime)
     {
-        foreach (Node2D node in nodes)
+        foreach (Node2D node in nodeHash.nodes)
         {
             node.UpdatePosition();
         }
@@ -155,18 +155,24 @@ public class Grower2D : MonoBehaviour
         Vector2 midPoint = (nodeA.position + nodeB.position) / 2.0f;
         Node2D newNode = CreateNode(midPoint);
 
+        newNode.currVelocity = (nodeA.currVelocity + nodeB.currVelocity) / 2.0f;
+
         // connect the new node to its neighbors
         ConnectNodes(newNode, nodeA);
         ConnectNodes(newNode, nodeB);
 
         nodeA.RemoveNeighbor(nodeB);
         nodeB.RemoveNeighbor(nodeA);
+
+        Debug.DrawLine(nodeA.position, nodeB.position, Color.red, 1.0f);
     }
 
     Node2D CreateNode(Vector2 position)
     {
         Node2D newNode = new Node2D(position);
-        nodes.Add(newNode);
+        nodeHash.AddNode(newNode);
+
+        currNumNodes++;
 
         return newNode;
     }
@@ -180,7 +186,7 @@ public class Grower2D : MonoBehaviour
     void RenderNodes()
     {
         // debug draw lines between nodes and draw a cross at each node position
-        foreach (Node2D node in nodes)
+        foreach (Node2D node in nodeHash.nodes)
         {
             foreach (var neighbor in node.neighbors.Values)
             {
@@ -194,22 +200,6 @@ public class Grower2D : MonoBehaviour
         }
     }
 
-    // TODO: optimize this with spatial partitioning
-    // find all nodes within a certain distance of a position
-    Node2D[] GetAllWithinDistance(Node2D centerNode, float distance)
-    {
-        List<Node2D> results = new List<Node2D>();
-        float sqrDistance = distance * distance;
-        foreach (Node2D other in nodes)
-        {
-            if ((other.position - centerNode.position).sqrMagnitude <= sqrDistance)
-            {
-                results.Add(other);
-            }
-        }
-
-        return results.ToArray();
-    }
 }
 
 

@@ -300,13 +300,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 68363c33ec490cf4a82770b9253d22b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  growthRate: 0.2
+  startRadius: 1.6
+  initialNodeCount: 10
+  growthRate: 0.03
   nodes: []
   curvatureThreshold: 0.13
   separationForce: 0.04
   separationDistance: 6.16
   nodeDrag: 0.67
-  nodeAddDistance: 0.51
+  nodeAddDistance: 1
   attractionForce: 0.05
 --- !u!1 &832575517
 GameObject:
