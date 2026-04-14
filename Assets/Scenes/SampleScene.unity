@@ -638,8 +638,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   startRadius: 10
   initialNodeCount: 10
-  separationForce: 1
-  separationDistance: 3
+  separationForce: 5
+  separationDistance: 5
   attractionForce: 0.5
   laplacianSmoothing: 0.1
   growthRate: 5

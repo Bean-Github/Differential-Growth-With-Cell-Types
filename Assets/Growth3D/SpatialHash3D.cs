@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using UnityEditor;
 using UnityEngine;
 
 #if UNITY_EDITOR
@@ -84,26 +83,6 @@ namespace Growth3D
         {
             return allNodes[index];
         }
-
-        //// gets all nodes in the same and adjacent cells
-        //public List<Node2D> GetNearbyNodes(Vector2 position)
-        //{
-        //    Vector2Int cell = GetCellCoords(position);
-        //    List<Node2D> neighbors = new List<Node2D>();
-        //    // check the current cell and adjacent cells
-        //    for (int x = -1; x <= 1; x++)
-        //    {
-        //        for (int y = -1; y <= 1; y++)
-        //        {
-        //            Vector2Int adjacentCell = new Vector2Int(cell.x + x, cell.y + y);
-        //            if (hash.ContainsKey(adjacentCell))
-        //            {
-        //                neighbors.AddRange(hash[adjacentCell]);
-        //            }
-        //        }
-        //    }
-        //    return neighbors;
-        //}
 
         private List<Node3D> _queryResults = new List<Node3D>(1024);
 

@@ -86,8 +86,56 @@ namespace Growth3D
             m_nodeHash.RemoveNode(node);
         }
 
+        // TODO: SPLIT FACE OF TRIANGLE
+        // Splits an edge and cross-connects to opposite vertices to preserve a solid triangle mesh
+        public void SplitTriangle(Edge3D edge)
+        {
+            Node3D nodeA = edge.nodeA;
+            Node3D nodeB = edge.nodeB;
+
+            if (nodeA.neighbors.ContainsKey(nodeB.id) == false)
+            {
+                Debug.LogWarning("Attempted to split non-neighboring nodes");
+                return;
+            }
+
+            // 1. Find the shared neighbors (these are the third vertices of the triangles sharing this edge)
+            List<Node3D> oppositeNodes = new List<Node3D>();
+
+            foreach (Node3D neighborOfA in nodeA.neighbors.Values)
+            {
+                // If B ALSO connects to this exact same neighbor, we found a triangle!
+                if (nodeB.neighbors.ContainsKey(neighborOfA.id))
+                {
+                    oppositeNodes.Add(neighborOfA);
+                }
+            }
+
+            // Note: On a healthy, closed surface mesh (like a sphere), oppositeNodes should 
+            // ALWAYS contain exactly 2 nodes. If it contains 1, it's on a boundary/hole. 
+            // If it contains 3+, your mesh is non-manifold (broken geometry).
+
+            // 2. Create the new node in the middle
+            Vector3 midPoint = (nodeA.position + nodeB.position) / 2.0f;
+            Node3D newNode = AddNode(midPoint);
+            newNode.currVelocity = (nodeA.currVelocity + nodeB.currVelocity) / 2.0f;
+
+            // 3. Destroy the old stretching edge
+            RemoveEdge(nodeA, nodeB);
+
+            // 4. Create the new structural edges along the split
+            AddEdge(nodeA, newNode);
+            AddEdge(nodeB, newNode);
+
+            // 5. Connect the new node to the opposite nodes to split the faces into smaller triangles
+            foreach (Node3D oppNode in oppositeNodes)
+            {
+                AddEdge(newNode, oppNode);
+            }
+        }
+
         // add a node in the middle of an edge, inheriting average velocity and connecting to the same neighbors
-        public void InsertNode(Edge3D edge)
+        public void SplitEdge(Edge3D edge)
         {
             Node3D nodeA = edge.nodeA;
             Node3D nodeB = edge.nodeB;
@@ -104,7 +152,7 @@ namespace Growth3D
             newNode.currVelocity = (nodeA.currVelocity + nodeB.currVelocity) / 2.0f; // inherit average velocity
 
             // Split the edge
-            SplitEdge(edge, newNode);
+            m_edgeList.SplitEdge(edge, newNode);
 
             Debug.DrawLine(nodeA.position, nodeB.position, Color.red, 1.0f);
         }
@@ -130,11 +178,6 @@ namespace Growth3D
         public void RemoveEdge(Node3D nodeA, Node3D nodeB)
         {
             m_edgeList.RemoveEdge(nodeA, nodeB);
-        }
-
-        public void SplitEdge(Edge3D edge, Node3D newNode)
-        {
-            m_edgeList.SplitEdge(edge, newNode);
         }
 
         public Edge3D GetEdge(Node3D nodeA, Node3D nodeB)

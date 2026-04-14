@@ -116,7 +116,7 @@ namespace Growth3D
             Vector3 v2 = (posB - this.position).normalized;
 
             // Clamp dot product to prevent NaN errors from floating point imprecision
-            float dot = Mathf.Clamp(Vector3.Dot(v1, v2), -1f, 1f);
+            float dot = Mathf.Abs(Vector3.Dot(v1, v2));
             return Mathf.Acos(dot); // Returns radians
         }
 

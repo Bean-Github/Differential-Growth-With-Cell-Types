@@ -152,7 +152,7 @@ namespace Growth3D
 
             foreach (Edge3D edge in edgesToSplit)
             {
-                _nodeHoard.InsertNode(edge);
+                _nodeHoard.SplitTriangle(edge);
             }
         }
 
