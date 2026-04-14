@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Collections;
 
-namespace Growth2D
+namespace Growth3D
 {
     // TODO: implement in a compute shader
-    public class Grower2D : MonoBehaviour
+    public class Grower3D : MonoBehaviour
     {
         [Header("Initial Shape")]
         public float startRadius = 1.0f;
@@ -36,43 +36,24 @@ namespace Growth2D
         public float nodeDrag = 0.1f;
 
         [Header("Debug")]
-        public bool debugDrawGrid;
+        public bool debug_DrawGrid;
+        public int debug_NumNodes;
 
-        // storage
-        NodeHoard2D nodeHoard;
+        [Header("References")]
+        public ShapeGenerator3D shapeGenerator;
+
+        NodeHoard3D _nodeHoard;
 
         void Awake()
         {
-            nodeHoard = new NodeHoard2D(separationDistance);
+            _nodeHoard = shapeGenerator.Initialize(separationDistance);
+            shapeGenerator.CreateTestSphere(startRadius);
         }
 
-        // Start is called once before the first execution of Update after the MonoBehaviour is created
         void Start()
         {
-            void CreateInitialShape()
-            {
-                // start out with a circle of nodes
-                for (int i = 0; i < initialNodeCount; i++)
-                {
-                    float angle = (2 * Mathf.PI / initialNodeCount) * i;
-                    Vector2 pos = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * startRadius;
-                    Node2D newNode = nodeHoard.AddNode(pos);
-                    // connect to previous node
-                    if (i > 0)
-                    {
-                        nodeHoard.AddEdge(newNode, nodeHoard.GetNode(i - 1));
-                    }
-                }
-
-                // connect last node to first to close the loop
-                nodeHoard.AddEdge(nodeHoard.GetNode(0), nodeHoard.GetNode(initialNodeCount - 1));
-            }
-
-            CreateInitialShape();
             StartCoroutine(Grow());
         }
-
-        public int debug_NumNodes;
 
         // Update is called once per frame
         void Update()
@@ -80,51 +61,51 @@ namespace Growth2D
             ApplyNaturalForces();
             ApplyPressureGradient();
 
-            nodeHoard.UpdateNodeData();
+            _nodeHoard.UpdateNodeData();
 
             RenderNodes();
 
             // debug
-            debug_NumNodes = nodeHoard.numNodes;
+            debug_NumNodes = _nodeHoard.numNodes;
         }
 
         // updaters
         void ApplyNaturalForces()
         {
-            foreach (Node2D node in nodeHoard.allNodes)
+            foreach (Node3D node in _nodeHoard.allNodes)
             {
                 // SEPARATION
-                List<Node2D> nearbyNodes = nodeHoard.GetNearbyNodesWithinDistance(node, separationDistance);
-                foreach (Node2D other in nearbyNodes)
+                List<Node3D> nearbyNodes = _nodeHoard.GetNearbyNodesWithinDistance(node, separationDistance);
+                foreach (Node3D other in nearbyNodes)
                 {
-                    Vector2 repulsionDir = (node.position - other.position).normalized;
+                    Vector3 repulsionDir = (node.position - other.position).normalized;
 
-                    float falloffFactor = GrowingHelpers2D.GetSpikyKernel2D(node.position, other.position, separationDistance);
+                    float falloffFactor = GrowingHelpers3D.GetSpikyKernel3D(node.position, other.position, separationDistance);
 
                     node.ApplyForce(repulsionDir * separationForce * separationDistance * falloffFactor);
                 }
 
                 // ATTRACTION
-                foreach ((int i, Node2D neighbor) in node.neighbors)
+                foreach ((int i, Node3D neighbor) in node.neighbors)
                 {
-                    Vector2 attractionDir = (neighbor.position - node.position).normalized;
+                    Vector3 attractionDir = (neighbor.position - node.position).normalized;
                     node.ApplyForce(attractionDir * attractionForce);
                 }
 
                 // LAPLACIAN ATTRACTION (SMOOTHING)
                 if (node.neighbors.Count > 0)
                 {
-                    Vector2 neighborCenter = Vector2.zero;
+                    Vector3 neighborCenter = Vector3.zero;
 
                     // calculate centroid of neighbors
-                    foreach ((int i, Node2D neighbor) in node.neighbors)
+                    foreach ((int i, Node3D neighbor) in node.neighbors)
                     {
                         neighborCenter += neighbor.position;
                     }
                     neighborCenter /= node.neighbors.Count;
 
                     // calculate the Laplacian vector (Vector from node to centroid)
-                    Vector2 laplacianVector = neighborCenter - node.position;
+                    Vector3 laplacianVector = neighborCenter - node.position;
 
                     node.ApplyForce(laplacianVector * laplacianSmoothing);
                 }
@@ -137,39 +118,25 @@ namespace Growth2D
         // use a simple radial pressure gradient
         void ApplyPressureGradient()
         {
-            float scale = 5.0f;
-            float speed = 2.0f;
-
-            // Calculate a moving target point along a figure-8 path
-            Vector2 targetPos = new Vector2(
-                Mathf.Cos(Time.time * speed) * scale,
-                Mathf.Sin(Time.time * speed * 2.0f) * (scale / 2.0f)
-            );
-
-            foreach (Node2D node in nodeHoard.allNodes)
-            {
-                // Pull nodes toward the moving target
-                Vector2 direction = targetPos - node.position;
-                node.ApplyForce(direction.normalized * 3.0f);
-            }
+            
         }
 
         IEnumerator Grow()
         {
             while (true)
             {
-                TryUpdateInsertions();
-
                 yield return new WaitForSeconds(growthRate);
+
+                TryUpdateInsertions();
             }
         }
 
-        List<Edge2D> edgesToSplit = new List<Edge2D>();
+        List<Edge3D> edgesToSplit = new List<Edge3D>();
         void TryUpdateInsertions()
         {
             edgesToSplit.Clear(); // clear previous frame's data
 
-            foreach (Edge2D edge in nodeHoard.allEdges)
+            foreach (Edge3D edge in _nodeHoard.allEdges)
             {
                 if (edge.Curvature < curvatureThreshold)
                 {
@@ -183,9 +150,9 @@ namespace Growth2D
                 }
             }
 
-            foreach (Edge2D edge in edgesToSplit)
+            foreach (Edge3D edge in edgesToSplit)
             {
-                nodeHoard.InsertNode(edge);
+                _nodeHoard.InsertNode(edge);
             }
         }
 
@@ -197,10 +164,10 @@ namespace Growth2D
 
         private void OnDrawGizmos()
         {
-            nodeHoard?.DebugDrawNodes();
-            if (debugDrawGrid)
+            _nodeHoard?.DebugDrawNodes();
+            if (debug_DrawGrid)
             {
-                nodeHoard?.DebugDrawGrid();
+                _nodeHoard?.DebugDrawGrid();
             }
         }
     }

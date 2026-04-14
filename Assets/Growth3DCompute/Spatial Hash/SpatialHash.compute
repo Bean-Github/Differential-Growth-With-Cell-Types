@@ -1,0 +1,141 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CreateSpatialLookup
+#pragma kernel SortSpatialLookup
+#pragma kernel CalculateStartIndices
+
+#include "../GrowthHelper3D.hlsl"
+
+RWStructuredBuffer<Particle> particleData;
+
+RWStructuredBuffer<Entry> spatialLookup;
+
+RWStructuredBuffer<uint> startIndices;
+
+uint particleCount;
+
+float smoothingRadius;
+float3 boundsCenter;
+float3 boundsExtents;
+
+
+static const int GroupSize = 64;
+
+uint width;
+uint height;
+
+const uint UINT_MAX = 0xFFFFFFFF; // 2^32 - 1 = 4294967295
+
+[numthreads(64, 1, 1)]
+void CreateSpatialLookup(uint3 id : SV_DispatchThreadID)
+{
+    uint i = id.x;
+
+        // guard: only process real particles (avoid over-dispatch out-of-bounds)
+    if (i >= particleCount)
+        return;
+    
+    int3 cell = PositionToCellCoord(particleData[i].position, smoothingRadius, boundsCenter, boundsExtents);
+    
+    uint numCellsX = max(1, ceil(boundsExtents.x * 2 / smoothingRadius));
+    uint numCellsY = max(1, ceil(boundsExtents.y * 2 / smoothingRadius));
+    uint numCellsZ = max(1, ceil(boundsExtents.z * 2 / smoothingRadius));
+    
+    // CLAMP HERE to guarantee valid indices
+    //cell.x = clamp(cell.x, 0, (int) numCellsX - 1);
+    //cell.y = clamp(cell.y, 0, (int) numCellsY - 1);
+    //cell.z = clamp(cell.z, 0, (int) numCellsZ - 1);
+    
+    uint hash = HashCell(cell.x, cell.y, cell.z);
+
+    //uint totalCells = numCellsX * numCellsY * numCellsZ;
+
+   // uint key = KeyFromHash(hash, particleCount);
+
+    uint cellKey = KeyFromHash(hash, particleCount);
+    
+    //cell.x = clamp(cell.x, 0, numCellsX - 1);
+    //cell.y = clamp(cell.y, 0, numCellsY - 1);
+    //cell.z = clamp(cell.z, 0, numCellsZ - 1);
+    //uint cellKey = KeyFromHash(hash, numCellsX * numCellsY * numCellsZ);
+    
+    Entry newEntry = { (uint) i, hash, cellKey, 0 };
+    
+    spatialLookup[i] = newEntry;
+    
+    startIndices[i] = UINT_MAX; // Initialize start indices to a large value
+}
+
+// each thread will handle more than one pair and swap if needed
+
+
+[numthreads(64, 1, 1)]
+void SortSpatialLookup(uint3 id : SV_DispatchThreadID)
+{
+    // if index odd then descending, else ascending 
+    
+    // to find index low we want to essentially go one by one until we reach the end of the width, then hop down to the next pair
+    
+    uint globalIndex = id.x;
+    uint indexLow = globalIndex + (globalIndex / width) * width;
+    
+    // get index high
+    uint indexHigh = indexLow + width;
+    
+    if (indexHigh >= particleCount)
+    {
+        // if index high is out of bounds, return (for non power of 2 arrays)
+        return;
+    }
+    
+    
+    // determine accending or descending based on the height and index low pos
+    bool accending = ((indexLow / height) % 2 == 0);
+
+    if (accending)
+    {
+    // even hop number, ascending
+        if (spatialLookup[indexLow].cellKey > spatialLookup[indexHigh].cellKey)
+        {
+        // swap
+            Entry temp = spatialLookup[indexLow];
+            spatialLookup[indexLow] = spatialLookup[indexHigh];
+            spatialLookup[indexHigh] = temp;
+        }
+    }
+    else
+    {
+    // odd hop number, descending
+        if (spatialLookup[indexLow].cellKey < spatialLookup[indexHigh].cellKey)
+        {
+        // swap
+            Entry temp = spatialLookup[indexLow];
+            spatialLookup[indexLow] = spatialLookup[indexHigh];
+            spatialLookup[indexHigh] = temp;
+        }
+    }
+}
+
+[numthreads(64, 1, 1)]
+void CalculateStartIndices(uint3 id : SV_DispatchThreadID)
+{
+    uint i = id.x;
+    if (i >= particleCount)
+        return;
+    
+    uint key = spatialLookup[i].cellKey;
+
+    //// Atomically set the smallest index for this key
+    //InterlockedMin(startIndices[key], i);
+    uint keyPrev = i == 0 ? UINT_MAX : spatialLookup[i - 1].cellKey;
+    if (key != keyPrev)
+    {
+        startIndices[key] = i;
+    }
+}
+
+
+
+
+
+
+

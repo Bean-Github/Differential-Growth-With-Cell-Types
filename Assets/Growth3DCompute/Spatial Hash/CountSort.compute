@@ -1,0 +1,84 @@
+#pragma kernel ClearCounts
+#pragma kernel CalculateCounts
+#pragma kernel ScatterOutput
+#pragma kernel CopyBack
+
+#include "../GrowthHelper3D.hlsl"
+
+//RWStructuredBuffer<uint> InputItems;
+//RWStructuredBuffer<uint> InputKeys;
+//RWStructuredBuffer<uint> SortedItems;
+//RWStructuredBuffer<uint> SortedKeys;
+
+uint numInputs;
+
+RWStructuredBuffer<uint> Counts;
+
+RWStructuredBuffer<Entry> spatialLookupInputItems;
+
+RWStructuredBuffer<Entry> spatialLookupSortedItems;
+
+
+
+static const int GroupSize = 256;
+
+[numthreads(GroupSize, 1, 1)]
+void ClearCounts(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= numInputs)
+        return;
+
+    Counts[id.x] = 0;
+    
+}
+
+[numthreads(GroupSize, 1, 1)]
+void CalculateCounts(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= numInputs)
+        return;
+
+    //uint key = InputKeys[id.x];
+    
+    uint key = spatialLookupInputItems[id.x].cellKey;
+
+    InterlockedAdd(Counts[key], 1);
+}
+
+
+// NOTE: this stuff is done after prefix sum is calculated
+[numthreads(GroupSize, 1, 1)]
+void ScatterOutput(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= numInputs)
+        return;
+
+    //uint key = InputKeys[id.x];
+    
+    uint key = spatialLookupInputItems[id.x].cellKey;
+
+    uint sortedIndex;
+    InterlockedAdd(Counts[key], 1, sortedIndex);
+
+    spatialLookupSortedItems[sortedIndex] = spatialLookupInputItems[id.x];
+}
+
+[numthreads(GroupSize, 1, 1)]
+void CopyBack(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= numInputs)
+        return;
+
+    //InputItems[id.x] = SortedItems[id.x];
+    //InputKeys[id.x] = SortedKeys[id.x];
+    
+    spatialLookupInputItems[id.x] = spatialLookupSortedItems[id.x];
+}
+
+
+
+
+
+
+
+
