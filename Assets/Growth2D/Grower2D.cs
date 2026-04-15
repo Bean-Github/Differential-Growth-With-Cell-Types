@@ -134,24 +134,24 @@ namespace Growth2D
             }
         }
 
-        // use a simple radial pressure gradient
+
         void ApplyPressureGradient()
         {
-            float scale = 5.0f;
-            float speed = 2.0f;
+            //float scale = 5.0f;
+            //float speed = 2.0f;
 
-            // Calculate a moving target point along a figure-8 path
-            Vector2 targetPos = new Vector2(
-                Mathf.Cos(Time.time * speed) * scale,
-                Mathf.Sin(Time.time * speed * 2.0f) * (scale / 2.0f)
-            );
+            //// Calculate a moving target point along a figure-8 path
+            //Vector2 targetPos = new Vector2(
+            //    Mathf.Cos(Time.time * speed) * scale,
+            //    Mathf.Sin(Time.time * speed * 2.0f) * (scale / 2.0f)
+            //);
 
-            foreach (Node2D node in nodeHoard.allNodes)
-            {
-                // Pull nodes toward the moving target
-                Vector2 direction = targetPos - node.position;
-                node.ApplyForce(direction.normalized * 3.0f);
-            }
+            //foreach (Node2D node in nodeHoard.allNodes)
+            //{
+            //    // Pull nodes toward the moving target
+            //    Vector2 direction = targetPos - node.position;
+            //    node.ApplyForce(direction.normalized * 3.0f);
+            //}
         }
 
         IEnumerator Grow()

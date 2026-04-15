@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class ComputeRunner : MonoBehaviour
+public class Grower3DComputeRunner : MonoBehaviour
 {
     [Header("Shader Setup")]
     public ComputeShader computeShader;
