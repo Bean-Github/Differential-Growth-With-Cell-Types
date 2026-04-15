@@ -26,7 +26,7 @@ namespace Growth3D
             List<int[]> faces = new List<int[]>();
 
             // We use a cache to avoid creating duplicate vertices when two triangles share the same edge
-            System.Collections.Generic.Dictionary<long, int> midpointCache = new System.Collections.Generic.Dictionary<long, int>();
+            Dictionary<long, int> midpointCache = new Dictionary<long, int>();
 
             // 1. Setup the Base Icosahedron (Your original code!)
             float t = (1.0f + Mathf.Sqrt(5.0f)) / 2.0f;
@@ -92,37 +92,22 @@ namespace Growth3D
                 faces = nextFaces;
             }
 
-            // 3. Add to NodeHoard securely
-            // We store the exact Node3D objects in a list so their indices match our 'faces' array perfectly.
+            // Add to NodeHoard securely
             List<Node3D> finalNodes = new List<Node3D>();
             foreach (Vector3 vert in vertices)
             {
                 finalNodes.Add(_nodeHoard.AddNode(vert));
             }
 
-            // 4. Connect the Edges
-            System.Collections.Generic.HashSet<long> addedEdges = new System.Collections.Generic.HashSet<long>();
-
-            // Local Helper to safely add an edge without duplicates
-            void TryAddEdge(int indexA, int indexB)
-            {
-                long min = Mathf.Min(indexA, indexB);
-                long max = Mathf.Max(indexA, indexB);
-                long edgeKey = (min << 32) + max;
-
-                if (addedEdges.Add(edgeKey))
-                {
-                    _nodeHoard.AddEdge(finalNodes[(int)min], finalNodes[(int)max]);
-                }
-            }
-
             foreach (int[] face in faces)
             {
-                // A triangle has 3 edges: AB, BC, CA
-                TryAddEdge(face[0], face[1]);
-                TryAddEdge(face[1], face[2]);
-                TryAddEdge(face[2], face[0]);
+                Node3D a = finalNodes[face[0]];
+                Node3D b = finalNodes[face[1]];
+                Node3D c = finalNodes[face[2]];
+
+                _nodeHoard.AddTriangle(a, b, c);
             }
+
         }
 
     }

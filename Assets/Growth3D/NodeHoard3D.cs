@@ -9,12 +9,17 @@ namespace Growth3D
     {
         // storage
         private SpatialHash3D m_nodeHash;
-        private EdgeList3D m_edgeList;
+        public List<Edge3D> halfEdges;
+        public List<Face3D> faces;
+        private Dictionary<long, Edge3D> edgeSutures;
 
         public NodeHoard3D(float separationDistance)
         {
             m_nodeHash = new SpatialHash3D(separationDistance); // cell size of 1 unit
-            m_edgeList = new EdgeList3D();
+
+            halfEdges = new List<Edge3D>();
+            faces = new List<Face3D>();
+            edgeSutures = new Dictionary<long, Edge3D>();
         }
 
         #region Debug
@@ -23,11 +28,11 @@ namespace Growth3D
             // debug draw lines between nodes and draw a cross at each node position
             foreach (Node3D node in allNodes)
             {
-                foreach (var neighbor in node.neighbors.Values)
+                foreach (Edge3D edge in node.edges)
                 {
-                    float intensity = m_edgeList.GetEdge(node, neighbor).Curvature;
+                    float intensity = edge.Curvature;
                     Color col = new Color(0.0f, intensity, 0.0f);
-                    Debug.DrawLine(node.position, neighbor.position, col);
+                    Debug.DrawLine(node.position, edge.twin.origin.position, col);
 
                     Debug.DrawLine(node.position + Vector3.up * 0.1f, node.position + Vector3.down * 0.1f, Color.white);
                     Debug.DrawLine(node.position + Vector3.left * 0.1f, node.position + Vector3.right * 0.1f, Color.white);
@@ -48,13 +53,6 @@ namespace Growth3D
             get => m_nodeHash.allNodes.Count;
             private set { }
         }
-    
-        public IReadOnlyList<Edge3D> allEdges => m_edgeList.allEdges;
-        public int numEdges
-        {
-            get => allEdges.Count;
-            private set { }
-        }
         #endregion
 
         #region Node Management
@@ -63,98 +61,16 @@ namespace Growth3D
             return m_nodeHash.GetNode(index);
         }
 
-        public List<Node3D> GetNearbyNodesWithinDistance(Node3D node, float dist)
-        {
-            return m_nodeHash.GetNearbyNodes(node, dist);
-        }
-
         public Node3D AddNode(Vector3 position)
         {
             Node3D newNode = new Node3D(position);
             m_nodeHash.AddNode(newNode);
-
             return newNode;
         }
 
-        public void RemoveNode(Node3D node)
+        public List<Node3D> GetNearbyNodesWithinDistance(Node3D node, float dist)
         {
-            // remove all edges connected to this node
-            foreach (var neighbor in node.neighbors.Values)
-            {
-                RemoveEdge(node, neighbor);
-            }
-            m_nodeHash.RemoveNode(node);
-        }
-
-        // TODO: SPLIT FACE OF TRIANGLE
-        // Splits an edge and cross-connects to opposite vertices to preserve a solid triangle mesh
-        public void SplitTriangle(Edge3D edge)
-        {
-            Node3D nodeA = edge.nodeA;
-            Node3D nodeB = edge.nodeB;
-
-            if (nodeA.neighbors.ContainsKey(nodeB.id) == false)
-            {
-                Debug.LogWarning("Attempted to split non-neighboring nodes");
-                return;
-            }
-
-            // 1. Find the shared neighbors (these are the third vertices of the triangles sharing this edge)
-            List<Node3D> oppositeNodes = new List<Node3D>();
-
-            foreach (Node3D neighborOfA in nodeA.neighbors.Values)
-            {
-                // If B ALSO connects to this exact same neighbor, we found a triangle!
-                if (nodeB.neighbors.ContainsKey(neighborOfA.id))
-                {
-                    oppositeNodes.Add(neighborOfA);
-                }
-            }
-
-            // Note: On a healthy, closed surface mesh (like a sphere), oppositeNodes should 
-            // ALWAYS contain exactly 2 nodes. If it contains 1, it's on a boundary/hole. 
-            // If it contains 3+, your mesh is non-manifold (broken geometry).
-
-            // 2. Create the new node in the middle
-            Vector3 midPoint = (nodeA.position + nodeB.position) / 2.0f;
-            Node3D newNode = AddNode(midPoint);
-            newNode.currVelocity = (nodeA.currVelocity + nodeB.currVelocity) / 2.0f;
-
-            // 3. Destroy the old stretching edge
-            RemoveEdge(nodeA, nodeB);
-
-            // 4. Create the new structural edges along the split
-            AddEdge(nodeA, newNode);
-            AddEdge(nodeB, newNode);
-
-            // 5. Connect the new node to the opposite nodes to split the faces into smaller triangles
-            foreach (Node3D oppNode in oppositeNodes)
-            {
-                AddEdge(newNode, oppNode);
-            }
-        }
-
-        // add a node in the middle of an edge, inheriting average velocity and connecting to the same neighbors
-        public void SplitEdge(Edge3D edge)
-        {
-            Node3D nodeA = edge.nodeA;
-            Node3D nodeB = edge.nodeB;
-
-            if (nodeA.neighbors.ContainsKey(nodeB.id) == false || nodeB.neighbors.ContainsKey(nodeA.id) == false)
-            {
-                Debug.LogWarning("Attempted to insert node between non-neighboring nodes");
-                return;
-            }
-
-            // Create a new node in the middle of the edge
-            Vector3 midPoint = (nodeA.position + nodeB.position) / 2.0f;
-            Node3D newNode = AddNode(midPoint);
-            newNode.currVelocity = (nodeA.currVelocity + nodeB.currVelocity) / 2.0f; // inherit average velocity
-
-            // Split the edge
-            m_edgeList.SplitEdge(edge, newNode);
-
-            Debug.DrawLine(nodeA.position, nodeB.position, Color.red, 1.0f);
+            return m_nodeHash.GetNearbyNodes(node, dist);
         }
 
         // UPDATES all position, curvature, and spatial hash data for all nodes. Call this once per frame.
@@ -170,26 +86,183 @@ namespace Growth3D
         #endregion
 
         #region Edge Management
-        public void AddEdge(Node3D nodeA, Node3D nodeB)
+        public Face3D AddTriangle(Node3D a, Node3D b, Node3D c)
         {
-            m_edgeList.AddEdge(nodeA, nodeB);
+            Face3D face = new Face3D();
+            faces.Add(face);
+
+            Edge3D he1 = new Edge3D { origin = a, face = face };
+            Edge3D he2 = new Edge3D { origin = b, face = face };
+            Edge3D he3 = new Edge3D { origin = c, face = face };
+
+            halfEdges.AddRange(new[] { he1, he2, he3 });
+
+            he1.next = he2; he1.prev = he3;
+            he2.next = he3; he2.prev = he1;
+            he3.next = he1; he3.prev = he2;
+
+            face.halfEdge = he1;
+            a.halfEdge ??= he1; // if v1 is not null, set its halfedge to he1
+            b.halfEdge ??= he2;
+            c.halfEdge ??= he3;
+
+            SutureTwin(he1, a, b);
+            SutureTwin(he2, b, c);
+            SutureTwin(he3, c, a);
+
+            return face;
         }
 
-        public void RemoveEdge(Node3D nodeA, Node3D nodeB)
+        private void SutureTwin(Edge3D halfEdge, Node3D from, Node3D to)
         {
-            m_edgeList.RemoveEdge(nodeA, nodeB);
+            int min = Mathf.Min(from.id, to.id);
+            int max = Mathf.Max(from.id, to.id);
+            long key = ((long)min << 32) + max;
+
+            // if there exists and edge going to -> from, then that is our twin!
+            if (edgeSutures.TryGetValue(key, out Edge3D twin))
+            {
+                halfEdge.twin = twin;
+                twin.twin = halfEdge;
+                edgeSutures.Remove(key);
+            }
+            else
+            {
+                edgeSutures.Add(key, halfEdge);
+            }
         }
 
-        public Edge3D GetEdge(Node3D nodeA, Node3D nodeB)
+        // splits a triangle!
+        public void SplitTriangle(Edge3D edgeToSplit)
         {
-            return m_edgeList.GetEdge(nodeA, nodeB);
-        }
+            // edge to split goes from LEFT to RIGHT
+            Node3D topNode = edgeToSplit.next.target; // (assuming standard CCW winding)
+            Node3D bottomNode = edgeToSplit.twin.next.target;
+            Node3D rightNode = edgeToSplit.target;
+            Node3D leftNode = edgeToSplit.origin;
 
-        public Edge3D GetRandomEdge()
-        {
-            int edgeIndex = Random.Range(0, numEdges);
+            // create midpoint node
+            Vector3 midPoint = (rightNode.position + leftNode.position) / 2.0f;
+            Node3D newNode = AddNode(midPoint);
+            newNode.currVelocity = (rightNode.currVelocity + leftNode.currVelocity) / 2.0f;
 
-            return allEdges[edgeIndex];
+            // 3. Keep the outer boundary edges, but save references to them
+            Edge3D eTopLeft = edgeToSplit.prev;
+            Edge3D eRightTop = edgeToSplit.next;
+            Edge3D eBottomRight = edgeToSplit.twin.prev;
+            Edge3D eLeftBottom = edgeToSplit.twin.next;
+
+            // 4. We reuse the 2 existing faces and the 2 existing half-edges (the middle ones)
+            Face3D topFace = edgeToSplit.face;
+            Face3D bottomFace = edgeToSplit.twin.face;
+            Edge3D eLeftMid = edgeToSplit; // Re-purpose to go from leftNode -> mid
+            Edge3D eMidLeft = edgeToSplit.twin; // Re-purpose to go from leftNode -> mid
+
+            // 5. Create the 6 brand NEW half-edges and 2 NEW faces required
+            Face3D newTopFace = new Face3D();   // a new face on top right
+            Face3D newBottomFace = new Face3D();    // a new face on bottom right
+            faces.Add(newTopFace);
+            faces.Add(newBottomFace);
+
+            Edge3D eMidTop = new Edge3D();
+            Edge3D eTopMid = new Edge3D();
+            Edge3D eMidBottom = new Edge3D();
+            Edge3D eBottomMid = new Edge3D();
+            Edge3D eMidRight = new Edge3D();
+            Edge3D eRightMid = new Edge3D();
+
+            // Add these 6 to your halfEdges list...
+            halfEdges.Add(eMidTop);
+            halfEdges.Add(eTopMid);
+            halfEdges.Add(eMidBottom);
+            halfEdges.Add(eBottomMid);
+            halfEdges.Add(eRightMid);
+            halfEdges.Add(eLeftMid);
+
+            // --- THE STITCHING PHASE ---
+            // You now systematically assign the .next, .prev, .twin, .origin, and .face 
+            // for the 4 triangles radiating from newNode.
+
+            // Example of stitching the Top-Right triangle:
+            eRightTop.face = newTopFace; // Outer boundary edge belongs to the new face now
+            eRightTop.next = eTopMid;
+            eRightTop.prev = eMidRight;
+
+            eMidRight.origin = newNode;
+            eMidRight.twin = eRightMid;
+            eMidRight.next = eRightTop;
+            eMidRight.prev = eTopMid;
+            eMidRight.face = newTopFace;
+
+            eTopMid.origin = topNode;
+            eTopMid.twin = eMidTop;
+            eTopMid.next = eMidRight;
+            eTopMid.prev = eRightTop;
+            eTopMid.face = newTopFace;
+
+            // Bottom right Triangle:
+            eBottomRight.face = newBottomFace; // Outer boundary edge belongs to the new face now
+            eBottomRight.next = eRightMid;
+            eBottomRight.prev = eMidBottom;
+
+            eMidBottom.origin = newNode;
+            eMidBottom.twin = eBottomMid;
+            eMidBottom.next = eBottomRight;
+            eMidBottom.prev = eRightMid;
+            eMidBottom.face = newBottomFace;
+
+            eRightMid.origin = rightNode;
+            eRightMid.twin = eMidRight;
+            eRightMid.next = eMidBottom;
+            eRightMid.prev = eBottomRight;
+            eRightMid.face = newBottomFace;
+
+            // top left triangle
+            eMidTop.origin = newNode;
+            eMidTop.twin = eTopMid;
+            eMidTop.next = eTopLeft;
+            eMidTop.prev = eLeftMid;
+            eMidTop.face = topFace;
+
+            eTopLeft.face = topFace; // Outer boundary edge
+            eTopLeft.next = eLeftMid;
+            eTopLeft.prev = eMidTop;
+
+            eLeftMid.origin = leftNode;
+            eLeftMid.twin = eMidLeft;
+            eLeftMid.next = eMidTop;
+            eLeftMid.prev = eTopLeft;
+            eLeftMid.face = topFace;
+
+            // bottom left triangle
+            eBottomMid.origin = bottomNode;
+            eBottomMid.twin = eMidBottom;
+            eBottomMid.next = eMidLeft;
+            eBottomMid.prev = eLeftBottom;
+            eBottomMid.face = bottomFace;
+
+            eMidLeft.origin = newNode;
+            eMidLeft.twin = eLeftMid;
+            eMidLeft.next = eLeftBottom;
+            eMidLeft.prev = eBottomMid;
+            eMidLeft.face = bottomFace;
+
+            eLeftBottom.face = bottomFace; // Outer boundary edge
+            eLeftBottom.next = eBottomMid;
+            eLeftBottom.prev = eMidLeft;
+
+            // set face pointers
+            topFace.halfEdge = eLeftMid;
+            bottomFace.halfEdge = eMidLeft;
+            newTopFace.halfEdge = eMidRight;
+            newBottomFace.halfEdge = eRightMid;
+
+            // set node pointers
+            newNode.halfEdge = eMidRight;
+            topNode.halfEdge = eTopLeft;
+            leftNode.halfEdge = eLeftBottom;
+            bottomNode.halfEdge = eBottomRight;
+            rightNode.halfEdge = eRightTop;
         }
         #endregion
     }

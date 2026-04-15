@@ -1,44 +1,35 @@
-using UnityEngine;
 using System.Collections.Generic;
-
+using UnityEngine;
 
 namespace Growth3D
 {
     [System.Serializable]
     public class Node3D
     {
+        // ID
+        public int id;
+        static int nextID = 0;
+        public int meshIndex;
+
+        // PROPERTIES
         public Vector3 position;
         public Vector3 currVelocity;
         public float mass = 1.0f;
+        public Vector3Int currentCell;
+        public float Curvature { get; private set; }
 
-        public Dictionary<int, Node3D> neighbors;
-
-        static int nextID = 0;
-
-        public int id;
-
-        public float Curvature
-        {
-            get => m_curvature;
-            private set { }
-        }
-        private float m_curvature;
-
-        public Vector3Int currentCell; // for spatial hashing
+        // REFERENCES
+        public Edge3D halfEdge;
+        public List<Node3D> neighbors => GetNeighbors();
+        public List<Edge3D> edges => GetConnectedEdges();
 
         public Node3D(Vector3 pos, float mass = 1.0f)
         {
             position = pos;
-            neighbors = new Dictionary<int, Node3D>();
-
-            // assign unique ID
-            id = nextID;
-            nextID++;
+            id = nextID++;
             this.mass = mass;
         }
 
-        // physics update
-        // moves the node based on its current velocity
         public void UpdatePosition()
         {
             position += currVelocity * Time.deltaTime;
@@ -46,80 +37,88 @@ namespace Growth3D
 
         public void ApplyForce(Vector3 force)
         {
-            // F = m * a  =>  a = F / m
             Vector3 acceleration = force / mass;
             currVelocity += acceleration * Time.deltaTime;
         }
 
-        // structure management
-        public void AddNeighbor(Node3D neighbor)
+        // Returns a clean list of all connected neighbors in perfect circular order
+        public List<Node3D> GetNeighbors()
         {
-            if (neighbor == null) return;
+            var neighbors = new List<Node3D>();
 
-            if (!neighbors.ContainsKey(neighbor.id))
+            if (halfEdge == null) return neighbors;
+
+            Edge3D currentEdge = halfEdge;
+
+            do
             {
-                neighbors.Add(neighbor.id, neighbor);
-            }
+                // currentEdge always starts at THIS node.
+                // Therefore, currentEdge.twin always starts at the NEIGHBOR.
+                neighbors.Add(currentEdge.twin.origin);
+
+                // Rotate to the next outgoing edge
+                currentEdge = currentEdge.twin.next;
+
+            } while (currentEdge != halfEdge && currentEdge != null);
+
+            return neighbors;
         }
 
-        public void RemoveNeighbor(Node3D neighbor)
+        // Returns a list of all OUTGOING half-edges connected to this node
+        public List<Edge3D> GetConnectedEdges()
         {
-            if (neighbor == null) return;
+            var connectedEdges = new List<Edge3D>();
 
-            if (neighbors.ContainsKey(neighbor.id))
+            if (halfEdge == null) return connectedEdges;
+
+            Edge3D currentEdge = halfEdge;
+
+            do
             {
-                neighbors.Remove(neighbor.id);
-            }
+                // Add the current outgoing edge to our list
+                connectedEdges.Add(currentEdge);
+
+                // Rotate to the next outgoing edge
+                currentEdge = currentEdge.twin.next;
+
+            } while (currentEdge != halfEdge && currentEdge != null);
+
+            return connectedEdges;
         }
 
-        // Calculates the Discrete Gaussian Curvature (Angle Defect) of a vertex on a surface mesh
         public void CalculateCurvature()
         {
-            // A vertex on a surface needs at least 3 neighbors to form a 3D umbrella of triangles
+            var neighbors = GetNeighbors();
+
+            // We need at least 3 neighbors to form a 3D surface
             if (neighbors.Count < 3)
             {
-                m_curvature = 0f;
+                Curvature = 0f;
                 return;
             }
 
             float angleSum = 0f;
-            var enumerator = neighbors.Values.GetEnumerator();
 
-            // 1. Grab the very first neighbor so we can close the loop at the end
-            enumerator.MoveNext();
-            Node3D firstNeighbor = enumerator.Current;
-            Node3D currentNeighbor = firstNeighbor;
-
-            // 2. Loop through the rest of the neighbors in the ring
-            while (enumerator.MoveNext())
+            for (int i = 0; i < neighbors.Count; i++)
             {
-                Node3D nextNeighbor = enumerator.Current;
+                // Get the current neighbor, and the NEXT neighbor in the circle
+                // The modulo operator (%) ensures the last neighbor connects back to the first one (index 0)
+                Vector3 posA = neighbors[i].position;
+                Vector3 posB = neighbors[(i + 1) % neighbors.Count].position;
 
-                angleSum += GetAngleBetweenNeighbors(currentNeighbor.position, nextNeighbor.position);
-
-                // Shift our reference forward for the next iteration
-                currentNeighbor = nextNeighbor;
+                angleSum += GetAngleBetweenNeighbors(posA, posB);
             }
-            enumerator.Dispose();
 
-            // 3. Close the loop by connecting the very last neighbor back to the first
-            angleSum += GetAngleBetweenNeighbors(currentNeighbor.position, firstNeighbor.position);
-
-            // Gaussian Curvature = 2 * PI - (Sum of angles)
-            m_curvature = (2f * Mathf.PI) - angleSum;
+            Curvature = (2f * Mathf.PI) - angleSum;
         }
 
-        // Helper function to keep the main loop clean and readable
         private float GetAngleBetweenNeighbors(Vector3 posA, Vector3 posB)
         {
             Vector3 v1 = (posA - this.position).normalized;
             Vector3 v2 = (posB - this.position).normalized;
-
-            // Clamp dot product to prevent NaN errors from floating point imprecision
-            float dot = Mathf.Abs(Vector3.Dot(v1, v2));
-            return Mathf.Acos(dot); // Returns radians
+            return Mathf.Acos(Mathf.Clamp(Vector3.Dot(v1, v2), -1f, 1f));
         }
-
     }
 }
+
 

@@ -1,35 +1,29 @@
 using UnityEngine;
 
 namespace Growth3D
-{ 
+{
     public class Edge3D
     {
         // references
-        public Node3D nodeA;
-        public Node3D nodeB;
+        public Node3D origin;    // The vertex this edge starts from
+        public Node3D target => next.origin;
+
+        public Edge3D next;      // The next half-edge in the face loop
+        public Edge3D prev;      // (Optional but highly recommended) The previous half-edge
+        public Face3D face;      // The face this half-edge belongs to
+        public Edge3D twin;      // The half-edge going the opposite direction
+
         public int id;
 
         public float Curvature
         {
-            get => (nodeA.Curvature + nodeB.Curvature) / 2.0f;
+            get => (origin.Curvature + next.origin.Curvature) / 2.0f;
             private set { }
         }
         public float Length
         {
-            get => (nodeB.position - nodeA.position).magnitude;
+            get => (origin.position - next.origin.position).magnitude;
             private set { }
-        }
-
-        public Edge3D(Node3D a, Node3D b, int id)
-        {
-            nodeA = a;
-            nodeB = b;
-            this.id = id;
-        }
-
-        public float GetLength()
-        {
-            return (nodeB.position - nodeA.position).magnitude;
         }
 
         public override bool Equals(object obj)

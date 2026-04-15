@@ -9,45 +9,49 @@ namespace Growth3D
     public class Grower3D : MonoBehaviour
     {
         [Header("Initial Shape")]
-        public float startRadius = 1.0f;
-        public int initialNodeCount = 10;
+            public float startRadius = 1.0f;
+            public int initialNodeCount = 10;
 
         [Header("Repulsion")]
-        [Tooltip("Strength of repulsion between nodes")]
-        public float separationForce = 0.5f;
-        [Tooltip("Maximum separation distance (also the spatial hash cell size)")]
-        public float separationDistance = 3.0f;
+            [Tooltip("Strength of repulsion between nodes")]
+            public float separationForce = 0.5f;
+            [Tooltip("Maximum separation distance (also the spatial hash cell size)")]
+            public float separationDistance = 3.0f;
 
         [Header("Cohesion")]
-        [Tooltip("Attraction force towards neighbors")]
-        public float attractionForce = 0.2f;
+            [Tooltip("Attraction force towards neighbors")]
+            public float attractionForce = 0.2f;
 
         [Header("Smoothing")]
-        [Tooltip("Strength of Laplacian smoothing force")]
-        public float laplacianSmoothing = 0.1f;
+            [Tooltip("Strength of Laplacian smoothing force")]
+            public float laplacianSmoothing = 0.1f;
 
         [Header("Growth")]
-        public float growthRate = 0.1f; // time between adding new nodes
-        public float curvatureThreshold = 0.5f; // threshold for curvature-based growth
-        public float edgeLengthThreshold = 1.5f; // threshold for edge length-based growth
+            public float growthRate = 0.1f; // time between adding new nodes
+            public float curvatureThreshold = 0.5f; // threshold for curvature-based growth
+            public float edgeLengthThreshold = 1.5f; // threshold for edge length-based growth
 
         [Header("Other Forces")]
-        [Tooltip("Drag applied to node velocity")]
-        public float nodeDrag = 0.1f;
+            [Tooltip("Drag applied to node velocity")]
+            public float nodeDrag = 0.1f;
 
         [Header("Debug")]
-        public bool debug_DrawGrid;
-        public int debug_NumNodes;
+            public bool debug_DrawGrid;
+            public int debug_NumNodes;
 
         [Header("References")]
-        public ShapeGenerator3D shapeGenerator;
+            public ShapeGenerator3D shapeGenerator;
+            public NodeHoard3DMeshRenderer nodeHoardMeshRenderer;
 
         NodeHoard3D _nodeHoard;
 
         void Awake()
         {
             _nodeHoard = shapeGenerator.Initialize(separationDistance);
+
             shapeGenerator.CreateTestSphere(startRadius);
+            
+            nodeHoardMeshRenderer.Initialize(_nodeHoard);
         }
 
         void Start()
@@ -69,6 +73,7 @@ namespace Growth3D
             debug_NumNodes = _nodeHoard.numNodes;
         }
 
+        #region Physics
         // updaters
         void ApplyNaturalForces()
         {
@@ -86,7 +91,7 @@ namespace Growth3D
                 }
 
                 // ATTRACTION
-                foreach ((int i, Node3D neighbor) in node.neighbors)
+                foreach (Node3D neighbor in node.neighbors)
                 {
                     Vector3 attractionDir = (neighbor.position - node.position).normalized;
                     node.ApplyForce(attractionDir * attractionForce);
@@ -98,7 +103,7 @@ namespace Growth3D
                     Vector3 neighborCenter = Vector3.zero;
 
                     // calculate centroid of neighbors
-                    foreach ((int i, Node3D neighbor) in node.neighbors)
+                    foreach (Node3D neighbor in node.neighbors)
                     {
                         neighborCenter += neighbor.position;
                     }
@@ -121,6 +126,10 @@ namespace Growth3D
             
         }
 
+
+        #endregion
+
+        #region Growth
         IEnumerator Grow()
         {
             while (true)
@@ -130,37 +139,24 @@ namespace Growth3D
                 TryUpdateInsertions();
             }
         }
-
-        List<Edge3D> edgesToSplit = new List<Edge3D>();
         void TryUpdateInsertions()
         {
-            edgesToSplit.Clear(); // clear previous frame's data
+            // for now, just choose one edge
+            int index = Random.Range(0, _nodeHoard.halfEdges.Count);
+            Edge3D edgeToSplit = _nodeHoard.halfEdges[index];
 
-            foreach (Edge3D edge in _nodeHoard.allEdges)
-            {
-                if (edge.Curvature < curvatureThreshold)
-                {
-                    edgesToSplit.Add(edge);
-                    continue;
-                }
+            print("SPLIT EDGES!");
 
-                if (edge.Length > edgeLengthThreshold)
-                {
-                    edgesToSplit.Add(edge);
-                }
-            }
-
-            foreach (Edge3D edge in edgesToSplit)
-            {
-                _nodeHoard.SplitTriangle(edge);
-            }
+            _nodeHoard.SplitTriangle(edgeToSplit);
+            nodeHoardMeshRenderer.GenerateNodeHoardMesh();
         }
+        #endregion
 
+        #region Rendering
         void RenderNodes()
         {
-            // empty for now, just using debug OnGUI drawing. In the future, this is where you'd update your mesh or particle system with the new node positions.
+            nodeHoardMeshRenderer.UpdateMeshPositions();
         }
-
 
         private void OnDrawGizmos()
         {
@@ -170,6 +166,7 @@ namespace Growth3D
                 _nodeHoard?.DebugDrawGrid();
             }
         }
+        #endregion
     }
 
 
