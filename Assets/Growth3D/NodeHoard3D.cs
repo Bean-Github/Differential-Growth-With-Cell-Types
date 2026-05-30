@@ -36,6 +36,7 @@ namespace Growth3D
 
                     Debug.DrawLine(node.position + Vector3.up * 0.1f, node.position + Vector3.down * 0.1f, Color.white);
                     Debug.DrawLine(node.position + Vector3.left * 0.1f, node.position + Vector3.right * 0.1f, Color.white);
+                    Debug.DrawLine(node.position + Vector3.forward * 0.1f, node.position + Vector3.back * 0.1f, Color.white);
                 }
             }
         }

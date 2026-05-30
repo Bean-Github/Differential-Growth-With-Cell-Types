@@ -3,7 +3,7 @@
 #pragma kernel ScatterOutput
 #pragma kernel CopyBack
 
-#include "../GrowthHelper3D.hlsl"
+#include "../GrowthHelpers3D.hlsl"
 
 //RWStructuredBuffer<uint> InputItems;
 //RWStructuredBuffer<uint> InputKeys;

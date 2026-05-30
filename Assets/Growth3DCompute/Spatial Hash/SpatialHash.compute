@@ -3,9 +3,9 @@
 #pragma kernel SortSpatialLookup
 #pragma kernel CalculateStartIndices
 
-#include "../GrowthHelper3D.hlsl"
+#include "../GrowthHelpers3D.hlsl"
 
-RWStructuredBuffer<Particle> particleData;
+RWStructuredBuffer<Node3D> particleData;
 
 RWStructuredBuffer<Entry> spatialLookup;
 

@@ -1,6 +1,6 @@
 
 
-float2 worldToScreenPos(float4 worldPos, float4x4 projMatrix, float4x4 viewMatrix, float2 screen)
+float2 worldToScreenPos(float4 worldPos, float4x4 projMatrix, float4x4 viewMatrix, float2 screenDims)
 {
     float4x4 vpMatrix = projMatrix * viewMatrix;
     
@@ -10,7 +10,7 @@ float2 worldToScreenPos(float4 worldPos, float4x4 projMatrix, float4x4 viewMatri
     float3 ndc = clip.xyz / clip.w;
     
     float2 screenUV = ndc.xy * 0.5 + 0.5;
-    float2 screenPos = screenUV * float2(screen.x, screen.y);
+    float2 screenPos = screenUV * float2(screenDims.x, screenDims.y);
     
     return screenPos;
 }
@@ -158,18 +158,6 @@ static const int3 offsets3D[27] =
 	int3(1, 1, -1),
 	int3(1, 1, 0),
 	int3(1, 1, 1)
-};
-
-struct Particle
-{
-    float3 position;
-    float3 velocity;
-    float radius;
-    
-    float3 predictedPosition;
-    
-    float density;
-    float nearDensity;
 };
 
 struct Entry

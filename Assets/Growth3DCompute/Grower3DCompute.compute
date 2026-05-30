@@ -1,14 +1,139 @@
 // Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel CSMain
+#pragma kernel ApplyNaturalForces
+#pragma kernel MoveParticles
 
-// Create a RenderTexture with enableRandomWrite flag and set it
-// with cs.SetTexture
-RWTexture2D<float4> Result;
+#include "GrowthHelpers3D.hlsl"
 
-[numthreads(8,8,1)]
-void CSMain (uint3 id : SV_DispatchThreadID)
+struct Node3D
 {
-    // TODO: insert actual code here!
+    float3 position;
+    float curvature;
+    
+    float3 velocity;
+    float mass;
+    
+    int neighborStartIndex;
+    int neighborCount;
+};
 
-    Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
+RWStructuredBuffer<Node3D> Nodes;
+
+// VALUES
+float deltaTime;
+
+cbuffer SimulationSettings
+{
+    uint nodeCount;
+
+    float separationDistance;
+    float separationForce;
+
+    float attractionForce;
+    float laplacianSmoothing;
+
+    float nodeDrag;
+};
+
+StructuredBuffer<uint> NeighborIndices;
+
+
+// 
+[numthreads(8, 1, 1)]
+void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    
+    if (id.x >= nodeCount)
+        return;
+    
+    Node3D node = Nodes[index];
+
+    float3 totalForce = float3(0, 0, 0);
+    
+    
+    // get nearby nodes within separation distance
+    
+    // (for now, loop over all nodes - TODO: use spatial hashing for efficiency)
+    
+    // SEPARATION
+    for (uint i = 0; i < nodeCount; i++)
+    {
+        if (i == index)
+            continue;
+
+        Node3D other = Nodes[i];
+
+        float3 delta = node.position - other.position;
+
+        float distSq = dot(delta, delta);
+
+        if (distSq > separationDistance * separationDistance)
+            continue;
+
+        float dist = sqrt(distSq);
+
+        // Avoid NaNs
+        if (dist <= 0.0001)
+            continue;
+
+        float3 repulsionDir = delta / dist;
+        float falloffFactor =
+            SpikyKernelPow2(
+                dist,
+                separationDistance
+            );
+
+        totalForce +=
+            repulsionDir *
+            separationForce *
+            separationDistance *
+            falloffFactor;
+    }
+    
+    // ATTRACTION
+    if (node.neighborCount > 0)
+    {
+        float3 neighborCenter = float3(0, 0, 0);
+
+        for (int j = 0; j < node.neighborCount; j++)
+        {
+            int flatIndex = node.neighborStartIndex + j;
+            uint neighborNodeIndex = NeighborIndices[flatIndex];
+        
+            Node3D neighbor = Nodes[neighborNodeIndex];
+            
+
+            // ATTRACTION
+            float3 attractionDir = normalize(neighbor.position - node.position);
+            totalForce += attractionDir * attractionForce;
+
+            // Add to centroid for Laplacian smoothing
+            neighborCenter += neighbor.position;
+        }
+
+        // LAPLACIAN SMOOTHING (move towards neighbor centroid)
+        neighborCenter /= (float) node.neighborCount;
+        float3 laplacianVector = neighborCenter - node.position;
+        totalForce += laplacianVector * laplacianSmoothing;
+    }
+
+    totalForce += -node.velocity * nodeDrag;
+
+    // F = m * a, so a = F / m
+    node.velocity += totalForce / node.mass * deltaTime;
+    
+    Nodes[index] = node;
 }
+
+[numthreads(8,1,1)]
+void MoveParticles (uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    
+    if (id.x >= nodeCount)
+        return;
+    
+    // apply velocity
+    Nodes[index].position += Nodes[index].velocity * deltaTime;
+}
+
