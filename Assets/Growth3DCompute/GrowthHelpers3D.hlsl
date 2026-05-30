@@ -1,4 +1,21 @@
 
+const uint UINT_MAX = 0xFFFFFFFF; // 2^32 - 1 = 4294967295
+
+
+
+struct Node3D
+{
+    float3 position;
+    float curvature;
+    
+    float3 velocity;
+    float mass;
+    
+    int neighborStartIndex;
+    int neighborCount;
+};
+
+
 
 float2 worldToScreenPos(float4 worldPos, float4x4 projMatrix, float4x4 viewMatrix, float2 screenDims)
 {
@@ -40,7 +57,7 @@ float SmoothingKernelPoly6(float dst, float radius)
 {
     if (dst < radius)
     {
-        float scale = 315 / (64 * 3.14159265 * pow(abs(radius), 9));
+        float scale = 315.0f / (64.0f * 3.14159265f * pow(max(0.0001f, radius), 9));
         float v = radius * radius - dst * dst;
         return v * v * v * scale;
     }
@@ -54,7 +71,7 @@ float SpikyKernelPow2(float dst, float radius)
 {
     if (dst < radius)
     {
-        float scale = 15 / (2 * 3.14159265 * pow(radius, 5));
+        float scale = 15.0f / (2.0f * 3.14159265f * pow(max(0.0001f, radius), 5));
         float v = radius - dst;
         return v * v * scale;
     }
@@ -67,7 +84,7 @@ float SpikyKernelPow3(float dst, float radius)
 {
     if (dst < radius)
     {
-        float scale = 15 / (3.14159265 * pow(radius, 6));
+        float scale = 15.0f / (3.14159265f * pow(max(0.0001f, radius), 6));
         float v = radius - dst;
         return v * v * v * scale;
     }
@@ -80,7 +97,7 @@ float DerivativeSpikyPow2(float dst, float radius)
 {
     if (dst <= radius)
     {
-        float scale = 15 / (pow(radius, 5) * 3.14159265);
+        float scale = 15.0f / (pow(max(0.0001f, radius), 5.0f) * 3.14159265f);
         float v = radius - dst;
         return -v * scale;
     }
@@ -92,7 +109,7 @@ float DerivativeSpikyPow3(float dst, float radius)
 {
     if (dst <= radius)
     {
-        float scale = 45 / (pow(radius, 6) * 3.14159265);
+        float scale = 45.0f / (pow(max(0.0001f, radius), 6.0f) * 3.14159265f);
         float v = radius - dst;
         return -v * v * scale;
     }
@@ -129,7 +146,7 @@ float GetParticleInfluenceSlopeSharpV3(float r, float h)
 
 // hash a cell coordinate to a hashed value (by multiplying by a large prime number), 
 // which will wrap around based on 
-static const int3 offsets3D[27] =
+static const int3 Offsets3D[27] =
 {
     int3(-1, -1, -1),
 	int3(-1, -1, 0),
@@ -211,18 +228,22 @@ uint KeyFromHash(uint hash, uint tableSize)
 }
 
 
-int3 PositionToCellCoord(float3 position, float smoothingRadius, float3 boundsCenter, float3 boundsExtents) 
+int3 PositionToCellCoord(float3 position, float cellSize, float3 boundsCenter, float3 boundsExtents) 
 {
+    return (int3) floor(position / cellSize);
+    
     float3 offset = (boundsCenter - boundsExtents);
 
-    int3 numCells = (int3) ceil((boundsExtents * 2) / smoothingRadius);
-    int3 cell = (int3) floor((position - offset) / smoothingRadius);
+    int3 numCells = (int3) ceil((boundsExtents * 2) / cellSize);
+    int3 cell = (int3) floor((position - offset) / cellSize);
     
     cell.x = clamp(cell.x, 0, numCells.x - 1);
     cell.y = clamp(cell.y, 0, numCells.y - 1);
     cell.z = clamp(cell.z, 0, numCells.z - 1);
         
     return cell;
+    
+    //return (int3) floor(position / cellSize);
 }
 
 

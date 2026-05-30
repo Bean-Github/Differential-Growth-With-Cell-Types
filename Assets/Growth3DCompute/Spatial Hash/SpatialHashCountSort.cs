@@ -3,26 +3,7 @@ using System.Threading.Tasks;
 using Unity.Mathematics;
 using UnityEngine;
 
-/// <summary>
-/// TODO:
-/// use CountSort.compute to sort spatial hash,
-/// keep create spatial lookup?
-/// potentially use new buffer to store struct Entry
-///{
-///    uint particleIndex;
-///    uint hash;
-///    uint cellKey;
-///    uint pad;
-///}
-///;
-/// </summary>
-
-
 using static ComputeHelper;
-
-
-
-
 
 
 public class SpatialHashCountSort : MonoBehaviour

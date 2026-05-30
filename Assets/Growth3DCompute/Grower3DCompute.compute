@@ -4,38 +4,29 @@
 
 #include "GrowthHelpers3D.hlsl"
 
-struct Node3D
-{
-    float3 position;
-    float curvature;
-    
-    float3 velocity;
-    float mass;
-    
-    int neighborStartIndex;
-    int neighborCount;
-};
-
 RWStructuredBuffer<Node3D> Nodes;
 
 // VALUES
 float deltaTime;
 
-cbuffer SimulationSettings
-{
-    uint nodeCount;
+uint nodeCount;
+uint paddedNodeCount;
 
-    float separationDistance;
-    float separationForce;
+float separationDistance;
+float separationForce;
 
-    float attractionForce;
-    float laplacianSmoothing;
+float attractionForce;
+float laplacianSmoothing;
 
-    float nodeDrag;
-};
+float nodeDrag;
+    
+float3 boundsCenter;
+float3 boundsExtents;
+
 
 StructuredBuffer<uint> NeighborIndices;
-
+StructuredBuffer<Entry> SpatialLookup;
+StructuredBuffer<uint> StartIndices;
 
 // 
 [numthreads(8, 1, 1)]
@@ -50,44 +41,63 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
 
     float3 totalForce = float3(0, 0, 0);
     
+    int3 currCell = PositionToCellCoord(node.position, separationDistance, boundsCenter, boundsExtents);
     
     // get nearby nodes within separation distance
     
     // (for now, loop over all nodes - TODO: use spatial hashing for efficiency)
     
-    // SEPARATION
-    for (uint i = 0; i < nodeCount; i++)
+    for (uint i = 0; i < 27; i++)
     {
-        if (i == index)
+        int3 offset = Offsets3D[i];
+        int3 neighborCell = currCell + int3(offset.x, offset.y, offset.z);
+        
+        uint hash = HashCell(neighborCell.x, neighborCell.y, neighborCell.z);
+        uint cellKey = KeyFromHash(hash, nodeCount);
+        
+        uint startIndex = StartIndices[cellKey]; // get start index for this cell from precomputed start indices
+        
+        if (startIndex == UINT_MAX)
             continue;
+        
+        for (uint j = startIndex; j < nodeCount; j++)
+        {
+            // If the cell key changes, we've exited this cell's block of particles. Stop checking.
+            if (SpatialLookup[j].cellKey != cellKey)
+                break;
+            
+            uint otherIndex = SpatialLookup[j].particleIndex;
+            
+            // If the other index is the same as the current node, skip to avoid self-interaction
+            if (otherIndex == index)
+                continue;
+            
+            Node3D other = Nodes[otherIndex];
+            
+            float3 delta = node.position - other.position;
+            float distSq = dot(delta, delta);
+            if (distSq > separationDistance * separationDistance)
+                continue;
 
-        Node3D other = Nodes[i];
+            float dist = sqrt(distSq);
 
-        float3 delta = node.position - other.position;
+            if (dist <= 0.0001)
+                continue;
 
-        float distSq = dot(delta, delta);
-
-        if (distSq > separationDistance * separationDistance)
-            continue;
-
-        float dist = sqrt(distSq);
-
-        // Avoid NaNs
-        if (dist <= 0.0001)
-            continue;
-
-        float3 repulsionDir = delta / dist;
-        float falloffFactor =
+            float3 repulsionDir = delta / dist;
+            float falloffFactor =
             SpikyKernelPow2(
                 dist,
                 separationDistance
             );
 
-        totalForce +=
-            repulsionDir *
-            separationForce *
-            separationDistance *
-            falloffFactor;
+            totalForce +=
+                repulsionDir *
+                separationForce *
+                separationDistance *
+                falloffFactor;
+        }
+        
     }
     
     // ATTRACTION

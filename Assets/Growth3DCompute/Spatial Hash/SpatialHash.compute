@@ -11,7 +11,7 @@ RWStructuredBuffer<Entry> spatialLookup;
 
 RWStructuredBuffer<uint> startIndices;
 
-uint particleCount;
+uint nodeCount;
 
 float smoothingRadius;
 float3 boundsCenter;
@@ -23,15 +23,15 @@ static const int GroupSize = 64;
 uint width;
 uint height;
 
-const uint UINT_MAX = 0xFFFFFFFF; // 2^32 - 1 = 4294967295
 
+// create entries for each particle with hash and cell key, store in spatial lookup buffer. Also initialize start indices to a large value (UINT_MAX) to indicate empty cells
 [numthreads(64, 1, 1)]
 void CreateSpatialLookup(uint3 id : SV_DispatchThreadID)
 {
     uint i = id.x;
 
         // guard: only process real particles (avoid over-dispatch out-of-bounds)
-    if (i >= particleCount)
+    if (i >= nodeCount)
         return;
     
     int3 cell = PositionToCellCoord(particleData[i].position, smoothingRadius, boundsCenter, boundsExtents);
@@ -51,7 +51,7 @@ void CreateSpatialLookup(uint3 id : SV_DispatchThreadID)
 
    // uint key = KeyFromHash(hash, particleCount);
 
-    uint cellKey = KeyFromHash(hash, particleCount);
+    uint cellKey = KeyFromHash(hash, nodeCount);
     
     //cell.x = clamp(cell.x, 0, numCellsX - 1);
     //cell.y = clamp(cell.y, 0, numCellsY - 1);
@@ -66,8 +66,8 @@ void CreateSpatialLookup(uint3 id : SV_DispatchThreadID)
 }
 
 // each thread will handle more than one pair and swap if needed
-
-
+// sorts the spatial lookup buffer by cell key
+// it does this because then all particles in the same cell will be grouped
 [numthreads(64, 1, 1)]
 void SortSpatialLookup(uint3 id : SV_DispatchThreadID)
 {
@@ -81,7 +81,7 @@ void SortSpatialLookup(uint3 id : SV_DispatchThreadID)
     // get index high
     uint indexHigh = indexLow + width;
     
-    if (indexHigh >= particleCount)
+    if (indexHigh >= nodeCount)
     {
         // if index high is out of bounds, return (for non power of 2 arrays)
         return;
@@ -115,18 +115,27 @@ void SortSpatialLookup(uint3 id : SV_DispatchThreadID)
     }
 }
 
+// after sorting, the smallest index for each cell key will be the start index for that cell. 
+// We can find this by looking for where the cell key changes in the sorted spatial lookup buffer. 
+// When we find a change in cell key, we know the current index is the smallest index for that new cell key, 
+// so we can set startIndices[cellKey] = currentIndex. We can do this in parallel by having each thread check 
+// if its current cell key is different from the previous entry's cell key (for thread 0, just check if it's different from UINT_MAX). 
+// If it's different, then we set the start index for that cell key to the current index. 
 [numthreads(64, 1, 1)]
 void CalculateStartIndices(uint3 id : SV_DispatchThreadID)
 {
     uint i = id.x;
-    if (i >= particleCount)
+    if (i >= nodeCount)
         return;
     
     uint key = spatialLookup[i].cellKey;
+    
+    if (key == UINT_MAX)
+        return;
 
-    //// Atomically set the smallest index for this key
-    //InterlockedMin(startIndices[key], i);
+    // set the smallest index for this key
     uint keyPrev = i == 0 ? UINT_MAX : spatialLookup[i - 1].cellKey;
+    
     if (key != keyPrev)
     {
         startIndices[key] = i;

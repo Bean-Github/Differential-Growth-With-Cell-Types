@@ -244,8 +244,11 @@ MonoBehaviour:
   nodeCount: 1000
   separationForce: 0.5
   separationDistance: 3
+  attractionForce: 0.2
+  laplacianSmoothing: 0.1
   nodeDrag: 0.1
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
+  spatialHashRunner: {fileID: 0}
   spawnCollider: {fileID: 0}
   particleRenderer: {fileID: 0}
 --- !u!1 &330585543
@@ -504,6 +507,7 @@ GameObject:
   - component: {fileID: 907189155}
   - component: {fileID: 907189154}
   - component: {fileID: 907189156}
+  - component: {fileID: 907189157}
   m_Layer: 0
   m_Name: Grower 3D Compute
   m_TagString: Untagged
@@ -526,8 +530,11 @@ MonoBehaviour:
   nodeCount: 1000
   separationForce: 10
   separationDistance: 5
+  attractionForce: 0.2
+  laplacianSmoothing: 0.1
   nodeDrag: 0.1
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
+  spatialHashRunner: {fileID: 907189157}
   spawnCollider: {fileID: 436488696}
   particleRenderer: {fileID: 907189156}
 --- !u!4 &907189155
@@ -562,6 +569,19 @@ MonoBehaviour:
   particleMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   radius: 1
   maxVelocity: 5
+--- !u!114 &907189157
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 907189150}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78f0b37eec265594291e001961d1c47a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spatialHashCompute: {fileID: 7200000, guid: 3e69aeeb657a8554d866d6b9563cf005, type: 3}
 --- !u!1 &1588838920
 GameObject:
   m_ObjectHideFlags: 0

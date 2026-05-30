@@ -1,38 +1,43 @@
 using System;
 using System.Threading.Tasks;
 using Unity.Mathematics;
+using UnityEditor;
 using UnityEngine;
 
 public class SpatialHashComputeRunner : MonoBehaviour
 {
-    float smoothingRadius;
-    Bounds bounds;
-
-    public void SetValues(float smoothingRadius, Bounds bounds)
-    {
-        this.smoothingRadius = smoothingRadius;
-        this.bounds = bounds;
-    }
-
     public ComputeShader spatialHashCompute;
 
+    float cellSize;
+    Bounds bounds;
+
+    public void SetValues(float cellSize, Bounds bounds)
+    {
+        this.cellSize = cellSize;
+        this.bounds = bounds;
+
+        spatialHashCompute.SetFloat("smoothingRadius", cellSize);
+        spatialHashCompute.SetVector("boundsCenter", bounds.center);
+        spatialHashCompute.SetVector("boundsExtents", bounds.extents);
+    }
 
     int createSpatialLookupKernel;
     int sortKernel;
     int calculateStartIndicesKernel;
 
-    //ComputeBuffer spatialLookupBuffer;
-    //ComputeBuffer startIndicesBuffer;
+    int nodeCount;
 
-    int particleCount;
-
-    public void UpdateSpatialLookup(ref ComputeBuffer particleBuffer, ref ComputeBuffer spatialLookupBuffer, ref ComputeBuffer startIndicesBuffer)
+    private void Start()
     {
-        particleCount = particleBuffer.count;
-
         createSpatialLookupKernel = spatialHashCompute.FindKernel("CreateSpatialLookup");
         sortKernel = spatialHashCompute.FindKernel("SortSpatialLookup");
         calculateStartIndicesKernel = spatialHashCompute.FindKernel("CalculateStartIndices");
+    }
+
+    public void UpdateSpatialLookup(ref ComputeBuffer particleBuffer, ref ComputeBuffer spatialLookupBuffer, ref ComputeBuffer startIndicesBuffer)
+    {
+        nodeCount = particleBuffer.count;
+        //powerOfTwoCount = Mathf.NextPowerOfTwo(nodeCount);
 
         spatialHashCompute.SetBuffer(createSpatialLookupKernel, "particleData", particleBuffer);
         spatialHashCompute.SetBuffer(sortKernel, "particleData", particleBuffer);
@@ -50,14 +55,10 @@ public class SpatialHashComputeRunner : MonoBehaviour
         spatialHashCompute.SetBuffer(createSpatialLookupKernel, "startIndices", startIndicesBuffer);
 
         // Set other parameters
-        spatialHashCompute.SetInt("particleCount", particleCount);
-        spatialHashCompute.SetFloat("smoothingRadius", smoothingRadius);
-        spatialHashCompute.SetVector("boundsCenter", bounds.center);
-        spatialHashCompute.SetVector("boundsExtents", bounds.extents);
+        spatialHashCompute.SetInt("nodeCount", nodeCount);
+        //spatialHashCompute.SetInt("paddedNodeCount", powerOfTwoCount);
 
         Dispatch();
-        // then dispatch stuff
-        //return Dispatch();
     }
 
 
@@ -65,91 +66,20 @@ public class SpatialHashComputeRunner : MonoBehaviour
     // Based on positions, decide which particles are in which spatial cells.
     private void Dispatch()
     {
-        //// create spatial lookup
-        //// One-time setup
-        //ComputeBuffer argsBuffer = new ComputeBuffer(1, sizeof(int) * 3, ComputeBufferType.IndirectArguments);
-
-        //// Fill buffer with initial group counts
-        ////int[] args = new int[3] { Mathf.CeilToInt(particleCount / 64.0f), 1, 1 };
-        ////argsBuffer.SetData(args);
-
-        ////spatialHashCompute.DispatchIndirect(createSpatialLookupKernel, argsBuffer, 0);
-
-        //int threadsPerGroup = 64;
-        //int totalGroupsX = Mathf.CeilToInt(particleCount / (float)threadsPerGroup);
-        //int groupsX = totalGroupsX;
-        //int groupsY = 1;
-
-        //if (totalGroupsX > 65535)
-        //{
-        //    groupsY = Mathf.CeilToInt(totalGroupsX / 65535f);
-        //    groupsX = Mathf.CeilToInt(totalGroupsX / (float)groupsY);
-        //}
-
-        //int[] args = new int[3] { groupsX, groupsY, 1 };
-        //argsBuffer.SetData(args);
-        //spatialHashCompute.SetInt("totalThreadsInX", groupsX * threadsPerGroup);
-        //spatialHashCompute.DispatchIndirect(createSpatialLookupKernel, argsBuffer, 0);
-
-        
-
-        //spatialHashCompute.DispatchIndirect(calculateStartIndicesKernel, argsBuffer, 0);
-
-        spatialHashCompute.Dispatch(createSpatialLookupKernel, Mathf.CeilToInt(particleCount / 64f), 1, 1); // 64 threads per group?
+        spatialHashCompute.Dispatch(createSpatialLookupKernel, Mathf.CeilToInt(nodeCount / 64f), 1, 1); // 64 threads per group?
 
         // Sort by cell key!!
         DispatchSort();
+
         // Calculate start indices of each unique cell key in the spatial lookup
-        spatialHashCompute.Dispatch(calculateStartIndicesKernel, Mathf.CeilToInt(particleCount / 64f), 1, 1); // 64 threads per group
-
-        //return (
-        //    spatialLookupBuffer,
-        //    startIndicesBuffer
-        //);
-
-        //argsBuffer.Release();
-
+        spatialHashCompute.Dispatch(calculateStartIndicesKernel, Mathf.CeilToInt(nodeCount / 64f), 1, 1); // 64 threads per group
 
     }
 
-
-    //private void Dispatch()
-    //{
-    //    int batchSize = 65536; // or whatever safe limit
-    //    int numBatches = Mathf.CeilToInt((float)particleCount / batchSize);
-
-    //    for (int b = 0; b < numBatches; b++)
-    //    {
-    //        int startIndex = b * batchSize;
-    //        int currBatchSize = Mathf.Min(batchSize, particleCount - startIndex);
-
-    //        spatialHashCompute.SetInt("startIndex", startIndex);
-    //        spatialHashCompute.SetInt("currBatchSize", currBatchSize);
-
-
-    //        int threadsPerGroup = 64;
-    //        int numThreadGroups = Mathf.CeilToInt((float)currBatchSize / threadsPerGroup);
-
-    //        // create spatial lookup
-    //        spatialHashCompute.Dispatch(createSpatialLookupKernel, numThreadGroups, 1, 1); // 64 threads per group?
-
-    //        // Sort by cell key!!
-    //        DispatchSort(currBatchSize);
-
-    //        // Calculate start indices of each unique cell key in the spatial lookup
-    //        spatialHashCompute.Dispatch(calculateStartIndicesKernel, numThreadGroups, 1, 1); // 64 threads per group
-
-    //        //return (
-    //        //    spatialLookupBuffer,
-    //        //    startIndicesBuffer
-    //        //);
-    //    }
-
-    //}
-
+    // Bitonic sort in compute shader, sort by cell key, so that particles in the same cell are adjacent in the buffer.
     void DispatchSort()
     {
-        int numPairs = Mathf.CeilToInt(BitonicSort.NextPowerOfTwo(particleCount) / 2);
+        int numPairs = Mathf.CeilToInt(nodeCount / 2.0f);
 
         int numStages = (int)Mathf.Log(numPairs * 2, 2);
 
@@ -169,33 +99,83 @@ public class SpatialHashComputeRunner : MonoBehaviour
 
                 spatialHashCompute.Dispatch(sortKernel, numGroupsX, 1, 1); // one thread per pair
 
-
-                //int numGroupsTotal = numPairs;                 // one group per pair
-                //int maxX = 65535;                              // hardware cap
-                //int groupsX = Mathf.Min(numGroupsTotal, maxX); // clamp X
-                //int groupsY = Mathf.CeilToInt(numGroupsTotal / (float)maxX);
-
-                //spatialHashCompute.SetInt("width", width);
-                //spatialHashCompute.SetInt("height", height);
-                //spatialHashCompute.SetInt("numPairs", numPairs);
-                //spatialHashCompute.SetInt("groupsX", groupsX); // pass to shader
-
-                //spatialHashCompute.Dispatch(sortKernel, groupsX, groupsY, 1);
             }
         }
     }
 
-    //private void OnDestroy()
-    //{
-    //    spatialLookupBuffer?.Release();
-    //    startIndicesBuffer?.Release();
-    //}
+//    // DEBUG: visualize the grid in the editor
+//    public void DebugDrawGrid()
+//    {
+//        foreach (var kvp in hash)
+//        {
+//            Vector3Int cell = kvp.Key;
 
-    //private void OnDisable()
-    //{
-    //    spatialLookupBuffer?.Release();
-    //    startIndicesBuffer?.Release();
-    //}
+//            Vector3 worldPos = new Vector3(
+//                cell.x * cellSize,
+//                cell.y * cellSize,
+//                cell.z * cellSize
+//            );
+
+//            DrawCube(worldPos, cellSize, Color.cyan);
+
+//            // Optional: draw node count
+//            int count = kvp.Value.Count;
+//            Vector3 center = new Vector3(
+//                worldPos.x + cellSize * 0.5f,
+//                worldPos.y + cellSize * 0.5f,
+//                worldPos.z + cellSize * 0.5f
+//            );
+//#if UNITY_EDITOR
+//            GUIStyle labelStyle = new GUIStyle();
+//            labelStyle.normal.textColor = Color.yellow;
+//            labelStyle.alignment = TextAnchor.MiddleCenter;
+//            labelStyle.fontSize = 12;
+//            labelStyle.fontStyle = FontStyle.Bold;
+
+//            // pass the 3D world space 'center' directly.
+//            Handles.Label(center, count.ToString(), labelStyle);
+
+//            Vector3 labelCenter = center - new Vector3(0, cellSize * 0.25f, 0);
+
+//            labelStyle.normal.textColor = Color.white;
+//            Handles.Label(labelCenter, $"({cell.x}, {cell.y}, {cell.z})", labelStyle);
+//#endif
+//        }
+//    }
+
+//    // Converted from DrawCell to draw a full 3D wireframe cube
+//    private void DrawCube(Vector3 bottomLeftBack, float size, Color color)
+//    {
+//        // Calculate all 8 corners of the cube
+//        Vector3 p0 = bottomLeftBack;
+//        Vector3 p1 = p0 + new Vector3(size, 0, 0);
+//        Vector3 p2 = p0 + new Vector3(size, size, 0);
+//        Vector3 p3 = p0 + new Vector3(0, size, 0);
+
+//        Vector3 p4 = p0 + new Vector3(0, 0, size);
+//        Vector3 p5 = p1 + new Vector3(0, 0, size);
+//        Vector3 p6 = p2 + new Vector3(0, 0, size);
+//        Vector3 p7 = p3 + new Vector3(0, 0, size);
+
+//        // Front Face (Z)
+//        Debug.DrawLine(p0, p1, color);
+//        Debug.DrawLine(p1, p2, color);
+//        Debug.DrawLine(p2, p3, color);
+//        Debug.DrawLine(p3, p0, color);
+
+//        // Back Face (Z + size)
+//        Debug.DrawLine(p4, p5, color);
+//        Debug.DrawLine(p5, p6, color);
+//        Debug.DrawLine(p6, p7, color);
+//        Debug.DrawLine(p7, p4, color);
+
+//        // Connecting Lines (Depth)
+//        Debug.DrawLine(p0, p4, color);
+//        Debug.DrawLine(p1, p5, color);
+//        Debug.DrawLine(p2, p6, color);
+//        Debug.DrawLine(p3, p7, color);
+//    }
+
 }
 
 
