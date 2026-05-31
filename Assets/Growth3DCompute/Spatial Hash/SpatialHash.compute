@@ -12,10 +12,9 @@ RWStructuredBuffer<Entry> spatialLookup;
 RWStructuredBuffer<uint> startIndices;
 
 uint nodeCount;
+uint paddedNodeCount;
 
-float smoothingRadius;
-float3 boundsCenter;
-float3 boundsExtents;
+float cellSize;
 
 
 static const int GroupSize = 64;
@@ -31,37 +30,25 @@ void CreateSpatialLookup(uint3 id : SV_DispatchThreadID)
     uint i = id.x;
 
         // guard: only process real particles (avoid over-dispatch out-of-bounds)
-    if (i >= nodeCount)
+    if (i >= paddedNodeCount)
         return;
     
-    int3 cell = PositionToCellCoord(particleData[i].position, smoothingRadius, boundsCenter, boundsExtents);
+    if (i >= nodeCount)
+    {
+        Entry falseEntry = { (uint) i, UINT_MAX, UINT_MAX, 0 };
+        spatialLookup[i] = falseEntry;
+        startIndices[i] = UINT_MAX;
+        return;
+    }
     
-    uint numCellsX = max(1, ceil(boundsExtents.x * 2 / smoothingRadius));
-    uint numCellsY = max(1, ceil(boundsExtents.y * 2 / smoothingRadius));
-    uint numCellsZ = max(1, ceil(boundsExtents.z * 2 / smoothingRadius));
-    
-    // CLAMP HERE to guarantee valid indices
-    //cell.x = clamp(cell.x, 0, (int) numCellsX - 1);
-    //cell.y = clamp(cell.y, 0, (int) numCellsY - 1);
-    //cell.z = clamp(cell.z, 0, (int) numCellsZ - 1);
-    
+    int3 cell = PositionToCellCoord(particleData[i].position, cellSize);
     uint hash = HashCell(cell.x, cell.y, cell.z);
-
-    //uint totalCells = numCellsX * numCellsY * numCellsZ;
-
-   // uint key = KeyFromHash(hash, particleCount);
-
-    uint cellKey = KeyFromHash(hash, nodeCount);
+    uint cellKey = KeyFromHash(hash, paddedNodeCount);
     
-    //cell.x = clamp(cell.x, 0, numCellsX - 1);
-    //cell.y = clamp(cell.y, 0, numCellsY - 1);
-    //cell.z = clamp(cell.z, 0, numCellsZ - 1);
-    //uint cellKey = KeyFromHash(hash, numCellsX * numCellsY * numCellsZ);
-    
-    Entry newEntry = { (uint) i, hash, cellKey, 0 };
+    Entry newEntry = { (uint) i, hash, cellKey, 0 };    
     
     spatialLookup[i] = newEntry;
-    
+
     startIndices[i] = UINT_MAX; // Initialize start indices to a large value
 }
 
@@ -81,7 +68,7 @@ void SortSpatialLookup(uint3 id : SV_DispatchThreadID)
     // get index high
     uint indexHigh = indexLow + width;
     
-    if (indexHigh >= nodeCount)
+    if (indexHigh >= paddedNodeCount)
     {
         // if index high is out of bounds, return (for non power of 2 arrays)
         return;
@@ -125,7 +112,7 @@ void SortSpatialLookup(uint3 id : SV_DispatchThreadID)
 void CalculateStartIndices(uint3 id : SV_DispatchThreadID)
 {
     uint i = id.x;
-    if (i >= nodeCount)
+    if (i >= paddedNodeCount)
         return;
     
     uint key = spatialLookup[i].cellKey;

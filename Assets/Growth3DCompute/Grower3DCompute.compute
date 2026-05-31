@@ -19,10 +19,6 @@ float attractionForce;
 float laplacianSmoothing;
 
 float nodeDrag;
-    
-float3 boundsCenter;
-float3 boundsExtents;
-
 
 StructuredBuffer<uint> NeighborIndices;
 StructuredBuffer<Entry> SpatialLookup;
@@ -41,7 +37,7 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
 
     float3 totalForce = float3(0, 0, 0);
     
-    int3 currCell = PositionToCellCoord(node.position, separationDistance, boundsCenter, boundsExtents);
+    int3 currCell = PositionToCellCoord(node.position, separationDistance);
     
     // get nearby nodes within separation distance
     
@@ -53,14 +49,14 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
         int3 neighborCell = currCell + int3(offset.x, offset.y, offset.z);
         
         uint hash = HashCell(neighborCell.x, neighborCell.y, neighborCell.z);
-        uint cellKey = KeyFromHash(hash, nodeCount);
+        uint cellKey = KeyFromHash(hash, paddedNodeCount);
         
         uint startIndex = StartIndices[cellKey]; // get start index for this cell from precomputed start indices
         
         if (startIndex == UINT_MAX)
             continue;
         
-        for (uint j = startIndex; j < nodeCount; j++)
+        for (uint j = startIndex; j < paddedNodeCount; j++)
         {
             // If the cell key changes, we've exited this cell's block of particles. Stop checking.
             if (SpatialLookup[j].cellKey != cellKey)

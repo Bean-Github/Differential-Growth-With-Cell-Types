@@ -9,16 +9,12 @@ public class SpatialHashComputeRunner : MonoBehaviour
     public ComputeShader spatialHashCompute;
 
     float cellSize;
-    Bounds bounds;
+    //Bounds bounds;
 
-    public void SetValues(float cellSize, Bounds bounds)
+    public void SetValues(float cellSize)
     {
         this.cellSize = cellSize;
-        this.bounds = bounds;
-
-        spatialHashCompute.SetFloat("smoothingRadius", cellSize);
-        spatialHashCompute.SetVector("boundsCenter", bounds.center);
-        spatialHashCompute.SetVector("boundsExtents", bounds.extents);
+        spatialHashCompute.SetFloat("cellSize", cellSize);
     }
 
     int createSpatialLookupKernel;
@@ -26,6 +22,7 @@ public class SpatialHashComputeRunner : MonoBehaviour
     int calculateStartIndicesKernel;
 
     int nodeCount;
+    int paddedNodeCount;
 
     private void Start()
     {
@@ -37,7 +34,7 @@ public class SpatialHashComputeRunner : MonoBehaviour
     public void UpdateSpatialLookup(ref ComputeBuffer particleBuffer, ref ComputeBuffer spatialLookupBuffer, ref ComputeBuffer startIndicesBuffer)
     {
         nodeCount = particleBuffer.count;
-        //powerOfTwoCount = Mathf.NextPowerOfTwo(nodeCount);
+        paddedNodeCount = Mathf.NextPowerOfTwo(nodeCount);
 
         spatialHashCompute.SetBuffer(createSpatialLookupKernel, "particleData", particleBuffer);
         spatialHashCompute.SetBuffer(sortKernel, "particleData", particleBuffer);
@@ -56,7 +53,7 @@ public class SpatialHashComputeRunner : MonoBehaviour
 
         // Set other parameters
         spatialHashCompute.SetInt("nodeCount", nodeCount);
-        //spatialHashCompute.SetInt("paddedNodeCount", powerOfTwoCount);
+        spatialHashCompute.SetInt("paddedNodeCount", paddedNodeCount);
 
         Dispatch();
     }
@@ -66,20 +63,20 @@ public class SpatialHashComputeRunner : MonoBehaviour
     // Based on positions, decide which particles are in which spatial cells.
     private void Dispatch()
     {
-        spatialHashCompute.Dispatch(createSpatialLookupKernel, Mathf.CeilToInt(nodeCount / 64f), 1, 1); // 64 threads per group?
+        spatialHashCompute.Dispatch(createSpatialLookupKernel, Mathf.CeilToInt(paddedNodeCount / 64f), 1, 1); // 64 threads per group?
 
         // Sort by cell key!!
         DispatchSort();
 
         // Calculate start indices of each unique cell key in the spatial lookup
-        spatialHashCompute.Dispatch(calculateStartIndicesKernel, Mathf.CeilToInt(nodeCount / 64f), 1, 1); // 64 threads per group
+        spatialHashCompute.Dispatch(calculateStartIndicesKernel, Mathf.CeilToInt(paddedNodeCount / 64f), 1, 1); // 64 threads per group
 
     }
 
     // Bitonic sort in compute shader, sort by cell key, so that particles in the same cell are adjacent in the buffer.
     void DispatchSort()
     {
-        int numPairs = Mathf.CeilToInt(nodeCount / 2.0f);
+        int numPairs = Mathf.CeilToInt(paddedNodeCount / 2.0f);
 
         int numStages = (int)Mathf.Log(numPairs * 2, 2);
 
