@@ -6,13 +6,14 @@ const uint UINT_MAX = 0xFFFFFFFF; // 2^32 - 1 = 4294967295
 struct Node3D
 {
     float3 position;
-    float curvature;
-    
     float3 velocity;
+    
+    float curvature;
     float mass;
     
-    int neighborStartIndex;
     int neighborCount;
+    
+    int neighbors[8];
 };
 
 

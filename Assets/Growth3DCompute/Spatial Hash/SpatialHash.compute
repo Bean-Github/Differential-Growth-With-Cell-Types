@@ -11,8 +11,9 @@ RWStructuredBuffer<Entry> spatialLookup;
 
 RWStructuredBuffer<uint> startIndices;
 
-uint nodeCount;
-uint paddedNodeCount;
+uint hashTableSize; // max node count
+uint nodeCount; // actual node count
+uint paddedNodeCount; // padded actual node count
 
 float cellSize;
 
@@ -22,6 +23,18 @@ static const int GroupSize = 64;
 uint width;
 uint height;
 
+// Add this new kernel
+#pragma kernel ClearStartIndices
+
+[numthreads(64, 1, 1)]
+void ClearStartIndices(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < hashTableSize)
+    {
+        startIndices[id.x] = UINT_MAX; // uint.MaxValue
+    }
+}
+
 
 // create entries for each particle with hash and cell key, store in spatial lookup buffer. Also initialize start indices to a large value (UINT_MAX) to indicate empty cells
 [numthreads(64, 1, 1)]
@@ -29,27 +42,24 @@ void CreateSpatialLookup(uint3 id : SV_DispatchThreadID)
 {
     uint i = id.x;
 
-        // guard: only process real particles (avoid over-dispatch out-of-bounds)
+    // guard: only process real particles (avoid over-dispatch out-of-bounds)
     if (i >= paddedNodeCount)
         return;
-    
+        
     if (i >= nodeCount)
     {
         Entry falseEntry = { (uint) i, UINT_MAX, UINT_MAX, 0 };
         spatialLookup[i] = falseEntry;
-        startIndices[i] = UINT_MAX;
         return;
     }
     
     int3 cell = PositionToCellCoord(particleData[i].position, cellSize);
     uint hash = HashCell(cell.x, cell.y, cell.z);
-    uint cellKey = KeyFromHash(hash, paddedNodeCount);
+    uint cellKey = KeyFromHash(hash, hashTableSize);
     
     Entry newEntry = { (uint) i, hash, cellKey, 0 };    
     
     spatialLookup[i] = newEntry;
-
-    startIndices[i] = UINT_MAX; // Initialize start indices to a large value
 }
 
 // each thread will handle more than one pair and swap if needed
@@ -73,7 +83,6 @@ void SortSpatialLookup(uint3 id : SV_DispatchThreadID)
         // if index high is out of bounds, return (for non power of 2 arrays)
         return;
     }
-    
     
     // determine accending or descending based on the height and index low pos
     bool accending = ((indexLow / height) % 2 == 0);
@@ -114,7 +123,7 @@ void CalculateStartIndices(uint3 id : SV_DispatchThreadID)
     uint i = id.x;
     if (i >= paddedNodeCount)
         return;
-    
+        
     uint key = spatialLookup[i].cellKey;
     
     if (key == UINT_MAX)

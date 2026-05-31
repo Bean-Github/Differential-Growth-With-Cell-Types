@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Unity.Mathematics;
 using UnityEditor;
@@ -7,6 +8,11 @@ using UnityEngine;
 public class SpatialHashComputeRunner : MonoBehaviour
 {
     public ComputeShader spatialHashCompute;
+
+    [Header("Debug")]
+    public bool showDebugGrid = false; // ONLY enable this when debugging! It causes lag.
+
+    private Node3D[] debugNodeData;
 
     float cellSize;
     //Bounds bounds;
@@ -17,24 +23,30 @@ public class SpatialHashComputeRunner : MonoBehaviour
         spatialHashCompute.SetFloat("cellSize", cellSize);
     }
 
+    int clearStartIndicesKernel;
     int createSpatialLookupKernel;
     int sortKernel;
     int calculateStartIndicesKernel;
 
     int nodeCount;
     int paddedNodeCount;
+    int hashTableSize;
 
     private void Start()
     {
+        clearStartIndicesKernel = spatialHashCompute.FindKernel("ClearStartIndices");
         createSpatialLookupKernel = spatialHashCompute.FindKernel("CreateSpatialLookup");
         sortKernel = spatialHashCompute.FindKernel("SortSpatialLookup");
         calculateStartIndicesKernel = spatialHashCompute.FindKernel("CalculateStartIndices");
     }
 
-    public void UpdateSpatialLookup(ref ComputeBuffer particleBuffer, ref ComputeBuffer spatialLookupBuffer, ref ComputeBuffer startIndicesBuffer)
+    public void UpdateSpatialLookup(ref ComputeBuffer particleBuffer, ref ComputeBuffer spatialLookupBuffer, ref ComputeBuffer startIndicesBuffer, int activeNodeCount)
     {
-        nodeCount = particleBuffer.count;
+        nodeCount = activeNodeCount;
         paddedNodeCount = Mathf.NextPowerOfTwo(nodeCount);
+        hashTableSize = startIndicesBuffer.count;
+
+        spatialHashCompute.SetBuffer(clearStartIndicesKernel, "startIndices", startIndicesBuffer);
 
         spatialHashCompute.SetBuffer(createSpatialLookupKernel, "particleData", particleBuffer);
         spatialHashCompute.SetBuffer(sortKernel, "particleData", particleBuffer);
@@ -52,10 +64,21 @@ public class SpatialHashComputeRunner : MonoBehaviour
         spatialHashCompute.SetBuffer(createSpatialLookupKernel, "startIndices", startIndicesBuffer);
 
         // Set other parameters
-        spatialHashCompute.SetInt("nodeCount", nodeCount);
-        spatialHashCompute.SetInt("paddedNodeCount", paddedNodeCount);
+        spatialHashCompute.SetInt("nodeCount", nodeCount);               // Small
+        spatialHashCompute.SetInt("paddedNodeCount", paddedNodeCount);   // Small Padded
+        spatialHashCompute.SetInt("hashTableSize", hashTableSize);       // Massive
 
         Dispatch();
+
+        if (showDebugGrid && nodeCount > 0)
+        {
+            if (debugNodeData == null || debugNodeData.Length != nodeCount)
+            {
+                debugNodeData = new Node3D[nodeCount];
+            }
+            // Pulling data from the GPU is a heavy operation, hence the boolean toggle!
+            particleBuffer.GetData(debugNodeData, 0, 0, nodeCount);
+        }
     }
 
 
@@ -63,6 +86,9 @@ public class SpatialHashComputeRunner : MonoBehaviour
     // Based on positions, decide which particles are in which spatial cells.
     private void Dispatch()
     {
+        int clearGroups = Mathf.CeilToInt(hashTableSize / 64f);
+        spatialHashCompute.Dispatch(clearStartIndicesKernel, clearGroups, 1, 1);
+
         spatialHashCompute.Dispatch(createSpatialLookupKernel, Mathf.CeilToInt(paddedNodeCount / 64f), 1, 1); // 64 threads per group?
 
         // Sort by cell key!!
@@ -100,78 +126,63 @@ public class SpatialHashComputeRunner : MonoBehaviour
         }
     }
 
-//    // DEBUG: visualize the grid in the editor
-//    public void DebugDrawGrid()
-//    {
-//        foreach (var kvp in hash)
-//        {
-//            Vector3Int cell = kvp.Key;
+    private void OnDrawGizmos()
+    {
+        if (!showDebugGrid || debugNodeData == null || !Application.isPlaying) return;
 
-//            Vector3 worldPos = new Vector3(
-//                cell.x * cellSize,
-//                cell.y * cellSize,
-//                cell.z * cellSize
-//            );
+        // Group particles into cells on the CPU using the same math as the shader
+        Dictionary<Vector3Int, int> gridCounts = new Dictionary<Vector3Int, int>();
 
-//            DrawCube(worldPos, cellSize, Color.cyan);
+        for (int i = 0; i < nodeCount; i++)
+        {
+            Vector3 pos = debugNodeData[i].position;
 
-//            // Optional: draw node count
-//            int count = kvp.Value.Count;
-//            Vector3 center = new Vector3(
-//                worldPos.x + cellSize * 0.5f,
-//                worldPos.y + cellSize * 0.5f,
-//                worldPos.z + cellSize * 0.5f
-//            );
-//#if UNITY_EDITOR
-//            GUIStyle labelStyle = new GUIStyle();
-//            labelStyle.normal.textColor = Color.yellow;
-//            labelStyle.alignment = TextAnchor.MiddleCenter;
-//            labelStyle.fontSize = 12;
-//            labelStyle.fontStyle = FontStyle.Bold;
+            // Replicate HLSL floor math
+            Vector3Int cell3D = new Vector3Int(
+                Mathf.FloorToInt(pos.x / cellSize),
+                Mathf.FloorToInt(pos.y / cellSize),
+                Mathf.FloorToInt(pos.z / cellSize)
+            );
 
-//            // pass the 3D world space 'center' directly.
-//            Handles.Label(center, count.ToString(), labelStyle);
+            if (!gridCounts.ContainsKey(cell3D))
+            {
+                gridCounts[cell3D] = 0;
+            }
+            gridCounts[cell3D]++;
+        }
 
-//            Vector3 labelCenter = center - new Vector3(0, cellSize * 0.25f, 0);
+        // Draw the cubes and text
+        Gizmos.color = Color.cyan;
+        foreach (var kvp in gridCounts)
+        {
+            Vector3Int cell = kvp.Key;
+            int count = kvp.Value;
 
-//            labelStyle.normal.textColor = Color.white;
-//            Handles.Label(labelCenter, $"({cell.x}, {cell.y}, {cell.z})", labelStyle);
-//#endif
-//        }
-//    }
+            // Calculate the exact world space bounds of this specific cell
+            Vector3 worldPos = new Vector3(cell.x * cellSize, cell.y * cellSize, cell.z * cellSize);
+            Vector3 center = worldPos + (Vector3.one * (cellSize * 0.5f));
 
-//    // Converted from DrawCell to draw a full 3D wireframe cube
-//    private void DrawCube(Vector3 bottomLeftBack, float size, Color color)
-//    {
-//        // Calculate all 8 corners of the cube
-//        Vector3 p0 = bottomLeftBack;
-//        Vector3 p1 = p0 + new Vector3(size, 0, 0);
-//        Vector3 p2 = p0 + new Vector3(size, size, 0);
-//        Vector3 p3 = p0 + new Vector3(0, size, 0);
+            // Draw a neat wire cube using Unity's built in Gizmo system
+            Gizmos.DrawWireCube(center, Vector3.one * cellSize);
 
-//        Vector3 p4 = p0 + new Vector3(0, 0, size);
-//        Vector3 p5 = p1 + new Vector3(0, 0, size);
-//        Vector3 p6 = p2 + new Vector3(0, 0, size);
-//        Vector3 p7 = p3 + new Vector3(0, 0, size);
+#if UNITY_EDITOR
+            GUIStyle labelStyle = new GUIStyle();
+            labelStyle.normal.textColor = Color.yellow;
+            labelStyle.alignment = TextAnchor.MiddleCenter;
+            labelStyle.fontSize = 12;
+            labelStyle.fontStyle = FontStyle.Bold;
 
-//        // Front Face (Z)
-//        Debug.DrawLine(p0, p1, color);
-//        Debug.DrawLine(p1, p2, color);
-//        Debug.DrawLine(p2, p3, color);
-//        Debug.DrawLine(p3, p0, color);
+            // Draw particle count in the center of the cell
+            Handles.Label(center, count.ToString(), labelStyle);
 
-//        // Back Face (Z + size)
-//        Debug.DrawLine(p4, p5, color);
-//        Debug.DrawLine(p5, p6, color);
-//        Debug.DrawLine(p6, p7, color);
-//        Debug.DrawLine(p7, p4, color);
-
-//        // Connecting Lines (Depth)
-//        Debug.DrawLine(p0, p4, color);
-//        Debug.DrawLine(p1, p5, color);
-//        Debug.DrawLine(p2, p6, color);
-//        Debug.DrawLine(p3, p7, color);
-//    }
+            // Draw coordinates slightly below
+            Vector3 labelCenter = center - new Vector3(0, cellSize * 0.25f, 0);
+            labelStyle.normal.textColor = Color.white;
+            labelStyle.fontSize = 10;
+            Handles.Label(labelCenter, $"({cell.x}, {cell.y}, {cell.z})", labelStyle);
+#endif
+        }
+    }
 
 }
 

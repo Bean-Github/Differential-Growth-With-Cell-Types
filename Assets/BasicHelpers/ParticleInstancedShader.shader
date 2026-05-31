@@ -41,8 +41,9 @@ Shader "Custom/Particle"
                 float curvature;
                 float mass;
 
-                int neighborStartIndex;
                 int neighborCount;
+
+                int neighbors[8];
             };
 
             StructuredBuffer<Particle> particles;

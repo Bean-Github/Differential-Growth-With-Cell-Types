@@ -1,4 +1,6 @@
 // Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel EvaluateSplits
+
 #pragma kernel ApplyNaturalForces
 #pragma kernel MoveParticles
 
@@ -9,6 +11,7 @@ RWStructuredBuffer<Node3D> Nodes;
 // VALUES
 float deltaTime;
 
+uint maxNodes;
 uint nodeCount;
 uint paddedNodeCount;
 
@@ -20,9 +23,100 @@ float laplacianSmoothing;
 
 float nodeDrag;
 
-StructuredBuffer<uint> NeighborIndices;
+float splitDistanceThreshold;
+
+//StructuredBuffer<uint> NeighborIndices;
 StructuredBuffer<Entry> SpatialLookup;
 StructuredBuffer<uint> StartIndices;
+
+RWByteAddressBuffer NodeCounter; 
+
+[numthreads(8, 1, 1)]
+void EvaluateSplits(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    if (index >= nodeCount)
+        return;
+
+    Node3D node = Nodes[index];
+    
+    // Use a flag instead of "return" to handle buffer capacity
+    bool capacityReached = false;
+
+    for (int i = 0; i < 8; i++)
+    {
+        // Replaced 'break' with a clean if-condition
+        if (!capacityReached && i < node.neighborCount)
+        {
+            int neighborIndex = node.neighbors[i];
+
+            // Replaced 'continue' with an if-condition
+            if (index < (uint) neighborIndex)
+            {
+                Node3D neighbor = Nodes[neighborIndex];
+                float dist = distance(node.position, neighbor.position);
+
+                if (dist > splitDistanceThreshold)
+                {
+                    if (nodeCount >= maxNodes)
+                    {
+                        capacityReached = true;
+                    }
+                    
+                    uint newNodeIndex;
+                    NodeCounter.InterlockedAdd(0, 1, newNodeIndex);
+
+                    // Replaced 'return' with flag toggle
+                    if (newNodeIndex >= maxNodes)
+                    {
+                        capacityReached = true;
+                    }
+                    else
+                    {
+                        // 2. Create the new node at the midpoint
+                        Node3D newNode;
+                        newNode.position = (node.position + neighbor.position) * 0.5f;
+                        newNode.velocity = float3(0, 0, 0);
+                        newNode.curvature = 0.0f;
+                        newNode.mass = 1.0f;
+                        newNode.neighborCount = 2; // Connects to the two parents
+                        newNode.neighbors[0] = index;
+                        newNode.neighbors[1] = neighborIndex;
+                        newNode.neighbors[2] = 0;
+                        newNode.neighbors[3] = 0;
+                        newNode.neighbors[4] = 0;
+                        newNode.neighbors[5] = 0;
+                        newNode.neighbors[6] = 0;
+                        newNode.neighbors[7] = 0;
+
+                        // Save new node
+                        Nodes[newNodeIndex] = newNode;
+
+                        // Update Parent A (Current Node)
+                        node.neighbors[i] = newNodeIndex;
+                        Nodes[index] = node;
+
+                        // Update Parent B (Neighbor Node)
+                        bool replaced = false; // Flag to replace 'break'
+                        
+                        for (int j = 0; j < 8; j++)
+                        {
+                            if (!replaced && j < neighbor.neighborCount)
+                            {
+                                if (neighbor.neighbors[j] == (int) index)
+                                {
+                                    neighbor.neighbors[j] = newNodeIndex;
+                                    Nodes[neighborIndex] = neighbor; // Write back to buffer
+                                    replaced = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 // 
 [numthreads(8, 1, 1)]
@@ -39,24 +133,21 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
     
     int3 currCell = PositionToCellCoord(node.position, separationDistance);
     
-    // get nearby nodes within separation distance
-    
-    // (for now, loop over all nodes - TODO: use spatial hashing for efficiency)
-    
+    // SEPARATION
     for (uint i = 0; i < 27; i++)
     {
         int3 offset = Offsets3D[i];
         int3 neighborCell = currCell + int3(offset.x, offset.y, offset.z);
         
         uint hash = HashCell(neighborCell.x, neighborCell.y, neighborCell.z);
-        uint cellKey = KeyFromHash(hash, paddedNodeCount);
+        uint cellKey = KeyFromHash(hash, maxNodes);
         
         uint startIndex = StartIndices[cellKey]; // get start index for this cell from precomputed start indices
         
         if (startIndex == UINT_MAX)
             continue;
         
-        for (uint j = startIndex; j < paddedNodeCount; j++)
+        for (uint j = startIndex; j < maxNodes; j++)
         {
             // If the cell key changes, we've exited this cell's block of particles. Stop checking.
             if (SpatialLookup[j].cellKey != cellKey)
@@ -100,24 +191,26 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
     if (node.neighborCount > 0)
     {
         float3 neighborCenter = float3(0, 0, 0);
-
-        for (int j = 0; j < node.neighborCount; j++)
+        
+        [unroll(8)]
+        for (int j = 0; j < 8; j++)
         {
-            int flatIndex = node.neighborStartIndex + j;
-            uint neighborNodeIndex = NeighborIndices[flatIndex];
+            if (j >= node.neighborCount)
+            {
+                break;
+            }
+            
+            uint neighborNodeIndex = node.neighbors[j];
         
             Node3D neighbor = Nodes[neighborNodeIndex];
-            
 
-            // ATTRACTION
             float3 attractionDir = normalize(neighbor.position - node.position);
             totalForce += attractionDir * attractionForce;
 
             // Add to centroid for Laplacian smoothing
             neighborCenter += neighbor.position;
         }
-
-        // LAPLACIAN SMOOTHING (move towards neighbor centroid)
+        
         neighborCenter /= (float) node.neighborCount;
         float3 laplacianVector = neighborCenter - node.position;
         totalForce += laplacianVector * laplacianSmoothing;

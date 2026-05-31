@@ -7,9 +7,11 @@ namespace Growth3DCompute
 { 
     public class Grower3DComputeRunner : MonoBehaviour
     {
+        public int subdivisions = 2;
+
         [Header("Parameters")]
-            public int nodeCount = 1000;
-            
+            public int maxNodes = 100000;
+            private int nodeCount;       // Keep this, but make it private!
             int paddedNodeCount; // the actual size of the buffer, which is the next power of 2 from nodeCount
 
         [Tooltip("Strength of repulsion between nodes")]
@@ -24,25 +26,35 @@ namespace Growth3DCompute
             public float nodeDrag = 0.1f;
 
 
+        public float splitDistanceThreshold = 5.0f;
+
         [Header("Shader Setup")]
             public ComputeShader computeShader;
             public SpatialHashComputeRunner spatialHashRunner;
             public Collider spawnCollider;
 
+        // rendering
+        [Header("Rendering")]
+            public BasicParticleBufferRenderer particleRenderer;
+            public BasicEdgeBufferRenderer edgeRenderer;
+
         // BUFFERS
         ComputeBuffer nodeBuffer;
-        ComputeBuffer neighborBuffer;
+        //ComputeBuffer neighborBuffer;
 
         ComputeBuffer spatialLookupBuffer;
         ComputeBuffer startIndicesBuffer;
+
+        ComputeBuffer counterBuffer;
+        int[] counterArray;
+
         Node3D[] nodeData;
 
         // values
+        protected int evaluateSplitsKernel;
         protected int applyNaturalForcesKernel;
         protected int moveKernel;
 
-        // rendering
-        public BasicParticleBufferRenderer particleRenderer;
 
 
         void Start()
@@ -59,95 +71,41 @@ namespace Growth3DCompute
             // execute the shader
             RunComputeShader();
 
+            // read back the atomic counter from the GPU
+            counterBuffer.GetData(counterArray);
+
+            // update our C# with the new total
+            nodeCount = Mathf.Min(counterArray[0], maxNodes);
+
+            print("curr num nodes: " + nodeCount);
+
             // get the information back from the shader to render
             particleRenderer.RenderParticles(nodeBuffer, nodeCount);
+            edgeRenderer.RenderEdges(nodeBuffer, nodeCount);
         }
 
         protected void CreateBuffers()
         {
+            counterArray = new int[1];
+            counterBuffer = new ComputeBuffer(1, sizeof(int), ComputeBufferType.Raw);
+
             // init particles
             CreateNodeBuffer();
 
-            spatialLookupBuffer = new ComputeBuffer(paddedNodeCount, sizeof(uint) * 4);
-            startIndicesBuffer = new ComputeBuffer(paddedNodeCount, sizeof(uint));
+            spatialLookupBuffer = new ComputeBuffer(maxNodes, sizeof(uint) * 4);
+            startIndicesBuffer = new ComputeBuffer(maxNodes, sizeof(uint));
         }
-        protected void CreateNodeBuffer()
+
+        protected unsafe void CreateNodeBuffer()
         {
-            // Helper method that safely splits an edge, ensures it snaps outward to a perfect sphere, 
-            // and caches the index to avoid creating duplicate vertices on shared edges.
-            int GetMidpointIndex(Dictionary<long, int> cache, List<Vector3> vertices, int p1, int p2)
-            {
-                long first = Mathf.Min(p1, p2);
-                long second = Mathf.Max(p1, p2);
-                long key = (first << 32) | second;
+            List<Vector3> vertices = new List<Vector3>();
+            List<int> triangles = new List<int>();
+            ShapeGenerator.CreateCube(out vertices, out triangles, subdivisions: subdivisions);
 
-                if (cache.TryGetValue(key, out int existingIndex))
-                {
-                    return existingIndex;
-                }
-
-                Vector3 middle = (vertices[p1] + vertices[p2]) / 2.0f;
-                vertices.Add(middle.normalized); // Snaps the point outward to the unit sphere radius
-
-                int newIndex = vertices.Count - 1;
-                cache.Add(key, newIndex);
-                return newIndex;
-            }
-
-            int subdivisions = 4; // Adjust this for more/less detail (0 = icosahedron, 1 = 80 faces, 2 = 320 faces, etc.)
-
-            // --- STEP 1: DEFINE BASE ICOSAHEDRON (12 Vertices, 20 Triangles) ---
-            float t = (1.0f + Mathf.Sqrt(5.0f)) / 2.0f;
-            List<Vector3> vertices = new List<Vector3>()
-                {
-                    new Vector3(-1,  t,  0).normalized, new Vector3( 1,  t,  0).normalized,
-                    new Vector3(-1, -t,  0).normalized, new Vector3( 1, -t,  0).normalized,
-                    new Vector3( 0, -1,  t).normalized, new Vector3( 0,  1,  t).normalized,
-                    new Vector3( 0, -1, -t).normalized, new Vector3( 0,  1, -t).normalized,
-                    new Vector3( t,  0, -1).normalized, new Vector3( t,  0,  1).normalized,
-                    new Vector3(-t,  0, -1).normalized, new Vector3(-t,  0,  1).normalized
-                };
-
-            List<int> triangles = new List<int>()
-                {
-                    0, 11, 5,   0, 5, 1,    0, 1, 7,    0, 7, 10,   0, 10, 11,
-                    1, 5, 9,    5, 11, 4,   11, 10, 2,  10, 7, 6,    7, 1, 8,
-                    3, 9, 4,    3, 4, 2,    3, 2, 6,    3, 6, 8,    3, 8, 9,
-                    4, 9, 5,    2, 4, 11,   6, 2, 10,   8, 6, 7,    9, 8, 1
-                };
-
-            // --- STEP 2: SUBDIVIDE TRIANGLES ---
-            // Loops through your subdivision count to split each face into 4 smaller ones
-            for (int i = 0; i < subdivisions; i++)
-            {
-                List<int> subdividedTriangles = new List<int>();
-                Dictionary<long, int> midpointCache = new Dictionary<long, int>();
-
-                for (int j = 0; j < triangles.Count; j += 3)
-                {
-                    int a = triangles[j];
-                    int b = triangles[j + 1];
-                    int c = triangles[j + 2];
-
-                    // Get or create unique midpoints for each edge
-                    int ab = GetMidpointIndex(midpointCache, vertices, a, b);
-                    int bc = GetMidpointIndex(midpointCache, vertices, b, c);
-                    int ca = GetMidpointIndex(midpointCache, vertices, c, a);
-
-                    // Create 4 new triangles out of the 1 original triangle
-                    subdividedTriangles.AddRange(new int[] { a, ab, ca });
-                    subdividedTriangles.AddRange(new int[] { b, bc, ab });
-                    subdividedTriangles.AddRange(new int[] { c, ca, bc });
-                    subdividedTriangles.AddRange(new int[] { ab, bc, ca });
-                }
-                triangles = subdividedTriangles;
-            }
-            // --- STEP 3: EXTRACT STRUCTURAL NEIGHBORS FROM TRIANGLES ---
+            // SETUP NODES
             int meshVertexCount = vertices.Count;
-
-            // OVERRIDE: Force nodeCount to the nearest power of 2 (e.g., 642 becomes 1024)
             nodeCount = meshVertexCount;
-            paddedNodeCount = Mathf.NextPowerOfTwo(meshVertexCount);
+            paddedNodeCount = Mathf.NextPowerOfTwo(nodeCount);
 
             HashSet<int>[] neighborsMap = new HashSet<int>[meshVertexCount];
             for (int i = 0; i < meshVertexCount; i++) neighborsMap[i] = new HashSet<int>();
@@ -165,50 +123,57 @@ namespace Growth3DCompute
 
             // --- STEP 4: FLATTEN DATA FOR GPU PACKING ---
             // Size the buffer perfectly to the power-of-two nodeCount
-            nodeBuffer = new ComputeBuffer(nodeCount, Marshal.SizeOf(typeof(Node3D))); // HERE
-            nodeData = new Node3D[nodeCount];
-            List<int> flatNeighbors = new List<int>();
+            nodeBuffer = new ComputeBuffer(maxNodes, Marshal.SizeOf(typeof(Node3D)));
+            nodeData = new Node3D[maxNodes];
 
             // 1. Fill the start of the array with your connected Icosahedron mesh
             for (int i = 0; i < meshVertexCount; i++)
             {
-                int startIndex = flatNeighbors.Count;
                 int count = neighborsMap[i].Count;
 
-                foreach (int neighborIndex in neighborsMap[i])
+                // 1. Create the node
+                Node3D node = new Node3D
                 {
-                    flatNeighbors.Add(neighborIndex);
-                }
-
-                nodeData[i] = new Node3D
-                {
-                    position = vertices[i] * 5.0f, // startRadius
+                    position = vertices[i] * 5.0f,
                     curvature = 0.0f,
                     velocity = Vector3.zero,
                     mass = 1.0f,
-                    neighborStartIndex = startIndex,
                     neighborCount = count
                 };
+
+                // 2. Safely populate the fixed array up to the max limit of 8
+                int nIndex = 0;
+                foreach (int neighborIndex in neighborsMap[i])
+                {
+                    if (nIndex < 8)
+                    {
+                        node.neighbors[nIndex] = neighborIndex;
+                        nIndex++;
+                    }
+                }
+
+                nodeData[i] = node;
             }
 
             nodeBuffer.SetData(nodeData);
 
-            neighborBuffer = new ComputeBuffer(flatNeighbors.Count, sizeof(int));
-            neighborBuffer.SetData(flatNeighbors.ToArray());
+            counterArray[0] = nodeCount;
+            counterBuffer.SetData(counterArray);
         }
 
         void SetKernelsAndBuffers()
         {
             // kernels
+            evaluateSplitsKernel = computeShader.FindKernel("EvaluateSplits");
             applyNaturalForcesKernel = computeShader.FindKernel("ApplyNaturalForces");
             moveKernel = computeShader.FindKernel("MoveParticles");
 
             // buffers
+            computeShader.SetBuffer(evaluateSplitsKernel, "Nodes", nodeBuffer);
+            computeShader.SetBuffer(evaluateSplitsKernel, "NodeCounter", counterBuffer);
+
             computeShader.SetBuffer(applyNaturalForcesKernel, "Nodes", nodeBuffer);
             computeShader.SetBuffer(moveKernel, "Nodes", nodeBuffer);
-
-            computeShader.SetBuffer(applyNaturalForcesKernel, "NeighborIndices", neighborBuffer);
-            computeShader.SetBuffer(moveKernel, "NeighborIndices", neighborBuffer);
 
             computeShader.SetBuffer(applyNaturalForcesKernel, "SpatialLookup", spatialLookupBuffer);
             computeShader.SetBuffer(applyNaturalForcesKernel, "StartIndices", startIndicesBuffer);
@@ -216,13 +181,16 @@ namespace Growth3DCompute
 
         void SetShaderParams()
         {
-            computeShader.SetInt("nodeCount", nodeCount);   // HERE
+            computeShader.SetInt("maxNodes", maxNodes);
             computeShader.SetInt("paddedNodeCount", paddedNodeCount);
         }
 
         void SetShaderParamsRealtime()
         {
+            computeShader.SetInt("nodeCount", nodeCount);
             computeShader.SetFloat("deltaTime", Time.deltaTime);
+
+            computeShader.SetFloat("splitDistanceThreshold", splitDistanceThreshold);
 
             computeShader.SetFloat("separationForce", separationForce);
             computeShader.SetFloat("separationDistance", separationDistance);
@@ -241,11 +209,13 @@ namespace Growth3DCompute
         {
             SetShaderParamsRealtime();
             
-            // calculate how many thread groups we need (see slides)
-            int threadGroupsX = Mathf.CeilToInt(nodeCount / 8.0f);    // HERE
+            // calculate how many thread groups we need
+            int threadGroupsX = Mathf.CeilToInt(nodeCount / 8.0f);    
 
             // DISPATCH
-            spatialHashRunner.UpdateSpatialLookup(ref nodeBuffer, ref spatialLookupBuffer, ref startIndicesBuffer); // dispatch spatial hash first to update the lookup tables
+            computeShader.Dispatch(evaluateSplitsKernel, threadGroupsX, 1, 1);
+
+            spatialHashRunner.UpdateSpatialLookup(ref nodeBuffer, ref spatialLookupBuffer, ref startIndicesBuffer, nodeCount); // dispatch spatial hash first to update the lookup tables
 
             computeShader.Dispatch(applyNaturalForcesKernel, threadGroupsX, 1, 1);
             computeShader.Dispatch(moveKernel, threadGroupsX, 1, 1);
@@ -255,27 +225,25 @@ namespace Growth3DCompute
         // this function is run when the object ComputeRunner is on is destroyed ex: when game closes
         void OnDestroy()
         {
-            ComputeHelper.Release(nodeBuffer, neighborBuffer, spatialLookupBuffer, startIndicesBuffer);
+            ComputeHelper.Release(nodeBuffer, /*neighborBuffer,*/ spatialLookupBuffer, startIndicesBuffer, counterBuffer);
         }
     }
 
-
-    // ALL STRUCTS
-    struct Node3D
-    {
-        public Vector3 position;
-        public float curvature;
-
-        public Vector3 velocity;
-        public float mass;
-
-        public int neighborStartIndex;
-        public int neighborCount;
-    }
-
-
 }
 
+// ALL STRUCTS
+public unsafe struct Node3D
+{
+    public Vector3 position;
+    public Vector3 velocity;
+
+    public float curvature;
+    public float mass;
+
+    public int neighborCount;
+
+    public fixed int neighbors[8];
+}
 
 
 
