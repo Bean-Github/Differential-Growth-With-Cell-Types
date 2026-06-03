@@ -100,7 +100,7 @@ namespace Growth3DCompute
         {
             List<Vector3> vertices = new List<Vector3>();
             List<int> triangles = new List<int>();
-            ShapeGenerator.CreateCube(out vertices, out triangles, subdivisions: subdivisions);
+            ShapeGenerator.CreateIcosphere(out vertices, out triangles, subdivisions: subdivisions);
 
             // SETUP NODES
             int meshVertexCount = vertices.Count;
