@@ -25,7 +25,6 @@ namespace Growth3DCompute
             [Tooltip("Drag applied to node velocity")]
             public float nodeDrag = 0.1f;
 
-
         public float splitDistanceThreshold = 5.0f;
 
         [Header("Shader Setup")]
@@ -121,27 +120,27 @@ namespace Growth3DCompute
                 neighborsMap[c].Add(a); neighborsMap[c].Add(b);
             }
 
-            // --- STEP 4: FLATTEN DATA FOR GPU PACKING ---
             // Size the buffer perfectly to the power-of-two nodeCount
             nodeBuffer = new ComputeBuffer(maxNodes, Marshal.SizeOf(typeof(Node3D)));
             nodeData = new Node3D[maxNodes];
 
-            // 1. Fill the start of the array with your connected Icosahedron mesh
+            // fill the start of the array with your connected Icosahedron mesh
             for (int i = 0; i < meshVertexCount; i++)
             {
                 int count = neighborsMap[i].Count;
 
-                // 1. Create the node
+                // create the node
                 Node3D node = new Node3D
                 {
                     position = vertices[i] * 5.0f,
                     curvature = 0.0f,
                     velocity = Vector3.zero,
                     mass = 1.0f,
-                    neighborCount = count
+                    neighborCount = count,
+                    isLocked = 0
                 };
 
-                // 2. Safely populate the fixed array up to the max limit of 8
+                // safely populate the fixed array up to the max limit of 8 w/ neighbors
                 int nIndex = 0;
                 foreach (int neighborIndex in neighborsMap[i])
                 {
@@ -181,7 +180,7 @@ namespace Growth3DCompute
 
         void SetShaderParams()
         {
-            computeShader.SetInt("maxNodes", maxNodes);
+            computeShader.SetInt("hashTableSize", maxNodes);
             computeShader.SetInt("paddedNodeCount", paddedNodeCount);
         }
 
@@ -225,7 +224,8 @@ namespace Growth3DCompute
         // this function is run when the object ComputeRunner is on is destroyed ex: when game closes
         void OnDestroy()
         {
-            ComputeHelper.Release(nodeBuffer, /*neighborBuffer,*/ spatialLookupBuffer, startIndicesBuffer, counterBuffer);
+            // release all buffers to prevent memory leaks
+            ComputeHelper.Release(nodeBuffer, spatialLookupBuffer, startIndicesBuffer, counterBuffer);
         }
     }
 
@@ -243,7 +243,24 @@ public unsafe struct Node3D
     public int neighborCount;
 
     public fixed int neighbors[8];
+
+    public int isLocked;
+
+    public int halfEdgeIndex; // ID of one of the half-edges originating from this vertex
 }
+
+public struct HalfEdge
+{
+    uint originVertexIndex; // Vertex at the start of this half-edge
+    uint twinIndex; // The opposite half-edge
+    uint nextIndex; // The next half-edge in the face loop
+    uint faceIndex; // The face this half-edge belongs to
+};
+
+public struct Face
+{
+    uint halfEdgeIndex; // ID of one of the half-edges bounding this face
+};
 
 
 

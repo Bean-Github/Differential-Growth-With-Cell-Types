@@ -18,6 +18,8 @@ Shader "Custom/ParticleEdge"
             #pragma fragment frag
 
             #include "UnityCG.cginc"
+            #include "../Growth3DCompute/GrowthHelpers3D.hlsl"
+            #include "../Growth3DCompute/GrowthStructs3D.hlsl"
 
             struct v2f
             {
@@ -28,17 +30,7 @@ Shader "Custom/ParticleEdge"
             uniform float maxVelocity;
             uniform float4 _EdgeColor;
 
-            struct Particle
-            {
-                float3 position;
-                float3 velocity;
-                float curvature; 
-                float mass;
-                int neighborCount;
-                int neighbors[8];
-            };
-
-            StructuredBuffer<Particle> particles;
+            StructuredBuffer<Node3D> particles;
 
             v2f vert(appdata_base v, uint instanceID : SV_InstanceID, uint vertexID : SV_VertexID)
             {
@@ -49,7 +41,7 @@ Shader "Custom/ParticleEdge"
                 uint nodeIndex = instanceID / 8;
                 uint neighborSlot = instanceID % 8;
 
-                Particle source = particles[nodeIndex];
+                Node3D source = particles[nodeIndex];
 
                 // If this neighbor slot isn't active, collapse the line to avoid drawing ghosts
                 if ((int)neighborSlot >= source.neighborCount)
@@ -59,7 +51,7 @@ Shader "Custom/ParticleEdge"
                 }
 
                 uint targetIndex = source.neighbors[neighborSlot];
-                Particle target = particles[targetIndex];
+                Node3D target = particles[targetIndex];
 
                 // Optimization: To stop dual-drawing identical lines (A->B and B->A),
                 // only draw the line if the source index is smaller.

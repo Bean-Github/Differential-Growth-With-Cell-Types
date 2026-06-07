@@ -16,6 +16,9 @@ Shader "Custom/Particle"
             #pragma fragment frag
 
             #include "UnityCG.cginc"
+            #include "../Growth3DCompute/GrowthHelpers3D.hlsl"
+            #include "../Growth3DCompute/GrowthStructs3D.hlsl"
+
 
             struct v2f
             {
@@ -34,19 +37,7 @@ Shader "Custom/Particle"
             uniform float4 _MediumColor;
             uniform float4 _BottomColor;
 
-            struct Particle
-            {
-                float3 position;
-                float3 velocity;
-                float curvature;
-                float mass;
-
-                int neighborCount;
-
-                int neighbors[8];
-            };
-
-            StructuredBuffer<Particle> particles;
+            StructuredBuffer<Node3D> particles;
 
 
             v2f vert(appdata_base v, uint instanceID : SV_InstanceID)

@@ -30,7 +30,7 @@ public class SpatialHashComputeRunner : MonoBehaviour
 
     int nodeCount;
     int paddedNodeCount;
-    int hashTableSize;
+    int maxNodes;
 
     private void Start()
     {
@@ -44,7 +44,7 @@ public class SpatialHashComputeRunner : MonoBehaviour
     {
         nodeCount = activeNodeCount;
         paddedNodeCount = Mathf.NextPowerOfTwo(nodeCount);
-        hashTableSize = startIndicesBuffer.count;
+        maxNodes = startIndicesBuffer.count;
 
         spatialHashCompute.SetBuffer(clearStartIndicesKernel, "startIndices", startIndicesBuffer);
 
@@ -66,7 +66,7 @@ public class SpatialHashComputeRunner : MonoBehaviour
         // Set other parameters
         spatialHashCompute.SetInt("nodeCount", nodeCount);               // Small
         spatialHashCompute.SetInt("paddedNodeCount", paddedNodeCount);   // Small Padded
-        spatialHashCompute.SetInt("hashTableSize", hashTableSize);       // Massive
+        spatialHashCompute.SetInt("hashTableSize", maxNodes);       // Massive
 
         Dispatch();
 
@@ -86,7 +86,7 @@ public class SpatialHashComputeRunner : MonoBehaviour
     // Based on positions, decide which particles are in which spatial cells.
     private void Dispatch()
     {
-        int clearGroups = Mathf.CeilToInt(hashTableSize / 64f);
+        int clearGroups = Mathf.CeilToInt(maxNodes / 64f);
         spatialHashCompute.Dispatch(clearStartIndicesKernel, clearGroups, 1, 1);
 
         spatialHashCompute.Dispatch(createSpatialLookupKernel, Mathf.CeilToInt(paddedNodeCount / 64f), 1, 1); // 64 threads per group?

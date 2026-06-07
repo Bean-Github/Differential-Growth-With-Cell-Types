@@ -531,14 +531,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3de46defec812994083af36645060d6c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  subdivisions: 0
-  maxNodes: 10000
+  subdivisions: 2
+  maxNodes: 8192
   separationForce: 10
   separationDistance: 5
   attractionForce: 0.2
   laplacianSmoothing: 0
   nodeDrag: 0.1
-  splitDistanceThreshold: 20
+  splitDistanceThreshold: 5
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   spatialHashRunner: {fileID: 907189157}
   spawnCollider: {fileID: 436488696}

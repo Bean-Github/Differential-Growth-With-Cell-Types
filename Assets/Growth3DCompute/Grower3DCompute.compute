@@ -1,19 +1,20 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel EvaluateSplits
-
 #pragma kernel ApplyNaturalForces
 #pragma kernel MoveParticles
 
 #include "GrowthHelpers3D.hlsl"
+#include "GrowthStructs3D.hlsl"
+#include "SpatialHash/SpatialHashHelpers3D.hlsl"
 
 RWStructuredBuffer<Node3D> Nodes;
 
 // VALUES
 float deltaTime;
 
-uint maxNodes;
 uint nodeCount;
 uint paddedNodeCount;
+uint hashTableSize; // basically maxNodes
 
 float separationDistance;
 float separationForce;
@@ -22,8 +23,8 @@ float attractionForce;
 float laplacianSmoothing;
 
 float nodeDrag;
-
 float splitDistanceThreshold;
+
 
 //StructuredBuffer<uint> NeighborIndices;
 StructuredBuffer<Entry> SpatialLookup;
@@ -40,10 +41,13 @@ void EvaluateSplits(uint3 id : SV_DispatchThreadID)
 
     Node3D node = Nodes[index];
     
+    if (node.isLocked == 1)
+        return;
+    
     // Use a flag instead of "return" to handle buffer capacity
     bool capacityReached = false;
 
-    for (int i = 0; i < 8; i++)
+    for (uint i = 0; i < 8; i++)
     {
         // Replaced 'break' with a clean if-condition
         if (!capacityReached && i < node.neighborCount)
@@ -58,7 +62,7 @@ void EvaluateSplits(uint3 id : SV_DispatchThreadID)
 
                 if (dist > splitDistanceThreshold)
                 {
-                    if (nodeCount >= maxNodes)
+                    if (nodeCount >= hashTableSize)
                     {
                         capacityReached = true;
                     }
@@ -67,7 +71,7 @@ void EvaluateSplits(uint3 id : SV_DispatchThreadID)
                     NodeCounter.InterlockedAdd(0, 1, newNodeIndex);
 
                     // Replaced 'return' with flag toggle
-                    if (newNodeIndex >= maxNodes)
+                    if (newNodeIndex >= hashTableSize)
                     {
                         capacityReached = true;
                     }
@@ -88,6 +92,8 @@ void EvaluateSplits(uint3 id : SV_DispatchThreadID)
                         newNode.neighbors[5] = 0;
                         newNode.neighbors[6] = 0;
                         newNode.neighbors[7] = 0;
+                        newNode.isLocked = false;
+                        newNode.halfEdgeIndex = 0; // default, can be set later when we implement half-edge structure
 
                         // Save new node
                         Nodes[newNodeIndex] = newNode;
@@ -118,6 +124,9 @@ void EvaluateSplits(uint3 id : SV_DispatchThreadID)
     }
 }
 
+
+
+
 // 
 [numthreads(8, 1, 1)]
 void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
@@ -140,14 +149,14 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
         int3 neighborCell = currCell + int3(offset.x, offset.y, offset.z);
         
         uint hash = HashCell(neighborCell.x, neighborCell.y, neighborCell.z);
-        uint cellKey = KeyFromHash(hash, maxNodes);
+        uint cellKey = KeyFromHash(hash, hashTableSize);
         
         uint startIndex = StartIndices[cellKey]; // get start index for this cell from precomputed start indices
         
         if (startIndex == UINT_MAX)
             continue;
         
-        for (uint j = startIndex; j < maxNodes; j++)
+        for (uint j = startIndex; j < hashTableSize; j++)
         {
             // If the cell key changes, we've exited this cell's block of particles. Stop checking.
             if (SpatialLookup[j].cellKey != cellKey)

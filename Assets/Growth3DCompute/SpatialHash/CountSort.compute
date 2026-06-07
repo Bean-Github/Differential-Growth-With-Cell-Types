@@ -4,6 +4,7 @@
 #pragma kernel CopyBack
 
 #include "../GrowthHelpers3D.hlsl"
+#include "../GrowthStructs3D.hlsl"
 
 //RWStructuredBuffer<uint> InputItems;
 //RWStructuredBuffer<uint> InputKeys;
