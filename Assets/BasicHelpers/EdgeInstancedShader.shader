@@ -31,35 +31,31 @@ Shader "Custom/ParticleEdge"
             uniform float4 _EdgeColor;
 
             StructuredBuffer<Node3D> particles;
+            StructuredBuffer<HalfEdge> halfEdges; // Now we pass in the half-edge buffer
 
             v2f vert(appdata_base v, uint instanceID : SV_InstanceID, uint vertexID : SV_VertexID)
             {
                 v2f o;
                 o.color = float4(0,0,0,0);
 
-                // Math trick: Decouple instance ID into source node and neighbor slot
-                uint nodeIndex = instanceID / 8;
-                uint neighborSlot = instanceID % 8;
+                // Each instance now cleanly maps to exactly ONE Half-Edge
+                uint edgeIndex = instanceID;
+                HalfEdge edge = halfEdges[edgeIndex];
 
-                Node3D source = particles[nodeIndex];
-
-                // If this neighbor slot isn't active, collapse the line to avoid drawing ghosts
-                if ((int)neighborSlot >= source.neighborCount)
-                {
-                    o.pos = float4(0,0,0,0);
-                    return o;
-                }
-
-                uint targetIndex = source.neighbors[neighborSlot];
-                Node3D target = particles[targetIndex];
+                uint sourceIndex = edge.origin;
+                uint twinIndex = edge.twin;
+                uint targetIndex = halfEdges[twinIndex].origin;
 
                 // Optimization: To stop dual-drawing identical lines (A->B and B->A),
-                // only draw the line if the source index is smaller.
-                if (nodeIndex >= targetIndex)
+                // only draw the line if the source node index is smaller than the target node index.
+                if (sourceIndex >= targetIndex)
                 {
-                    o.pos = float4(0,0,0,0);
+                    o.pos = float4(0, 0, 0, 0);
                     return o;
                 }
+
+                Node3D source = particles[sourceIndex];
+                Node3D target = particles[targetIndex];
 
                 // If vertexID is 0, we position it at the source node. If 1, at the target node.
                 float3 worldPos = (vertexID == 0) ? source.position : target.position;
@@ -78,7 +74,8 @@ Shader "Custom/ParticleEdge"
             float4 frag(v2f i) : SV_Target
             {
                 // Discard execution for invalid/collapsed lines
-                if (i.pos.x == 0 && i.pos.y == 0) discard;
+                // Checking Z helps ensure we don't accidentally discard a valid node sitting perfectly at 0,0
+                if (i.pos.x == 0 && i.pos.y == 0 && i.pos.z == 0) discard;
                 return i.color;
             }
             ENDCG

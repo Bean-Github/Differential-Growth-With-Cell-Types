@@ -10,29 +10,33 @@ struct Node3D
     float curvature;
     float mass;
     
-    uint neighborCount;
-    
-    int neighbors[8];
+    uint halfEdge;
     
     uint isLocked; // 0 = false, 1 = true
     
-    uint halfEdgeIndex;
+    uint id;
 };
-
 
 struct HalfEdge
 {
-    uint originVertexIndex; // Vertex at the start of this half-edge
-    uint twinIndex; // The opposite half-edge
-    uint nextIndex; // The next half-edge in the face loop
-    uint faceIndex; // The face this half-edge belongs to
+    uint origin; // at the start of this half-edge
+    uint target; // the target node
+    
+    uint next; // The next half-edge in the face loop
+    uint prev; // prev half-edge in the face loop
+    uint twin; // twin half-edge, same edge but opposite direction
+    
+    uint face;
+    
+    uint id;
 };
 
 struct Face
 {
-    uint halfEdgeIndex; // ID of one of the half-edges bounding this face
+    uint edge; // ID of one of the half-edges bounding this face
+    
+    uint id;
 };
-
 
 
 
