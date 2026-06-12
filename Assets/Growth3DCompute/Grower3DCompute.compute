@@ -292,7 +292,7 @@ RWStructuredBuffer<uint> NodeLocks; // 0 = unlocked, 1 = locked
 void MarkEdges(uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
-    uint halfEdgeCount = GlobalCounters.Load(4);
+    int halfEdgeCount = GlobalCounters.Load(4);
     
     if (index >= halfEdgeCount)
         return;
@@ -371,7 +371,7 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
 void EvaluateSplits(uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
-    uint halfEdgeCount = GlobalCounters.Load(4);
+    int halfEdgeCount = GlobalCounters.Load(4);
     
     if (index >= halfEdgeCount)
         return;
@@ -425,7 +425,7 @@ void UnlockNodes(uint3 id : SV_DispatchThreadID)
 void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
-    uint nodeCount = GlobalCounters.Load(0);
+    int nodeCount = GlobalCounters.Load(0);
     
     if (index >= (uint) nodeCount)
         return;
@@ -499,7 +499,7 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
     for (int j = 0; j < 32; j++)
     {
         uint twin = HalfEdges[currEdge].twin;
-        if (twin == UINT_MAX) 
+        if (twin == 4294967295U) 
             break;
         
         uint neighborNodeIndex = HalfEdges[twin].origin;
@@ -548,7 +548,7 @@ void MoveParticles (uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
     
-    uint nodeCount = GlobalCounters.Load(0);
+    int nodeCount = GlobalCounters.Load(0);
     
     if (id.x >= nodeCount)
         return;

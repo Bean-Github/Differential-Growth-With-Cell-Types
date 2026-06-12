@@ -104,6 +104,75 @@ namespace Growth3DCompute
 
         }
 
+        public void CreateTestPlane(float width, float length, int widthSegments, int lengthSegments)
+        {
+            // Ensure we have at least 1 segment
+            widthSegments = Mathf.Max(1, widthSegments);
+            lengthSegments = Mathf.Max(1, lengthSegments);
+
+            List<Vector3> vertices = new List<Vector3>();
+            List<int[]> faces = new List<int[]>();
+
+            // 1. Calculate spacing between vertices
+            float xSpacing = width / widthSegments;
+            float zSpacing = length / lengthSegments;
+
+            // Shift the starting point so the plane is centered at (0, 0, 0)
+            float xOffset = -width / 2f;
+            float zOffset = -length / 2f;
+
+            // 2. Generate Vertices (Rows and Columns)
+            // There is always 1 more vertex than segments in each direction
+            for (int z = 0; z <= lengthSegments; z++)
+            {
+                for (int x = 0; x <= widthSegments; x++)
+                {
+                    float xPos = xOffset + (x * xSpacing);
+                    float zPos = zOffset + (z * zSpacing);
+
+                    // A flat plane leaves the Y-axis at 0. 
+                    // Inner pressure or growth forces will eventually deform this Y value!
+                    vertices.Add(new Vector3(xPos, 0f, zPos));
+                }
+            }
+
+            // 3. Generate Triangles (Faces)
+            int rowVertices = widthSegments + 1;
+
+            for (int z = 0; z < lengthSegments; z++)
+            {
+                for (int x = 0; x < widthSegments; x++)
+                {
+                    // Find the 4 vertex indices that make up this grid quad
+                    int bottomLeft = x + (z * rowVertices);
+                    int bottomRight = bottomLeft + 1;
+                    int topLeft = bottomLeft + rowVertices;
+                    int topRight = bottomRight + rowVertices;
+
+                    // Split the quad into 2 triangles (maintaining clockwise winding order)
+                    // First Triangle
+                    faces.Add(new int[] { bottomLeft, topLeft, topRight });
+                    // Second Triangle
+                    faces.Add(new int[] { bottomLeft, topRight, bottomRight });
+                }
+            }
+
+            // 4. Add to NodeHoard securely
+            List<uint> finalNodes = new List<uint>();
+            foreach (Vector3 vert in vertices)
+            {
+                finalNodes.Add(nodeHoard.AddNode(vert));
+            }
+
+            foreach (int[] face in faces)
+            {
+                uint a = finalNodes[face[0]];
+                uint b = finalNodes[face[1]];
+                uint c = finalNodes[face[2]];
+
+                nodeHoard.AddTriangle(a, b, c);
+            }
+        }
     }
 
 

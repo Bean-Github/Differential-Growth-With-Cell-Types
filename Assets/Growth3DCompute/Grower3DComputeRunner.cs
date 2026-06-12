@@ -42,6 +42,7 @@ namespace Growth3DCompute
         [Header("Rendering")]
             public BasicParticleBufferRenderer particleRenderer;
             public BasicEdgeBufferRenderer edgeRenderer;
+            public MeshFilter nodeHoardMeshFilter;
 
         // BUFFERS
         ComputeBuffer nodeBuffer;
@@ -133,6 +134,26 @@ namespace Growth3DCompute
 
                 //SetTopologyBuffers(nodeHoardCompute);
             }
+        
+            if (Input.GetKey(KeyCode.M))
+            {
+                // convert to mesh
+                // extract the data back to CPU and log it for debugging
+                Node3D[] nodeData = new Node3D[nodeCount];
+                nodeBuffer.GetData(nodeData, 0, 0, nodeCount);
+
+                HalfEdge3D[] halfEdgeData = new HalfEdge3D[halfEdgeCount];
+                halfEdgeBuffer.GetData(halfEdgeData, 0, 0, halfEdgeCount);
+
+                Face3D[] faceData = new Face3D[faceCount];
+                faceBuffer.GetData(faceData, 0, 0, faceCount);
+
+                NodeHoardCompute nodeHoardCompute = new NodeHoardCompute(nodeData, halfEdgeData, faceData);
+
+                Mesh newMesh = NodeHoardMeshGenerator.GenerateMesh(nodeHoardCompute);
+
+                nodeHoardMeshFilter.mesh = newMesh;
+            }
 
         }
 
@@ -157,6 +178,8 @@ namespace Growth3DCompute
             NodeHoardGenerator generator = new NodeHoardGenerator();
 
             generator.CreateTestSphere(3.0f);
+
+            //generator.CreateTestPlane(10.0f, 10.0f, subdivisions, subdivisions);
 
             nodeBuffer = new ComputeBuffer(hashTableSize, Marshal.SizeOf(typeof(Node3D)));
             halfEdgeBuffer = new ComputeBuffer(maxHalfEdges, Marshal.SizeOf(typeof(HalfEdge3D)));
@@ -253,9 +276,9 @@ namespace Growth3DCompute
             int threadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 8.0f);
 
             // DISPATCH
-            //computeShader.Dispatch(markEdgesKernel, threadGroupsEdges, 1, 1);
-            //computeShader.Dispatch(evaluateSplitsKernel, threadGroupsEdges, 1, 1);
-            //computeShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
+            computeShader.Dispatch(markEdgesKernel, threadGroupsEdges, 1, 1);
+            computeShader.Dispatch(evaluateSplitsKernel, threadGroupsEdges, 1, 1);
+            computeShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
 
             spatialHashRunner.UpdateSpatialLookup(ref nodeBuffer, ref spatialLookupBuffer, ref startIndicesBuffer, nodeCount); // dispatch spatial hash first to update the lookup tables
 
