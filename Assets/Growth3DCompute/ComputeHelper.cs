@@ -171,4 +171,14 @@ public class ComputeHelper
             }
         }
     }
+
+
+    public static void SetBufferToKernels(string bufferName, ComputeBuffer buffer, ComputeShader computeShader, params int[] kernels)
+    {
+        for (int i = 0; i < kernels.Length; i++)
+        {
+            computeShader.SetBuffer(kernels[i], bufferName, buffer);
+        }
+    }
+
 }

@@ -11,13 +11,12 @@ struct Node3D
     float mass;
     
     uint halfEdge;
-    
-    uint isLocked; // 0 = false, 1 = true
-    
+        
     uint id;
+
 };
 
-struct HalfEdge
+struct HalfEdge3D
 {
     uint origin; // at the start of this half-edge
     uint target; // the target node
@@ -29,11 +28,13 @@ struct HalfEdge
     uint face;
     
     uint id;
+        
+    uint wantsToSplit;
 };
 
-struct Face
+struct Face3D
 {
-    uint edge; // ID of one of the half-edges bounding this face
+    uint halfEdge; // ID of one of the half-edges bounding this face
     
     uint id;
 };

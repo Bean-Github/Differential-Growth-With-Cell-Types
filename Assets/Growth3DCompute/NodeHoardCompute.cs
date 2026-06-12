@@ -436,7 +436,6 @@ namespace Growth3DCompute
             allNodes[(int)leftNode.id] = leftNode;
             allNodes[(int)rightNode.id] = rightNode;
             allNodes[(int)newNode.id] = newNode;
-
         }
         #endregion
     }

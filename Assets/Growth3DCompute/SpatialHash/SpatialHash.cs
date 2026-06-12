@@ -32,7 +32,7 @@ namespace Growth3DCompute
 
         int nodeCount;
         int paddedNodeCount;
-        int maxNodes;
+        int hashTableSize;
 
         private void Start()
         {
@@ -42,11 +42,16 @@ namespace Growth3DCompute
             calculateStartIndicesKernel = spatialHashCompute.FindKernel("CalculateStartIndices");
         }
 
-        public void UpdateSpatialLookup(ref ComputeBuffer particleBuffer, ref ComputeBuffer spatialLookupBuffer, ref ComputeBuffer startIndicesBuffer, int activeNodeCount)
+        public void UpdateSpatialLookup(
+            ref ComputeBuffer particleBuffer, 
+            ref ComputeBuffer spatialLookupBuffer, 
+            ref ComputeBuffer startIndicesBuffer, 
+            int activeNodeCount
+            )
         {
             nodeCount = activeNodeCount;
             paddedNodeCount = Mathf.NextPowerOfTwo(nodeCount);
-            maxNodes = startIndicesBuffer.count;
+            this.hashTableSize = startIndicesBuffer.count;
 
             spatialHashCompute.SetBuffer(clearStartIndicesKernel, "startIndices", startIndicesBuffer);
 
@@ -68,7 +73,7 @@ namespace Growth3DCompute
             // Set other parameters
             spatialHashCompute.SetInt("nodeCount", nodeCount);               // Small
             spatialHashCompute.SetInt("paddedNodeCount", paddedNodeCount);   // Small Padded
-            spatialHashCompute.SetInt("hashTableSize", maxNodes);       // Massive
+            spatialHashCompute.SetInt("hashTableSize", hashTableSize);       // Massive
 
             Dispatch();
 
@@ -88,7 +93,7 @@ namespace Growth3DCompute
         // Based on positions, decide which particles are in which spatial cells.
         private void Dispatch()
         {
-            int clearGroups = Mathf.CeilToInt(maxNodes / 64f);
+            int clearGroups = Mathf.CeilToInt(hashTableSize / 64f);
             spatialHashCompute.Dispatch(clearStartIndicesKernel, clearGroups, 1, 1);
 
             spatialHashCompute.Dispatch(createSpatialLookupKernel, Mathf.CeilToInt(paddedNodeCount / 64f), 1, 1); // 64 threads per group?

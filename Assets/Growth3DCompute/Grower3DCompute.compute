@@ -1,8 +1,8 @@
 // Each #kernel tells which function to compile; you can have many kernels
 
 #pragma kernel MarkEdges
-
 #pragma kernel EvaluateSplits
+#pragma kernel UnlockNodes
 #pragma kernel ApplyNaturalForces
 #pragma kernel MoveParticles
 
@@ -11,14 +11,16 @@
 #include "SpatialHash/SpatialHashHelpers3D.hlsl"
 
 RWStructuredBuffer<Node3D> Nodes : register(u0);
-RWStructuredBuffer<HalfEdge> HalfEdges : register(u1);
-RWStructuredBuffer<Face> Faces : register(u2);
+RWStructuredBuffer<HalfEdge3D> HalfEdges : register(u1);
+RWStructuredBuffer<Face3D> Faces : register(u2);
 
 // VALUES
 float deltaTime;
+int frameCount;
 
-//uint nodeCount;
-uint hashTableSize; // basically maxNodes
+uint maxNodes; // basically maxNodes
+uint hashTableSize; // for spatial hashing, nextpoweroftwo(maxNodes)
+uint paddedNodeCount;
 
 float separationDistance;
 float separationForce;
@@ -39,28 +41,403 @@ StructuredBuffer<uint> StartIndices;
 RWByteAddressBuffer GlobalCounters;
 
 
-// 
+Node3D AddNode(uint allocatedID)
+{
+    //uint newNodeID;
+    //GlobalCounters.InterlockedAdd(0, 1, newNodeID); // Byte 0 = Node Count
+    
+    Node3D node = (Node3D) 0;
+    node.id = allocatedID;
+    
+    Nodes[node.id] = node;
+    
+    return node;
+}
+
+void ApplyNode(Node3D node)
+{
+    Nodes[node.id] = node;
+}
+
+HalfEdge3D AddEdge(uint allocatedID)
+{
+    //uint newEdgeID;
+    //GlobalCounters.InterlockedAdd(4, 1, newEdgeID);
+    
+    HalfEdge3D edge = (HalfEdge3D) 0;
+    edge.id = allocatedID;
+    
+    HalfEdges[edge.id] = edge;
+    
+    return edge;
+}
+
+void ApplyEdge(HalfEdge3D edge)
+{
+    HalfEdges[edge.id] = edge;
+}
+
+Face3D AddFace(uint allocatedID)
+{
+    //uint newFaceID;
+    //GlobalCounters.InterlockedAdd(8, 1, newFaceID);
+    
+    Face3D face = (Face3D) 0;
+    face.id = allocatedID;
+    
+    Faces[face.id] = face;
+    
+    return face;
+}
+
+void ApplyFace(Face3D face)
+{
+    Faces[face.id] = face;
+}
+
+
+void SplitTriangle(uint edgeIndex, uint allocatedNodeID, uint startEdgeID, uint startFaceID)
+{
+    // 1. Fetch existing edge and its twin
+    HalfEdge3D edgeToSplit = HalfEdges[edgeIndex];
+    uint eMidLeftID = edgeToSplit.twin;
+    HalfEdge3D twinEdge = HalfEdges[eMidLeftID];
+
+    // edge to split goes from LEFT to RIGHT
+    uint topNodeID = HalfEdges[edgeToSplit.next].target;
+    uint bottomNodeID = HalfEdges[twinEdge.next].target;
+    uint rightNodeID = edgeToSplit.target;
+    uint leftNodeID = edgeToSplit.origin;
+
+    Node3D topNode = Nodes[topNodeID];
+    Node3D bottomNode = Nodes[bottomNodeID];
+    Node3D rightNode = Nodes[rightNodeID];
+    Node3D leftNode = Nodes[leftNodeID];
+
+    float3 midPoint = (rightNode.position + leftNode.position) / 2.0f;
+    
+    Node3D newNode = AddNode(allocatedNodeID);
+    newNode.position = midPoint;
+    newNode.velocity = (rightNode.velocity + leftNode.velocity) / 2.0f;
+    newNode.mass = 1.0f;
+
+    // 3. Keep the outer boundary edges, but save references to them
+    uint eTopLeftID = edgeToSplit.prev;
+    uint eRightTopID = edgeToSplit.next;
+    uint eBottomRightID = twinEdge.prev;
+    uint eLeftBottomID = twinEdge.next;
+
+    HalfEdge3D eTopLeft = HalfEdges[eTopLeftID];
+    HalfEdge3D eRightTop = HalfEdges[eRightTopID];
+    HalfEdge3D eBottomRight = HalfEdges[eBottomRightID];
+    HalfEdge3D eLeftBottom = HalfEdges[eLeftBottomID];
+
+    // 4. We reuse the 2 existing faces and the 2 existing half-edges (the middle ones)
+    uint topFaceID = edgeToSplit.face;
+    uint bottomFaceID = twinEdge.face;
+    uint eLeftMidID = edgeIndex;
+
+    Face3D topFace = Faces[topFaceID];
+    Face3D bottomFace = Faces[bottomFaceID];
+    HalfEdge3D eLeftMid = edgeToSplit; // Re-purpose to go from leftNode -> mid
+    HalfEdge3D eMidLeft = twinEdge; // Re-purpose to go from leftNode -> mid
+
+    // 5. Create the 6 brand NEW half-edges and 2 NEW faces required
+    Face3D newTopFace = AddFace(startFaceID);
+    Face3D newBottomFace = AddFace(startFaceID + 1);
+
+    HalfEdge3D eMidTop = AddEdge(startEdgeID);
+    HalfEdge3D eTopMid = AddEdge(startEdgeID + 1);
+    HalfEdge3D eMidBottom = AddEdge(startEdgeID + 2);
+    HalfEdge3D eBottomMid = AddEdge(startEdgeID + 3);
+    HalfEdge3D eMidRight = AddEdge(startEdgeID + 4);
+    HalfEdge3D eRightMid = AddEdge(startEdgeID + 5);
+
+    // --- THE STITCHING PHASE ---
+    uint newNodeID = newNode.id;
+    
+    uint newTopFaceID = newTopFace.id;
+    uint newBottomFaceID = newBottomFace.id;
+    
+    uint eMidRightID = eMidRight.id;
+    uint eRightMidID = eRightMid.id;
+    uint eMidTopID = eMidTop.id;
+    uint eTopMidID = eTopMid.id;
+    uint eMidBottomID = eMidBottom.id;
+    uint eBottomMidID = eBottomMid.id;
+    
+    // Top-Right Triangle
+    eRightTop.face = newTopFaceID;
+    eRightTop.next = eTopMidID;
+    eRightTop.prev = eMidRightID;
+
+    eMidRight.origin = newNodeID;
+    eMidRight.target = rightNodeID;
+    eMidRight.twin = eRightMidID;
+    eMidRight.next = eRightTopID;
+    eMidRight.prev = eTopMidID;
+    eMidRight.face = newTopFaceID;
+
+    eTopMid.origin = topNodeID;
+    eTopMid.target = newNodeID;
+    eTopMid.twin = eMidTopID;
+    eTopMid.next = eMidRightID;
+    eTopMid.prev = eRightTopID;
+    eTopMid.face = newTopFaceID;
+
+    // Bottom right Triangle
+    eBottomRight.face = newBottomFaceID;
+    eBottomRight.next = eRightMidID;
+    eBottomRight.prev = eMidBottomID;
+
+    eMidBottom.origin = newNodeID;
+    eMidBottom.target = bottomNodeID;
+    eMidBottom.twin = eBottomMidID;
+    eMidBottom.next = eBottomRightID;
+    eMidBottom.prev = eRightMidID;
+    eMidBottom.face = newBottomFaceID;
+
+    eRightMid.origin = rightNodeID;
+    eRightMid.target = newNodeID;
+    eRightMid.twin = eMidRightID;
+    eRightMid.next = eMidBottomID;
+    eRightMid.prev = eBottomRightID;
+    eRightMid.face = newBottomFaceID;
+
+    // Top left triangle
+    eMidTop.origin = newNodeID;
+    eMidTop.target = topNodeID;
+    eMidTop.twin = eTopMidID;
+    eMidTop.next = eTopLeftID;
+    eMidTop.prev = eLeftMidID;
+    eMidTop.face = topFaceID;
+
+    eTopLeft.face = topFaceID;
+    eTopLeft.next = eLeftMidID;
+    eTopLeft.prev = eMidTopID;
+
+    eLeftMid.origin = leftNodeID;
+    eLeftMid.target = newNodeID;
+    eLeftMid.twin = eMidLeftID;
+    eLeftMid.next = eMidTopID;
+    eLeftMid.prev = eTopLeftID;
+    eLeftMid.face = topFaceID;
+
+    // Bottom left triangle
+    eBottomMid.origin = bottomNodeID;
+    eBottomMid.target = newNodeID;
+    eBottomMid.twin = eMidBottomID;
+    eBottomMid.next = eMidLeftID;
+    eBottomMid.prev = eLeftBottomID;
+    eBottomMid.face = bottomFaceID;
+
+    eMidLeft.origin = newNodeID;
+    eMidLeft.target = leftNodeID;
+    eMidLeft.twin = eLeftMidID;
+    eMidLeft.next = eLeftBottomID;
+    eMidLeft.prev = eBottomMidID;
+    eMidLeft.face = bottomFaceID;
+
+    eLeftBottom.face = bottomFaceID;
+    eLeftBottom.next = eBottomMidID;
+    eLeftBottom.prev = eMidLeftID;
+
+    // Set face pointers
+    topFace.halfEdge = eLeftMidID;
+    bottomFace.halfEdge = eMidLeftID;
+    newTopFace.halfEdge = eMidRightID;
+    newBottomFace.halfEdge = eRightMidID;
+
+    // Set node pointers
+    newNode.halfEdge = eMidRightID;
+    topNode.halfEdge = eTopLeftID;
+    leftNode.halfEdge = eLeftBottomID;
+    bottomNode.halfEdge = eBottomRightID;
+    rightNode.halfEdge = eRightTopID;
+
+    // Write back modified existing Edges AND the new ones we just modified
+    HalfEdges[eTopLeftID] = eTopLeft;
+    HalfEdges[eRightTopID] = eRightTop;
+    HalfEdges[eBottomRightID] = eBottomRight;
+    HalfEdges[eLeftBottomID] = eLeftBottom;
+    HalfEdges[eLeftMidID] = eLeftMid;
+    HalfEdges[eMidLeftID] = eMidLeft;
+
+    // Write back new edges
+    HalfEdges[eMidTopID] = eMidTop;
+    HalfEdges[eTopMidID] = eTopMid;
+    HalfEdges[eMidBottomID] = eMidBottom;
+    HalfEdges[eBottomMidID] = eBottomMid;
+    HalfEdges[eRightMidID] = eRightMid;
+    HalfEdges[eMidRightID] = eMidRight;
+
+    // Write back Faces
+    Faces[topFaceID] = topFace;
+    Faces[bottomFaceID] = bottomFace;
+    Faces[newTopFaceID] = newTopFace;
+    Faces[newBottomFaceID] = newBottomFace;
+
+    // Write back Nodes
+    Nodes[topNodeID] = topNode;
+    Nodes[bottomNodeID] = bottomNode;
+    Nodes[leftNodeID] = leftNode;
+    Nodes[rightNodeID] = rightNode;
+    Nodes[newNodeID] = newNode;
+}
+
+
+RWStructuredBuffer<uint> NodeLocks; // 0 = unlocked, 1 = locked
+
 [numthreads(8, 1, 1)]
-void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
+void MarkEdges(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    uint halfEdgeCount = GlobalCounters.Load(4);
+    
+    if (index >= halfEdgeCount)
+        return;
+    
+    if ((index + frameCount) % 4 != 0) 
+        return;
+    
+    HalfEdge3D edge = HalfEdges[index];
+    HalfEdge3D twinEdge = HalfEdges[edge.twin];
+    
+    // Only allow the lower half-edge ID to handle the split evaluation
+    if (edge.id > edge.twin) 
+        return;
+
+    Node3D originNode = Nodes[edge.origin];
+    Node3D targetNode = Nodes[edge.target];
+    float dist = distance(originNode.position, targetNode.position);
+
+    if (dist > splitDistanceThreshold)
+    {
+        uint topNodeID = HalfEdges[edge.next].target;
+        uint bottomNodeID = HalfEdges[twinEdge.next].target;
+        uint rightNodeID = edge.target;
+        uint leftNodeID = edge.origin;
+
+        uint lockTop, lockBottom, lockRight, lockLeft;
+
+        
+        // interlocked compare exchange is an atomic operation that sets the value at the given address to the new value (3rd parameter)
+        // IFF the current value at that address is equal to the expected value (2nd parameter).
+        // interlocked compare exchange returns the OLD value, 
+        // so if it returns 0 that means we successfully set it to 1 and acquired the lock
+        
+        // Try to lock Left (try to set to 1 if it's currently 0, and store the old value in lockLeft)
+        InterlockedCompareExchange(NodeLocks[leftNodeID], 0, 1, lockLeft);
+        if (lockLeft != 0)
+            return; // Failed! Abort. (lockLeft was 1, meaning some other thread has locked this node, so we can't split this edge)
+
+        // Try to lock Right
+        InterlockedCompareExchange(NodeLocks[rightNodeID], 0, 1, lockRight);
+        if (lockRight != 0)
+        {
+            InterlockedExchange(NodeLocks[leftNodeID], 0, lockLeft);
+            return;
+        }
+
+        // Try to lock Top
+        InterlockedCompareExchange(NodeLocks[topNodeID], 0, 1, lockTop);
+        if (lockTop != 0)
+        {
+            // Failed! Unlock Left and Right.
+            InterlockedExchange(NodeLocks[leftNodeID], 0, lockLeft);
+            InterlockedExchange(NodeLocks[rightNodeID], 0, lockRight);
+            return;
+        }
+
+        // Try to lock Bottom
+        InterlockedCompareExchange(NodeLocks[bottomNodeID], 0, 1, lockBottom);
+        if (lockBottom != 0)
+        {
+        // Failed! Unlock Left, Right, and Top.
+            InterlockedExchange(NodeLocks[leftNodeID], 0, lockLeft);
+            InterlockedExchange(NodeLocks[rightNodeID], 0, lockRight);
+            InterlockedExchange(NodeLocks[topNodeID], 0, lockTop);
+            return;
+        }
+
+        // SUCCESS! We locked all 4 nodes. 
+        // Now we mark this edge so EvaluateSplits knows to execute the split.
+        // (You could add a 'uint wantsToSplit' field to HalfEdge3D for this)
+        HalfEdges[index].wantsToSplit = 1;
+    }
+}
+
+[numthreads(8, 1, 1)]
+void EvaluateSplits(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    uint halfEdgeCount = GlobalCounters.Load(4);
+    
+    if (index >= halfEdgeCount)
+        return;
+    
+    HalfEdge3D edge = HalfEdges[index];
+    
+    if (edge.wantsToSplit == 1)
+    {
+        // first check if we've already reached max node count before splitting
+        uint allocatedNodeID;
+        // Atomically add 1, and return the ID we just claimed into 'allocatedNodeID'
+        GlobalCounters.InterlockedAdd(0, 1, allocatedNodeID);
+        
+        
+        if (allocatedNodeID < maxNodes)
+        {
+            uint startEdgeID, startFaceID;
+            GlobalCounters.InterlockedAdd(4, 6, startEdgeID);
+            GlobalCounters.InterlockedAdd(8, 2, startFaceID);
+            
+            SplitTriangle(index, allocatedNodeID, startEdgeID, startFaceID);
+        }
+        else
+        {
+            // We failed the race. Revert the node count by subtracting 1 so we don't break the counter.
+            uint dummy;
+            GlobalCounters.InterlockedAdd(0, -1, dummy);
+        }
+    }
+    
+    HalfEdges[index].wantsToSplit = 0; // reset for next frame
+
+}
+
+// Add this kernel:
+[numthreads(8, 1, 1)]
+void UnlockNodes(uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
     int nodeCount = GlobalCounters.Load(0);
     
     if (index >= (uint) nodeCount)
         return;
+        
+    // Free the node for the next frame
+    NodeLocks[index] = 0;
+}
+
+// OVER NODES
+[numthreads(8, 1, 1)]
+void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    uint nodeCount = GlobalCounters.Load(0);
+    
+    if (index >= (uint) nodeCount)
+        return;
     
     Node3D node = Nodes[index];
-
-    // If node is locked, it doesn't move, so we can skip force evaluation
-    if (node.isLocked == 1)
-        return;
 
     float3 totalForce = float3(0, 0, 0);
     
     int3 currCell = PositionToCellCoord(node.position, separationDistance);
     
     // ==========================================
-    // 1. SEPARATION (Spatial Hashing)
+    // SEPARATION
     // ==========================================
     for (uint i = 0; i < 27; i++)
     {
@@ -75,7 +452,7 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
         if (startIndex == UINT_MAX)
             continue;
         
-        for (uint j = startIndex; j < hashTableSize; j++)
+        for (uint j = startIndex; j < paddedNodeCount; j++)
         {
             if (SpatialLookup[j].cellKey != cellKey)
                 break;
@@ -83,6 +460,10 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
             uint otherIndex = SpatialLookup[j].particleIndex;
             
             if (otherIndex == index)
+                continue;
+            
+            // don't calculate forces against dummy/padded data
+            if (otherIndex >= nodeCount)
                 continue;
             
             Node3D other = Nodes[otherIndex];
@@ -106,7 +487,7 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
     }
     
     // ==========================================
-    // 2. ATTRACTION & LAPLACIAN (Half-Edge Topology)
+    // ATTRACTION & LAPLACIAN
     // ==========================================
     float3 neighborCenter = float3(0, 0, 0);
     int actualNeighborCount = 0;
@@ -114,11 +495,11 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
     uint startEdge = node.halfEdge;
     uint currEdge = startEdge;
     
-    // Circulate around the vertex (max 32 limit to prevent infinite loops)
+    // find neighbors by traversing the half-edge structure around this node
     for (int j = 0; j < 32; j++)
     {
         uint twin = HalfEdges[currEdge].twin;
-        if (twin == 4294967295U) 
+        if (twin == UINT_MAX) 
             break;
         
         uint neighborNodeIndex = HalfEdges[twin].origin;
@@ -150,7 +531,7 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
     }
 
     // ==========================================
-    // 3. APPLY FORCES
+    // APPLY FORCES
     // ==========================================
     totalForce += -node.velocity * nodeDrag;
 
@@ -167,7 +548,7 @@ void MoveParticles (uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
     
-    int nodeCount = GlobalCounters.Load(0);
+    uint nodeCount = GlobalCounters.Load(0);
     
     if (id.x >= nodeCount)
         return;
@@ -179,183 +560,4 @@ void MoveParticles (uint3 id : SV_DispatchThreadID)
 
 
 
-
-[numthreads(8, 1, 1)]
-void MarkEdges(uint3 id : SV_DispatchThreadID)
-{
-    
-}
-
-
-
-//void SplitTriangle(uint edgeToSplitIdx)
-//{
-//    // 1. Identify the existing nodes by traversing the half-edge connections
-//    uint eLeftMidIdx = edgeToSplitIdx;
-//    uint eMidLeftIdx = HalfEdges[eLeftMidIdx].twinIndex;
-
-//    // To get standard CCW surrounding edges, we follow .nextIndex
-//    uint eRightTopIdx = HalfEdges[eLeftMidIdx].nextIndex;
-//    uint eTopLeftIdx = HalfEdges[eRightTopIdx].nextIndex; // prev is just next twice in a triangle
-
-//    uint eLeftBottomIdx = HalfEdges[eMidLeftIdx].nextIndex;
-//    uint eBottomRightIdx = HalfEdges[eLeftBottomIdx].nextIndex;
-
-//    // Identify Node Indices
-//    uint leftNodeIdx = HalfEdges[eLeftMidIdx].originVertexIndex;
-//    uint rightNodeIdx = HalfEdges[eMidLeftIdx].originVertexIndex;
-//    uint topNodeIdx = HalfEdges[eTopLeftIdx].originVertexIndex;
-//    uint bottomNodeIdx = HalfEdges[eBottomRightIdx].originVertexIndex;
-
-//    // 2. Allocate a new Node and calculate midpoint data
-//    uint newNodeIdx;
-//    GlobalCounters.InterlockedAdd(0, 1, newNodeIdx); // Allocate 1 Node
-
-//    Node3D newNode;
-//    newNode.position = (Nodes[rightNodeIdx].position + Nodes[leftNodeIdx].position) * 0.5f;
-//    newNode.velocity = (Nodes[rightNodeIdx].velocity + Nodes[leftNodeIdx].velocity) * 0.5f;
-//    newNode.curvature = 0; // default
-//    newNode.mass = (Nodes[rightNodeIdx].mass + Nodes[leftNodeIdx].mass) * 0.5f;
-//    newNode.isLocked = 0;
-    
-//    // 3. Keep the outer boundary edges (indices already saved above)
-
-//    // 4. We reuse the 2 existing faces and the 2 existing half-edges
-//    uint topFaceIdx = HalfEdges[eLeftMidIdx].faceIndex;
-//    uint bottomFaceIdx = HalfEdges[eMidLeftIdx].faceIndex;
-
-//    // 5. Allocate 2 brand NEW faces and 6 brand NEW half-edges
-//    uint newTopFaceIdx;
-//    GlobalCounters.InterlockedAdd(4, 2, newTopFaceIdx); // Allocate 2 Faces
-//    uint newBottomFaceIdx = newTopFaceIdx + 1;
-
-//    uint eMidTopIdx;
-//    GlobalCounters.InterlockedAdd(8, 6, eMidTopIdx); // Allocate 6 HalfEdges
-//    uint eTopMidIdx = eMidTopIdx + 1;
-//    uint eMidBottomIdx = eMidTopIdx + 2;
-//    uint eBottomMidIdx = eMidTopIdx + 3;
-//    uint eMidRightIdx = eMidTopIdx + 4;
-//    uint eRightMidIdx = eMidTopIdx + 5;
-
-//    // --- THE STITCHING PHASE ---
-    
-//    // Top-Right Triangle
-//    HalfEdges[eRightTopIdx].faceIndex = newTopFaceIdx; // Outer boundary edge
-//    HalfEdges[eRightTopIdx].nextIndex = eTopMidIdx;
-
-//    HalfEdges[eMidRightIdx].originVertexIndex = newNodeIdx;
-//    HalfEdges[eMidRightIdx].twinIndex = eRightMidIdx;
-//    HalfEdges[eMidRightIdx].nextIndex = eRightTopIdx;
-//    HalfEdges[eMidRightIdx].faceIndex = newTopFaceIdx;
-
-//    HalfEdges[eTopMidIdx].originVertexIndex = topNodeIdx;
-//    HalfEdges[eTopMidIdx].twinIndex = eMidTopIdx;
-//    HalfEdges[eTopMidIdx].nextIndex = eMidRightIdx;
-//    HalfEdges[eTopMidIdx].faceIndex = newTopFaceIdx;
-
-//    // Bottom-Right Triangle
-//    HalfEdges[eBottomRightIdx].faceIndex = newBottomFaceIdx; // Outer boundary edge
-//    HalfEdges[eBottomRightIdx].nextIndex = eRightMidIdx;
-
-//    HalfEdges[eMidBottomIdx].originVertexIndex = newNodeIdx;
-//    HalfEdges[eMidBottomIdx].twinIndex = eBottomMidIdx;
-//    HalfEdges[eMidBottomIdx].nextIndex = eBottomRightIdx;
-//    HalfEdges[eMidBottomIdx].faceIndex = newBottomFaceIdx;
-
-//    HalfEdges[eRightMidIdx].originVertexIndex = rightNodeIdx;
-//    HalfEdges[eRightMidIdx].twinIndex = eMidRightIdx;
-//    HalfEdges[eRightMidIdx].nextIndex = eMidBottomIdx;
-//    HalfEdges[eRightMidIdx].faceIndex = newBottomFaceIdx;
-
-//    // Top-Left Triangle
-//    HalfEdges[eMidTopIdx].originVertexIndex = newNodeIdx;
-//    HalfEdges[eMidTopIdx].twinIndex = eTopMidIdx;
-//    HalfEdges[eMidTopIdx].nextIndex = eTopLeftIdx;
-//    HalfEdges[eMidTopIdx].faceIndex = topFaceIdx;
-
-//    HalfEdges[eTopLeftIdx].faceIndex = topFaceIdx; // Outer boundary edge
-//    HalfEdges[eTopLeftIdx].nextIndex = eLeftMidIdx;
-
-//    HalfEdges[eLeftMidIdx].originVertexIndex = leftNodeIdx;
-//    HalfEdges[eLeftMidIdx].twinIndex = eMidLeftIdx;
-//    HalfEdges[eLeftMidIdx].nextIndex = eMidTopIdx;
-//    HalfEdges[eLeftMidIdx].faceIndex = topFaceIdx;
-
-//    // Bottom-Left Triangle
-//    HalfEdges[eBottomMidIdx].originVertexIndex = bottomNodeIdx;
-//    HalfEdges[eBottomMidIdx].twinIndex = eMidBottomIdx;
-//    HalfEdges[eBottomMidIdx].nextIndex = eMidLeftIdx;
-//    HalfEdges[eBottomMidIdx].faceIndex = bottomFaceIdx;
-
-//    HalfEdges[eMidLeftIdx].originVertexIndex = newNodeIdx;
-//    HalfEdges[eMidLeftIdx].twinIndex = eLeftMidIdx;
-//    HalfEdges[eMidLeftIdx].nextIndex = eLeftBottomIdx;
-//    HalfEdges[eMidLeftIdx].faceIndex = bottomFaceIdx;
-
-//    HalfEdges[eLeftBottomIdx].faceIndex = bottomFaceIdx; // Outer boundary edge
-//    HalfEdges[eLeftBottomIdx].nextIndex = eBottomMidIdx;
-
-//    // Set Face Pointers
-//    Faces[topFaceIdx].halfEdgeIndex = eLeftMidIdx;
-//    Faces[bottomFaceIdx].halfEdgeIndex = eMidLeftIdx;
-//    Faces[newTopFaceIdx].halfEdgeIndex = eMidRightIdx;
-//    Faces[newBottomFaceIdx].halfEdgeIndex = eRightMidIdx;
-
-//    // Set Node Pointers 
-//    newNode.halfEdgeIndex = eMidRightIdx;
-//    Nodes[topNodeIdx].halfEdgeIndex = eTopLeftIdx;
-//    Nodes[leftNodeIdx].halfEdgeIndex = eLeftBottomIdx;
-//    Nodes[bottomNodeIdx].halfEdgeIndex = eBottomRightIdx;
-//    Nodes[rightNodeIdx].halfEdgeIndex = eRightTopIdx;
-
-//    // Finally, write the newly constructed Node to the buffer
-//    Nodes[newNodeIdx] = newNode;
-//}
-
-
-[numthreads(8, 1, 1)]
-void EvaluateSplits(uint3 id : SV_DispatchThreadID)
-{
-    //uint index = id.x;
-    //int nodeCount = GlobalCounters.Load(0);
-    
-    //if (index >= (uint) nodeCount)
-    //    return;
-
-    //Node3D node = Nodes[index];
-    
-    //if (node.isLocked == 1)
-    //    return;
-
-    //// Get the first half-edge originating from this vertex
-    //uint startEdge = node.halfEdgeIndex;
-    //uint currEdge = startEdge;
-    
-    //// Circulate around the vertex (max 32 limit to prevent infinite loops on bad topology)
-    //for (int i = 0; i < 32; i++)
-    //{
-    //    uint twin = HalfEdges[currEdge].twinIndex;
-    //    uint neighborIndex = HalfEdges[twin].originVertexIndex;
-
-    //    // Only split if our index is lower, so we don't evaluate the same edge twice
-    //    if (index < neighborIndex)
-    //    {
-    //        Node3D neighbor = Nodes[neighborIndex];
-    //        float dist = distance(node.position, neighbor.position);
-            
-    //        if (dist > splitDistanceThreshold)
-    //        {
-    //            // currEdge is exactly the edge starting at 'index' and pointing to 'neighborIndex'
-    //            SplitTriangle(currEdge);                
-    //        }
-    //    }
-
-    //    // Move to the next half-edge around this origin vertex
-    //    currEdge = HalfEdges[twin].nextIndex;
-        
-    //    // If we made a full circle back to the start, we evaluated all neighbors
-    //    if (currEdge == startEdge)
-    //        break;
-    //}
-}
 

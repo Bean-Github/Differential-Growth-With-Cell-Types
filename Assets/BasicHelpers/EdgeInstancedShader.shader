@@ -31,7 +31,7 @@ Shader "Custom/ParticleEdge"
             uniform float4 _EdgeColor;
 
             StructuredBuffer<Node3D> particles;
-            StructuredBuffer<HalfEdge> halfEdges; // Now we pass in the half-edge buffer
+            StructuredBuffer<HalfEdge3D> halfEdges; // Now we pass in the half-edge buffer
 
             v2f vert(appdata_base v, uint instanceID : SV_InstanceID, uint vertexID : SV_VertexID)
             {
@@ -40,7 +40,7 @@ Shader "Custom/ParticleEdge"
 
                 // Each instance now cleanly maps to exactly ONE Half-Edge
                 uint edgeIndex = instanceID;
-                HalfEdge edge = halfEdges[edgeIndex];
+                HalfEdge3D edge = halfEdges[edgeIndex];
 
                 uint sourceIndex = edge.origin;
                 uint twinIndex = edge.twin;

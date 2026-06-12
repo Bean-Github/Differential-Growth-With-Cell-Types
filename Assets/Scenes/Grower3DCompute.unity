@@ -250,7 +250,6 @@ MonoBehaviour:
   nodeDrag: 0.1
   splitDistanceThreshold: 5
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
-  splitterShader: {fileID: 0}
   spatialHashRunner: {fileID: 0}
   spawnCollider: {fileID: 0}
   particleRenderer: {fileID: 0}
@@ -533,15 +532,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   subdivisions: 2
-  maxNodes: 8000
-  separationForce: 34.97
-  separationDistance: 5
-  attractionForce: 0.2
+  maxNodes: 16
+  separationForce: 30.9
+  separationDistance: 13.6
+  attractionForce: 0.45
   laplacianSmoothing: 0
-  nodeDrag: 0.1
-  splitDistanceThreshold: 5
+  nodeDrag: 0.7
+  splitDistanceThreshold: 10000
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
-  splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
   spatialHashRunner: {fileID: 907189157}
   spawnCollider: {fileID: 436488696}
   particleRenderer: {fileID: 907189156}
@@ -591,7 +589,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   spatialHashCompute: {fileID: 7200000, guid: 3e69aeeb657a8554d866d6b9563cf005, type: 3}
-  showDebugGrid: 0
+  showDebugGrid: 1
 --- !u!114 &907189158
 MonoBehaviour:
   m_ObjectHideFlags: 0
