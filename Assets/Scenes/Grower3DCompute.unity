@@ -532,12 +532,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   subdivisions: 2
-  maxNodes: 16
-  separationForce: 30.9
-  separationDistance: 13.6
-  attractionForce: 0.45
+  maxNodes: 8000
+  separationForce: 34.97
+  separationDistance: 5
+  attractionForce: 0.2
   laplacianSmoothing: 0
-  nodeDrag: 0.7
+  nodeDrag: 0.1
   splitDistanceThreshold: 10000
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   spatialHashRunner: {fileID: 907189157}
