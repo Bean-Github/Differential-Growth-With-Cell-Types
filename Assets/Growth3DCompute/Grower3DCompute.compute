@@ -1,5 +1,5 @@
 // Each #kernel tells which function to compile; you can have many kernels
-
+#pragma kernel UnlockEdges
 #pragma kernel MarkEdges
 #pragma kernel EvaluateSplits
 #pragma kernel UnlockNodes
@@ -368,6 +368,19 @@ void FlagPending()
 }
 
 [numthreads(8, 1, 1)]
+void UnlockEdges(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    int halfEdgeCount = GlobalCounters.Load(4);
+
+    if (index >= halfEdgeCount)
+        return;
+    
+    HalfEdges[index].wantsToSplit = 0;
+    HalfEdges[index].canSplit = 0;
+}
+
+[numthreads(8, 1, 1)]
 void MarkEdges(uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
@@ -376,7 +389,7 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
     if (index >= halfEdgeCount)
         return;
     
-    if ((index + sliceIndex) % 4 != 0) 
+    if ((index + sliceIndex) % 20 != 0) 
         return;
     
     HalfEdge3D edge = HalfEdges[index];
@@ -389,7 +402,7 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
     // Only allow the lower half-edge ID to handle the split evaluation
     if (index > edge.twin) 
         return;
-
+    
     // determine if the edge wants to split
     Node3D originNode = Nodes[edge.origin];
     Node3D targetNode = Nodes[edge.target];
@@ -401,7 +414,7 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
     }
     
     // determine if the edge CAN split
-    if (HalfEdges[index].wantsToSplit == 1)
+    if (HalfEdges[index].wantsToSplit == 1 && HalfEdges[index].canSplit == 0)
     {
         uint topNodeID = HalfEdges[edge.next].target;
         uint rightNodeID = edge.target;
@@ -481,7 +494,7 @@ void EvaluateSplits(uint3 id : SV_DispatchThreadID)
     
     HalfEdge3D edge = HalfEdges[index];
     
-    if (edge.wantsToSplit && edge.canSplit)
+    if (edge.wantsToSplit == 1 && edge.canSplit == 1)
     {
         // first check if we've already reached max node count before splitting
         uint allocatedNodeID;
@@ -499,6 +512,8 @@ void EvaluateSplits(uint3 id : SV_DispatchThreadID)
             GlobalCounters.InterlockedAdd(8, facesNeeded, startFaceID);
         
             SplitTriangle(index, allocatedNodeID, startEdgeID, startFaceID);
+            
+            HalfEdges[index].canSplit = 2; // mark as just-split
         }
         else
         {
@@ -509,8 +524,12 @@ void EvaluateSplits(uint3 id : SV_DispatchThreadID)
     }
     
     HalfEdges[index].wantsToSplit = 0; // reset for next frame
-    HalfEdges[index].canSplit = 0;
+    if (HalfEdges[index].canSplit == 1)
+    {
+        HalfEdges[index].canSplit = 0;
+    }
 }
+
 
 // Add this kernel:
 [numthreads(8, 1, 1)]

@@ -69,6 +69,7 @@ namespace Growth3DCompute
         //Face3D[] faceData;
 
         // kernels
+        protected int unlockEdgesKernel;
         protected int markEdgesKernel;
         protected int evaluateSplitsKernel;
         protected int unlockNodesKernel;
@@ -263,6 +264,7 @@ namespace Growth3DCompute
 
         void SetKernelsAndBuffers()
         {
+            unlockEdgesKernel = computeShader.FindKernel("UnlockEdges");
             markEdgesKernel = computeShader.FindKernel("MarkEdges");
             evaluateSplitsKernel = computeShader.FindKernel("EvaluateSplits");
             unlockNodesKernel = computeShader.FindKernel("UnlockNodes");
@@ -270,8 +272,8 @@ namespace Growth3DCompute
             moveKernel = computeShader.FindKernel("MoveParticles");
 
             // Compute Shader
-            ComputeHelper.SetBufferToKernels("GlobalCounters", counterBuffer, computeShader, 
-                markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, applyNaturalForcesKernel, moveKernel);
+            ComputeHelper.SetBufferToKernels("GlobalCounters", counterBuffer, computeShader,
+                unlockEdgesKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, applyNaturalForcesKernel, moveKernel);
 
             ComputeHelper.SetBufferToKernels("NodeLocks", nodeLocksBuffer, computeShader,
                 markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel);
@@ -279,8 +281,8 @@ namespace Growth3DCompute
             ComputeHelper.SetBufferToKernels("Nodes", nodeBuffer, computeShader, 
                 markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, applyNaturalForcesKernel, moveKernel);
 
-            ComputeHelper.SetBufferToKernels("HalfEdges", halfEdgeBuffer, computeShader, 
-                markEdgesKernel, evaluateSplitsKernel, applyNaturalForcesKernel, moveKernel);
+            ComputeHelper.SetBufferToKernels("HalfEdges", halfEdgeBuffer, computeShader,
+                unlockEdgesKernel, markEdgesKernel, evaluateSplitsKernel, applyNaturalForcesKernel, moveKernel);
 
             ComputeHelper.SetBufferToKernels("Faces", faceBuffer, computeShader, 
                 markEdgesKernel, evaluateSplitsKernel, applyNaturalForcesKernel, moveKernel);
@@ -348,18 +350,20 @@ namespace Growth3DCompute
             }
             UpdateCounters();
 
-            if (enableSplitting)
+            if (enableSplitting && nodeCount < maxNodes)
             {
                 int maxIterations = 20;
                 int iterations = 0;
                 int pendingSplits = 1;
                 int threadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 8.0f);
 
+                computeShader.Dispatch(unlockEdgesKernel, threadGroupsEdges, 1, 1); // Unlock all edges before starting the splitting iterations
+
                 while (pendingSplits > 0 && iterations < maxIterations)
                 {
                     ResetPendingCounterBuffer();
 
-                    for (int i = 0; i < 4; i++)
+                    for (int i = 0; i < 20; i++)
                     {
                         computeShader.SetInt("sliceIndex", i);
 
