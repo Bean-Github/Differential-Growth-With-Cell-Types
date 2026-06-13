@@ -542,11 +542,11 @@ MonoBehaviour:
   separationForce: 203.6
   separationDistance: 15
   springStiffness: 3
-  restLength: 1
+  restLength: 3
   laplacianSmoothing: 0.1
   gravity: 0
   nodeDrag: 4.83
-  splitDistanceThreshold: 4
+  splitDistanceThreshold: 5
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   spatialHashRunner: {fileID: 907189157}
   spawnCollider: {fileID: 436488696}

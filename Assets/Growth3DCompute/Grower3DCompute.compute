@@ -17,6 +17,7 @@ RWStructuredBuffer<Face3D> Faces : register(u2);
 // VALUES
 float deltaTime;
 int frameCount;
+int sliceIndex;
 
 uint maxNodes; // basically maxNodes
 uint hashTableSize; // for spatial hashing, nextpoweroftwo(maxNodes)
@@ -375,7 +376,7 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
     if (index >= halfEdgeCount)
         return;
     
-    if ((index + frameCount) % 4 != 0) 
+    if ((index + sliceIndex) % 4 != 0) 
         return;
     
     HalfEdge3D edge = HalfEdges[index];
@@ -386,7 +387,7 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
         return;
     
     // Only allow the lower half-edge ID to handle the split evaluation
-    if (edge.id > edge.twin) 
+    if (index > edge.twin) 
         return;
 
     // determine if the edge wants to split
@@ -396,11 +397,11 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
 
     if (dist > splitDistanceThreshold)
     {
-        HalfEdges[index].wantsToSplit = true;
+        HalfEdges[index].wantsToSplit = 1;
     }
     
     // determine if the edge CAN split
-    if (HalfEdges[index].wantsToSplit)
+    if (HalfEdges[index].wantsToSplit == 1)
     {
         uint topNodeID = HalfEdges[edge.next].target;
         uint rightNodeID = edge.target;
@@ -465,7 +466,7 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
         // SUCCESS! We locked all 4 nodes. 
         // Now we mark this edge so EvaluateSplits knows to execute the split.
         // (You could add a 'uint wantsToSplit' field to HalfEdge3D for this)
-        HalfEdges[index].canSplit = true;
+        HalfEdges[index].canSplit = 1;
     }
 }
 
@@ -507,8 +508,8 @@ void EvaluateSplits(uint3 id : SV_DispatchThreadID)
         }
     }
     
-    HalfEdges[index].wantsToSplit = false; // reset for next frame
-    HalfEdges[index].canSplit = false;
+    HalfEdges[index].wantsToSplit = 0; // reset for next frame
+    HalfEdges[index].canSplit = 0;
 }
 
 // Add this kernel:

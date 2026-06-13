@@ -350,39 +350,39 @@ namespace Growth3DCompute
 
             if (enableSplitting)
             {
-                //int maxIterations = 20;
-                //int iterations = 0;
-                //int pendingSplits = 1;
-
-                //while (pendingSplits > 0 && iterations < maxIterations)
-                //{
-                //    ResetPendingCounterBuffer();
-
-                //    int threadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 8.0f);
-                //    computeShader.Dispatch(markEdgesKernel, threadGroupsEdges, 1, 1);
-                //    //computeShader.Dispatch(evaluateSplitsKernel, threadGroupsEdges, 1, 1);
-
-                //    UpdateCounters(); // Read counts
-                //    pendingSplits = counterArray[3];
-
-                //    // Unlock the nodes for the *next* iteration
-                //    int threadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
-                //    computeShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
-
-                //    iterations++;
-                //}
-
+                int maxIterations = 20;
+                int iterations = 0;
+                int pendingSplits = 1;
                 int threadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 8.0f);
-                computeShader.Dispatch(markEdgesKernel, threadGroupsEdges, 1, 1);
-                computeShader.Dispatch(evaluateSplitsKernel, threadGroupsEdges, 1, 1);
 
+                while (pendingSplits > 0 && iterations < maxIterations)
+                {
+                    ResetPendingCounterBuffer();
+
+                    for (int i = 0; i < 4; i++)
+                    {
+                        computeShader.SetInt("sliceIndex", i);
+
+                        computeShader.Dispatch(markEdgesKernel, threadGroupsEdges, 1, 1);
+                        computeShader.Dispatch(evaluateSplitsKernel, threadGroupsEdges, 1, 1);
+
+                        UpdateCounters(); // Read counts
+                        pendingSplits = counterArray[3];
+
+                        // Unlock the nodes for the *next* iteration
+                        int threadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
+                        computeShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
+                    }
+
+                    iterations++;
+                }
             }
             else
             {
+                UpdateCounters();
+                int threadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
+                computeShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
             }
-            UpdateCounters();
-            int threadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
-            computeShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
 
             // --- Physics Phase ---
             int finalThreadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
