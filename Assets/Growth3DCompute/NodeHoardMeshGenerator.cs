@@ -21,18 +21,33 @@ public static class NodeHoardMeshGenerator
             vertices[i] = hoard.allNodes[i].position;
         }
 
-        // 2. Extract Triangles
+        if (vertices.Length > 65535)
+        {
+            mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        }
+
         // Assuming all faces are strictly triangles (based on AddTriangle/SplitTriangle)
         int[] triangles = new int[hoard.faces.Count * 3];
         int triIndex = 0;
 
+        uint invalidID = uint.MaxValue;
+
         foreach (var face in hoard.faces)
         {
+            if (face.halfEdge == invalidID) continue;
+
             // Get the first half-edge of the face
             var he1 = hoard.GetEdge(face.halfEdge);
+            if (he1.next == invalidID) continue;
             // Walk to the next two half-edges to complete the triangle
             var he2 = hoard.GetEdge(he1.next);
+            if (he2.next == invalidID) continue;
             var he3 = hoard.GetEdge(he2.next);
+
+            if (he3.next != face.halfEdge)
+            {
+                continue; // Skip boundary n-gons
+            }
 
             // Unity's triangle winding is usually Clockwise. 
             // If your mesh renders inside-out, reverse the order to: he1, he3, he2
@@ -49,12 +64,9 @@ public static class NodeHoardMeshGenerator
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
 
-        // Optional: If you are using 32-bit index buffers for high-poly meshes (>65k vertices)
-        if (vertices.Length > 65535)
-        {
-            mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-        }
-
         return mesh;
     }
 }
+
+
+

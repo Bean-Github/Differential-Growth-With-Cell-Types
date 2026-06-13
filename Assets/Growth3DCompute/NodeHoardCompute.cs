@@ -174,8 +174,6 @@ namespace Growth3DCompute
 
                 nodeHoard.AddTriangle(a, b, c);
             }
-
-            nodeHoard.SealOpenBoundaries();
         }
 
         public void CreateTestHexagon(float radius)
@@ -225,11 +223,6 @@ namespace Growth3DCompute
 
                 nodeHoard.AddTriangle(a, b, c);
             }
-
-            // ONLY call this if you decided to keep the C# Ghost Edges for your boundaries!
-            // If you took my previous advice and let the GPU handle naked boundaries 
-            // via INVALID_TWIN_ID, you can delete this line.
-            // nodeHoard.SealOpenBoundaries(); 
         }
     }
 
@@ -281,7 +274,7 @@ namespace Growth3DCompute
 
         public uint AddNode(Vector3 position)
         { 
-            Node3D newNode = new Node3D { position = position, mass = globalMass };
+            Node3D newNode = new Node3D { position = position, mass = globalMass, halfEdge = uint.MaxValue };
             return AddNode(ref newNode);
         }
 
@@ -348,9 +341,9 @@ namespace Growth3DCompute
             SutureTwin(ref he3, ref nodeC, ref nodeA);
 
             face.halfEdge = he1.id;
-            nodeA.halfEdge = he1.id; // set its halfedge to he1
-            nodeB.halfEdge = he2.id;
-            nodeC.halfEdge = he3.id;
+            if (nodeA.halfEdge == uint.MaxValue) nodeA.halfEdge = he1.id;
+            if (nodeB.halfEdge == uint.MaxValue) nodeB.halfEdge = he2.id;
+            if (nodeC.halfEdge == uint.MaxValue) nodeC.halfEdge = he3.id;
 
             // Write the modifications back to the master list!
             halfEdges[(int)he1.id] = he1;
@@ -379,8 +372,17 @@ namespace Growth3DCompute
             // if there exists and edge going to -> from, then that is our twin!
             if (edgeSutures.TryGetValue(key, out HalfEdge3D twin))
             {
+                if (twin.origin != halfEdge.target)
+                {
+                    Debug.LogWarning($"Non-manifold geometry or duplicate face detected at nodes {from.id} and {to.id}");
+                    return;
+                }
+
                 halfEdge.twin = twin.id;
                 twin.twin = halfEdge.id;
+
+                halfEdge.isBoundary = 0;
+                twin.isBoundary = 0;
 
                 halfEdges[(int)twin.id] = twin;
 
@@ -389,6 +391,8 @@ namespace Growth3DCompute
             else
             {
                 halfEdge.twin = uint.MaxValue; // No twin yet
+                halfEdge.isBoundary = 1;
+
                 edgeSutures.Add(key, halfEdge);
             }
         }
@@ -471,6 +475,37 @@ namespace Growth3DCompute
 
             // Clear sutures because the mesh is now mathematically perfectly sealed
             edgeSutures.Clear();
+        }
+
+        public void FixBoundaryNodePointers()
+        {
+            for (int i = 0; i < allNodes.Count; i++)
+            {
+                Node3D node = allNodes[i];
+                if (node.halfEdge == uint.MaxValue) continue;
+
+                uint startEdge = node.halfEdge;
+                uint currentEdge = startEdge;
+
+                // Circulate around the vertex
+                do
+                {
+                    HalfEdge3D he = halfEdges[(int)currentEdge];
+
+                    // If we find an edge with no twin, THIS is the outgoing boundary edge.
+                    if (he.twin == uint.MaxValue)
+                    {
+                        node.halfEdge = he.id;
+                        allNodes[i] = node;
+                        break; // Found the boundary, stop looking
+                    }
+
+                    // Move to the next outgoing edge around this vertex
+                    HalfEdge3D twinEdge = halfEdges[(int)he.twin];
+                    currentEdge = twinEdge.next;
+
+                } while (currentEdge != startEdge && currentEdge != uint.MaxValue);
+            }
         }
 
         // splits a triangle!

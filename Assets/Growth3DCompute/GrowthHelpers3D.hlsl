@@ -1,7 +1,7 @@
 
 const uint UINT_MAX = 0xFFFFFFFF; // 2^32 - 1 = 4294967295
 const uint INVALID_FACE_ID = 0xFFFFFFFF; 
-const uint INVALID_TWIN_ID = 0xFFFFFFFF; 
+const uint INVALID_TWIN_ID = -1; 
 
 // HELPERS
 

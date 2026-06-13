@@ -31,6 +31,8 @@ struct HalfEdge3D
     uint id;
         
     uint wantsToSplit;
+    
+    bool isBoundary;
 };
 
 struct Face3D

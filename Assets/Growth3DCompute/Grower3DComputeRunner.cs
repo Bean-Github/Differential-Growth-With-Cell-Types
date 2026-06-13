@@ -90,7 +90,8 @@ namespace Growth3DCompute
         private void Update()
         {
             print("curr num nodes: " + nodeCount);
-
+            print("curr num half-edges: " + halfEdgeCount);
+            print("curr num faces: " + faceCount);
             // execute the shader
             RunComputeShader();
 
@@ -104,7 +105,7 @@ namespace Growth3DCompute
                 // extract the data back to CPU and log it for debugging
                 Node3D[] debugNodeData = new Node3D[nodeCount];
                 nodeBuffer.GetData(debugNodeData, 0, 0, nodeCount);
-                for (int i = 0; i < Mathf.Min(nodeCount, 10); i++)
+                for (int i = 0; i < nodeCount; i++)
                 {
                     Debug.Log($"Node {i}: " +
                         $"Position={debugNodeData[i].position}, " +
@@ -308,25 +309,26 @@ namespace Growth3DCompute
             // DISPATCH TOPOLOGY UPDATES (4 Sub-steps)
             if (enableSplitting)
             {
-                for (int slice = 0; slice < 4; slice++)
-                {
-                    computeShader.SetInt("splitSlice", slice);
+                //for (int slice = 0; slice < 4; slice++)
+                //{
+                //    computeShader.SetInt("splitSlice", slice);
 
-                    int maxEdgeGroups = Mathf.CeilToInt(maxHalfEdges / 8.0f);
-                    int maxNodeGroups = Mathf.CeilToInt(maxNodes / 8.0f);
+                //    int maxEdgeGroups = Mathf.CeilToInt(maxHalfEdges / 8.0f);
+                //    int maxNodeGroups = Mathf.CeilToInt(maxNodes / 8.0f);
 
-                    computeShader.Dispatch(markEdgesKernel, maxEdgeGroups, 1, 1);
-                    computeShader.Dispatch(evaluateSplitsKernel, maxEdgeGroups, 1, 1);
+                //    computeShader.Dispatch(markEdgesKernel, maxEdgeGroups, 1, 1);
+                //    computeShader.Dispatch(evaluateSplitsKernel, maxEdgeGroups, 1, 1);
 
-                    computeShader.Dispatch(unlockNodesKernel, maxNodeGroups, 1, 1);
-                }
+                //    computeShader.Dispatch(unlockNodesKernel, maxNodeGroups, 1, 1);
+                //}
+
+                int threadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 8.0f);
+                computeShader.Dispatch(markEdgesKernel, threadGroupsEdges, 1, 1);
+                computeShader.Dispatch(evaluateSplitsKernel, threadGroupsEdges, 1, 1);
             }
             else
             {
-                int maxNodeGroups = Mathf.CeilToInt(maxNodes / 8.0f);
-                computeShader.Dispatch(unlockNodesKernel, maxNodeGroups, 1, 1);
             }
-
             counterBuffer.GetData(counterArray);
 
             // update our C# with the new total
@@ -334,8 +336,8 @@ namespace Growth3DCompute
             halfEdgeCount = counterArray[1];
             faceCount = counterArray[2];
 
-            // (Assuming you updated actualNodeCount)
             int threadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
+            computeShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
 
             spatialHashRunner.UpdateSpatialLookup(ref nodeBuffer, ref spatialLookupBuffer, ref startIndicesBuffer, nodeCount);
 
@@ -395,6 +397,8 @@ namespace Growth3DCompute
         public uint id;
 
         public uint wantsToSplit; // flag set by the GPU to indicate that this edge should be split
+
+        public int isBoundary;
     };  
 
     public unsafe struct Face3D
