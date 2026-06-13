@@ -1,7 +1,7 @@
 
 const uint UINT_MAX = 0xFFFFFFFF; // 2^32 - 1 = 4294967295
-const uint INVALID_FACE_ID = -1; // Using -1 will wrap to UINT_MAX, which is a common sentinel value for invalid IDs
-const int INVALID_TWIN_ID = -1; // Using -1 to indicate no twin, since twin is an int and can be negative
+const uint INVALID_FACE_ID = 0xFFFFFFFF; 
+const uint INVALID_TWIN_ID = 0xFFFFFFFF; 
 
 // HELPERS
 

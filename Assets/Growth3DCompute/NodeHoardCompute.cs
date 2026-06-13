@@ -174,6 +174,62 @@ namespace Growth3DCompute
 
                 nodeHoard.AddTriangle(a, b, c);
             }
+
+            nodeHoard.SealOpenBoundaries();
+        }
+
+        public void CreateTestHexagon(float radius)
+        {
+            List<Vector3> vertices = new List<Vector3>();
+            List<int[]> faces = new List<int[]>();
+
+            // 1. The Center Node (Index 0)
+            vertices.Add(Vector3.zero);
+
+            // 2. The 6 Perimeter Nodes
+            int sides = 6;
+            for (int i = 0; i < sides; i++)
+            {
+                // Calculate angle in radians (60 degrees per step)
+                float angle = i * Mathf.PI * 2f / sides;
+
+                // Flat on the XZ plane
+                float x = Mathf.Cos(angle) * radius;
+                float z = Mathf.Sin(angle) * radius;
+
+                vertices.Add(new Vector3(x, 0, z));
+            }
+
+            // 3. Create the 6 perfectly equilateral triangular faces
+            for (int i = 1; i <= sides; i++)
+            {
+                // Wraps the final triangle back to the first perimeter vertex (index 1)
+                int nextIndex = (i % sides) + 1;
+
+                // Add face. Winding order (0, next, current) ensures normals point UP
+                faces.Add(new int[] { 0, nextIndex, i });
+            }
+
+            // 4. Add to NodeHoard securely
+            List<uint> finalNodes = new List<uint>();
+            foreach (Vector3 vert in vertices)
+            {
+                finalNodes.Add(nodeHoard.AddNode(vert));
+            }
+
+            foreach (int[] face in faces)
+            {
+                uint a = finalNodes[face[0]];
+                uint b = finalNodes[face[1]];
+                uint c = finalNodes[face[2]];
+
+                nodeHoard.AddTriangle(a, b, c);
+            }
+
+            // ONLY call this if you decided to keep the C# Ghost Edges for your boundaries!
+            // If you took my previous advice and let the GPU handle naked boundaries 
+            // via INVALID_TWIN_ID, you can delete this line.
+            // nodeHoard.SealOpenBoundaries(); 
         }
     }
 
@@ -335,6 +391,86 @@ namespace Growth3DCompute
                 halfEdge.twin = uint.MaxValue; // No twin yet
                 edgeSutures.Add(key, halfEdge);
             }
+        }
+
+        // Call this after all triangles have been added to seal the mesh boundaries
+        public void SealOpenBoundaries()
+        {
+            // If edgeSutures is empty, the mesh is fully closed (e.g., a perfect sphere)
+            if (edgeSutures.Count == 0) return;
+
+            // 1. Create a master Ghost Face to represent the "outside" of the mesh
+            Face3D ghostFace = new Face3D();
+            ghostFace.id = (uint)faces.Count;
+            faces.Add(ghostFace);
+
+            // This dictionary maps [Origin Node ID] -> [Ghost HalfEdge ID]
+            // We need this to connect the ghost edges end-to-end for vertex circulation
+            Dictionary<uint, uint> ghostStartsAt = new Dictionary<uint, uint>();
+            List<uint> newlyCreatedGhostEdges = new List<uint>();
+
+            // 2. Generate a Ghost Edge for every naked boundary edge
+            foreach (var kvp in edgeSutures)
+            {
+                HalfEdge3D nakedEdge = kvp.Value;
+
+                HalfEdge3D ghostEdge = new HalfEdge3D();
+                ghostEdge.id = (uint)halfEdges.Count;
+
+                // Ghost edge travels in the opposite direction of the naked edge
+                ghostEdge.origin = nakedEdge.target;
+                ghostEdge.target = nakedEdge.origin;
+
+                // Pair them as twins
+                ghostEdge.twin = nakedEdge.id;
+                nakedEdge.twin = ghostEdge.id;
+
+                ghostEdge.face = ghostFace.id;
+
+                // Add to master lists
+                halfEdges.Add(ghostEdge);
+                newlyCreatedGhostEdges.Add(ghostEdge.id);
+
+                // Record where this ghost edge begins so we can link the 'next' pointers later
+                ghostStartsAt[ghostEdge.origin] = ghostEdge.id;
+
+                // Write the updated naked edge (with its new twin) back to the master list
+                halfEdges[(int)nakedEdge.id] = nakedEdge;
+            }
+
+            // 3. Link the Ghost Edges end-to-end
+            foreach (uint ghostId in newlyCreatedGhostEdges)
+            {
+                HalfEdge3D ghostEdge = halfEdges[(int)ghostId];
+
+                // The current ghost edge ends at 'ghostEdge.target'.
+                // Therefore, the 'next' ghost edge MUST be the one that starts at 'ghostEdge.target'.
+                if (ghostStartsAt.TryGetValue(ghostEdge.target, out uint nextGhostId))
+                {
+                    ghostEdge.next = nextGhostId;
+
+                    // Also set the 'prev' pointer of that next edge back to us
+                    HalfEdge3D nextGhostEdge = halfEdges[(int)nextGhostId];
+                    nextGhostEdge.prev = ghostEdge.id;
+                    halfEdges[(int)nextGhostId] = nextGhostEdge;
+                }
+                else
+                {
+                    // Note: If this fails, your mesh has non-manifold boundary geometry 
+                    // (e.g., two distinct holes touching at exactly one shared vertex).
+                    throw new System.Exception($"Non-manifold boundary at Node {ghostEdge.target}");
+                }
+
+                // Write the linked ghost edge back
+                halfEdges[(int)ghostId] = ghostEdge;
+            }
+
+            // 4. Assign an arbitrary half-edge to the ghost face
+            ghostFace.halfEdge = newlyCreatedGhostEdges[0];
+            faces[(int)ghostFace.id] = ghostFace;
+
+            // Clear sutures because the mesh is now mathematically perfectly sealed
+            edgeSutures.Clear();
         }
 
         // splits a triangle!

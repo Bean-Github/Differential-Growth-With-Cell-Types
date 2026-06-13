@@ -89,14 +89,6 @@ namespace Growth3DCompute
 
         private void Update()
         {
-            // read back the atomic counter from the GPU
-            counterBuffer.GetData(counterArray);
-
-            // update our C# with the new total
-            nodeCount = counterArray[0];
-            halfEdgeCount = counterArray[1];
-            faceCount = counterArray[2];
-
             print("curr num nodes: " + nodeCount);
 
             // execute the shader
@@ -214,6 +206,9 @@ namespace Growth3DCompute
                 case 1:
                     generator.CreateTestSphere(3.0f, subdivisions);
                     break;
+                case 2:
+                    generator.CreateTestHexagon(5.0f);
+                    break;
                 default:
                     generator.CreateTestPlane(10.0f, 10.0f, subdivisions, subdivisions);
                     break;
@@ -309,24 +304,43 @@ namespace Growth3DCompute
         void RunComputeShader()
         {
             SetShaderParamsRealtime();
-            
-            // calculate how many thread groups we need
-            int threadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
-            int threadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 8.0f);
 
-            // DISPATCH
+            // DISPATCH TOPOLOGY UPDATES (4 Sub-steps)
             if (enableSplitting)
             {
-                computeShader.Dispatch(markEdgesKernel, threadGroupsEdges, 1, 1);
-                computeShader.Dispatch(evaluateSplitsKernel, threadGroupsEdges, 1, 1);
-            }
-            computeShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
+                for (int slice = 0; slice < 4; slice++)
+                {
+                    computeShader.SetInt("splitSlice", slice);
 
-            spatialHashRunner.UpdateSpatialLookup(ref nodeBuffer, ref spatialLookupBuffer, ref startIndicesBuffer, nodeCount); // dispatch spatial hash first to update the lookup tables
+                    int maxEdgeGroups = Mathf.CeilToInt(maxHalfEdges / 8.0f);
+                    int maxNodeGroups = Mathf.CeilToInt(maxNodes / 8.0f);
+
+                    computeShader.Dispatch(markEdgesKernel, maxEdgeGroups, 1, 1);
+                    computeShader.Dispatch(evaluateSplitsKernel, maxEdgeGroups, 1, 1);
+
+                    computeShader.Dispatch(unlockNodesKernel, maxNodeGroups, 1, 1);
+                }
+            }
+            else
+            {
+                int maxNodeGroups = Mathf.CeilToInt(maxNodes / 8.0f);
+                computeShader.Dispatch(unlockNodesKernel, maxNodeGroups, 1, 1);
+            }
+
+            counterBuffer.GetData(counterArray);
+
+            // update our C# with the new total
+            nodeCount = counterArray[0];
+            halfEdgeCount = counterArray[1];
+            faceCount = counterArray[2];
+
+            // (Assuming you updated actualNodeCount)
+            int threadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
+
+            spatialHashRunner.UpdateSpatialLookup(ref nodeBuffer, ref spatialLookupBuffer, ref startIndicesBuffer, nodeCount);
 
             computeShader.Dispatch(applyNaturalForcesKernel, threadGroupsNodes, 1, 1);
             computeShader.Dispatch(moveKernel, threadGroupsNodes, 1, 1);
-
         }
 
 

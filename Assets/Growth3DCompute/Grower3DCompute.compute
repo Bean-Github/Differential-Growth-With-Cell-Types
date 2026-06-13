@@ -17,6 +17,7 @@ RWStructuredBuffer<Face3D> Faces : register(u2);
 // VALUES
 float deltaTime;
 int frameCount;
+int splitSlice;
 
 uint maxNodes; // basically maxNodes
 uint hashTableSize; // for spatial hashing, nextpoweroftwo(maxNodes)
@@ -410,7 +411,7 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
     if (index >= halfEdgeCount)
         return;
     
-    if ((index + frameCount) % 4 != 0) 
+    if ((index + splitSlice) % 4 != 0) 
         return;
     
     HalfEdge3D edge = HalfEdges[index];
@@ -553,9 +554,6 @@ void UnlockNodes(uint3 id : SV_DispatchThreadID)
 [numthreads(8, 1, 1)]
 void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
 {
-    if (frameCount % 4 != 0)
-        return;
-    
     uint index = id.x;
     int nodeCount = GlobalCounters.Load(0);
     
@@ -628,121 +626,56 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
         }
     }
     
-    
-//    // ==========================================
-//// SEPARATION (BRUTE FORCE O(N^2))
-//// ==========================================
-//    for (uint i = 0; i < nodeCount; i++)
-//    {
-//    // 1. Skip self
-//        if (i == index)
-//            continue;
+    // ==========================================
+    // ATTRACTION & LAPLACIAN
+    // ==========================================
 
-//        Node3D other = Nodes[i];
+    float3 neighborCenter = float3(0, 0, 0);
+    int actualNeighborCount = 0;
 
-//    // 2. Calculate distance
-//        float3 delta = node.position - other.position;
-//        float distSq = dot(delta, delta);
+    uint startEdge = node.halfEdge;
+    uint currEdge = startEdge;
 
-//    // 3. Broad-phase distance check
-//        if (distSq > separationDistance * separationDistance)
-//            continue;
+    // find neighbors by traversing the half-edge structure around this node
+    for (int j = 0; j < 32; j++)
+    {
+        uint neighborNodeIndex = HalfEdges[currEdge].target;
+        Node3D neighbor = Nodes[neighborNodeIndex];
 
-//        float dist = sqrt(distSq);
+        // Attraction
+        float3 delta = neighbor.position - node.position;
 
-//    // 4. Prevent division by zero and "Perfect Overlap" anchors
-//        if (dist <= 0.0001)
-//        {
-//        // Inject a tiny, pseudo-random nudge based on ID to break the overlap
-//            delta = float3(0.001 * (index % 3 == 0 ? 1 : -1),
-//                       0.001 * (index % 2 == 0 ? 1 : -1),
-//                       0.001);
-//            dist = 0.001;
-//        }
+        float distSq = dot(delta, delta);
+        if (distSq > 0.00001f)
+        {
+            float3 attractionDir = delta / sqrt(distSq);
+            
+            totalForce += attractionDir * attractionForce;
+        }
 
-//    // 5. Calculate and apply force
-//        float3 repulsionDir = delta / dist;
-//        float falloffFactor = SpikyKernelPow2(dist, separationDistance); // Assuming this is defined elsewhere
-
-//        totalForce += repulsionDir * separationForce * separationDistance * falloffFactor;
-//        node.debug_int++;
-//    }
-    
-    //// ==========================================
-    //// ATTRACTION & LAPLACIAN
-    //// ==========================================
-    //float3 neighborCenter = float3(0, 0, 0);
-    //int actualNeighborCount = 0;
-
-    //uint startEdge = node.halfEdge;
-    //uint currEdge = startEdge;
-    //bool hitBoundaryForward = false;
-    
-    //// 1. SWEEP FORWARD (CCW)
-    //for (int j = 0; j < 32; j++)
-    //{
-    //    uint neighborIndex = HalfEdges[currEdge].target;
-    //    Node3D neighbor = Nodes[neighborIndex];
-
-    //    float3 delta = neighbor.position - node.position;
-    //    float distSq = dot(delta, delta);
-    //    if (distSq > 0.00001f)
-    //        totalForce += delta * attractionForce;
-
-    //    neighborCenter += neighbor.position;
-    //    actualNeighborCount++;
-
-    //    uint twin = HalfEdges[currEdge].twin;
+        // Accumulate for Laplacian smoothing
+        neighborCenter += neighbor.position;
+        actualNeighborCount++;
         
-    //    // If we hit a boundary, stop moving forward
-    //    if (twin == INVALID_TWIN_ID)
-    //    {
-    //        hitBoundaryForward = true;
-    //        break;
-    //    }
+        // safety check
+        uint twin = HalfEdges[currEdge].twin;
+        
+        currEdge = HalfEdges[twin].next;
+        
+        // If we made a full circle, stop
+        if (currEdge == startEdge)
+            break;
+    }
 
-    //    currEdge = HalfEdges[twin].next;
-    //    if (currEdge == startEdge)
-    //        break; // Full closed circle
-    //}
-    
-    //// 2. SWEEP BACKWARD (CW) - ONLY IF WE DIDN'T CLOSE THE CIRCLE
-    //if (hitBoundaryForward)
-    //{
-    //    // Reset to start, but immediately step backward once to 
-    //    // avoid double-counting the startEdge neighbor
-    //    // To go CW: we take the previous edge in the current face, and hop to its twin.
-    //    currEdge = HalfEdges[HalfEdges[startEdge].prev].twin;
+    // Apply Laplacian Smoothing
+    if (actualNeighborCount > 0)
+    {   
+        neighborCenter /= (float) actualNeighborCount;
 
-    //    for (int k = 0; k < 32; k++)
-    //    {
-    //        // If we fall off the mesh going backward, we've found the other boundary!
-    //        if (currEdge == UINT_MAX)
-    //            break;
+        float3 laplacianVector = neighborCenter - node.position;
 
-    //        uint neighborIndex = HalfEdges[currEdge].target;
-    //        Node3D neighbor = Nodes[neighborIndex];
-
-    //        float3 delta = neighbor.position - node.position;
-    //        float distSq = dot(delta, delta);
-    //        if (distSq > 0.00001f)
-    //            totalForce += delta * attractionForce;
-
-    //        neighborCenter += neighbor.position;
-    //        actualNeighborCount++;
-
-    //        // Move backward again
-    //        currEdge = HalfEdges[HalfEdges[currEdge].prev].twin;
-    //    }
-    //}
-    
-    //// Apply Laplacian Smoothing
-    //if (actualNeighborCount > 0)
-    //{
-    //    neighborCenter /= (float) actualNeighborCount;
-    //    float3 laplacianVector = neighborCenter - node.position;
-    //    totalForce += laplacianVector * laplacianSmoothing;
-    //}
+        totalForce += laplacianVector * laplacianSmoothing;
+    }
 
     // ==========================================
     // APPLY FORCES
