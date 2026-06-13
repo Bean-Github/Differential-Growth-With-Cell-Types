@@ -195,7 +195,7 @@ namespace Growth3DCompute
                 float x = Mathf.Cos(angle) * radius;
                 float z = Mathf.Sin(angle) * radius;
 
-                vertices.Add(new Vector3(x, 0, z));
+                vertices.Add(new Vector3(x, 0.0f, z));
             }
 
             // 3. Create the 6 perfectly equilateral triangular faces
@@ -223,6 +223,8 @@ namespace Growth3DCompute
 
                 nodeHoard.AddTriangle(a, b, c);
             }
+
+            nodeHoard.SealOpenBoundaries();
         }
     }
 
@@ -404,9 +406,9 @@ namespace Growth3DCompute
             if (edgeSutures.Count == 0) return;
 
             // 1. Create a master Ghost Face to represent the "outside" of the mesh
-            Face3D ghostFace = new Face3D();
-            ghostFace.id = (uint)faces.Count;
-            faces.Add(ghostFace);
+            //Face3D ghostFace = new Face3D();
+            //ghostFace.id = (uint)faces.Count;
+            //faces.Add(ghostFace);
 
             // This dictionary maps [Origin Node ID] -> [Ghost HalfEdge ID]
             // We need this to connect the ghost edges end-to-end for vertex circulation
@@ -419,6 +421,10 @@ namespace Growth3DCompute
                 HalfEdge3D nakedEdge = kvp.Value;
 
                 HalfEdge3D ghostEdge = new HalfEdge3D();
+
+                ghostEdge.isBoundary = 1;
+                ghostEdge.isGhost = 1;
+
                 ghostEdge.id = (uint)halfEdges.Count;
 
                 // Ghost edge travels in the opposite direction of the naked edge
@@ -429,7 +435,7 @@ namespace Growth3DCompute
                 ghostEdge.twin = nakedEdge.id;
                 nakedEdge.twin = ghostEdge.id;
 
-                ghostEdge.face = ghostFace.id;
+                //ghostEdge.face = ghostFace.id;
 
                 // Add to master lists
                 halfEdges.Add(ghostEdge);
@@ -469,9 +475,9 @@ namespace Growth3DCompute
                 halfEdges[(int)ghostId] = ghostEdge;
             }
 
-            // 4. Assign an arbitrary half-edge to the ghost face
-            ghostFace.halfEdge = newlyCreatedGhostEdges[0];
-            faces[(int)ghostFace.id] = ghostFace;
+            //// 4. Assign an arbitrary half-edge to the ghost face
+            //ghostFace.halfEdge = newlyCreatedGhostEdges[0];
+            //faces[(int)ghostFace.id] = ghostFace;
 
             // Clear sutures because the mesh is now mathematically perfectly sealed
             edgeSutures.Clear();

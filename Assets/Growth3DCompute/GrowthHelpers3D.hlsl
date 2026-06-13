@@ -1,10 +1,7 @@
 
 const uint UINT_MAX = 0xFFFFFFFF; // 2^32 - 1 = 4294967295
-const uint INVALID_FACE_ID = 0xFFFFFFFF; 
-const uint INVALID_TWIN_ID = -1; 
 
 // HELPERS
-
 float2 worldToScreenPos(float4 worldPos, float4x4 projMatrix, float4x4 viewMatrix, float2 screenDims)
 {
     float4x4 vpMatrix = projMatrix * viewMatrix;
@@ -128,6 +125,26 @@ float GetParticleInfluenceSlopeSharpV3(float r, float h)
 {
     return DerivativeSpikyPow3(r, h);
 }
+
+
+float3 GetRandomDirection3D(uint seed)
+{
+    float x = sin(seed * 12.9898);
+    float y = cos(seed * 78.233);
+    float z = sin(seed * 37.719);
+    
+    // Generate two angles from hashed values
+    float theta = frac(x + y) * 6.2831853; // azimuthal angle [0, 2pi]
+    float phi = acos(frac(z) * 2.0 - 1.0); // polar angle [0, pi]
+    // Convert spherical to cartesian
+    float sinPhi = sin(phi);
+    return float3(
+        cos(theta) * sinPhi,
+        sin(theta) * sinPhi,
+        cos(phi)
+    );
+}
+
 
 
 

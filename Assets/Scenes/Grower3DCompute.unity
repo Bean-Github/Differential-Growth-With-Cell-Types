@@ -245,8 +245,10 @@ MonoBehaviour:
   maxNodes: 100000
   separationForce: 0.5
   separationDistance: 3
-  attractionForce: 0.2
+  springStiffness: 3
+  restLength: 1
   laplacianSmoothing: 0.1
+  gravity: 0
   nodeDrag: 0.1
   splitDistanceThreshold: 5
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
@@ -537,11 +539,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   subdivisions: 0
   maxNodes: 1000
-  separationForce: 54
+  separationForce: 203.6
   separationDistance: 15
-  attractionForce: 0.2
+  springStiffness: 3
+  restLength: 1
   laplacianSmoothing: 0.1
-  nodeDrag: 0.8
+  gravity: 0
+  nodeDrag: 4.83
   splitDistanceThreshold: 4
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   spatialHashRunner: {fileID: 907189157}
