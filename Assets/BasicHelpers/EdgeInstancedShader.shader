@@ -43,12 +43,14 @@ Shader "Custom/ParticleEdge"
                 HalfEdge3D edge = halfEdges[edgeIndex];
 
                 uint sourceIndex = edge.origin;
-                uint twinIndex = edge.twin;
-                uint targetIndex = halfEdges[twinIndex].origin;
+
+                bool isBoundary = (edge.twin == uint(-1)); // Check if twin index is invalid
+
+                uint targetIndex = edge.target;
 
                 // Optimization: To stop dual-drawing identical lines (A->B and B->A),
                 // only draw the line if the source node index is smaller than the target node index.
-                if (sourceIndex >= targetIndex)
+                if (!isBoundary && sourceIndex >= targetIndex)
                 {
                     o.pos = float4(0, 0, 0, 0);
                     return o;

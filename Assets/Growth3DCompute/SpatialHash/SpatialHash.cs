@@ -104,6 +104,7 @@ namespace Growth3DCompute
             // Calculate start indices of each unique cell key in the spatial lookup
             spatialHashCompute.Dispatch(calculateStartIndicesKernel, Mathf.CeilToInt(paddedNodeCount / 64f), 1, 1); // 64 threads per group
 
+
         }
 
         // Bitonic sort in compute shader, sort by cell key, so that particles in the same cell are adjacent in the buffer.
@@ -111,7 +112,7 @@ namespace Growth3DCompute
         {
             int numPairs = Mathf.CeilToInt(paddedNodeCount / 2.0f);
 
-            int numStages = (int)Mathf.Log(numPairs * 2, 2);
+            int numStages = Mathf.RoundToInt(Mathf.Log(paddedNodeCount, 2));
 
             for (int stageIndex = 0; stageIndex < numStages; stageIndex++)
             {

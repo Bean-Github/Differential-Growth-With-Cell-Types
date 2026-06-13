@@ -162,6 +162,8 @@ namespace Growth3DCompute
             foreach (Vector3 vert in vertices)
             {
                 finalNodes.Add(nodeHoard.AddNode(vert));
+
+                //Debug.Log(vert);
             }
 
             foreach (int[] face in faces)
@@ -267,6 +269,7 @@ namespace Growth3DCompute
             Node3D nodeA = GetNode(a);
             Node3D nodeB = GetNode(b);
             Node3D nodeC = GetNode(c);
+
 
             Face3D face = new Face3D();
             faces.Add(face);

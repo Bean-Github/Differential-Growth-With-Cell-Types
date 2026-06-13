@@ -38,7 +38,6 @@ struct Entry
     uint particleIndex;
     uint hash;
     uint cellKey;
-    uint pad;
 };
 
 float3 PseudoRandomDir3D(int seed)
@@ -61,14 +60,14 @@ float3 PseudoRandomDir3D(int seed)
 }
 
 static const uint hashK1 = 15823;
-static const uint hashK2 = 9737333;
-static const uint hashK3 = 440817757;
+static const uint hashK2 = 213562;
+static const uint hashK3 = 177723;
 
 uint HashCell(int cellX, int cellY, int cellZ)
 {
     int3 cell = int3(cellX, cellY, cellZ); // safe offset
     
-    const uint blockSize = 50;
+    const uint blockSize = 10;
     uint3 ucell = (uint3) (cell + blockSize / 2);
 
     uint3 localCell = ucell % blockSize;

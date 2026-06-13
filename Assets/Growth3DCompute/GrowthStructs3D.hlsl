@@ -14,6 +14,7 @@ struct Node3D
         
     uint id;
 
+    int debug_int;
 };
 
 struct HalfEdge3D

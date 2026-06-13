@@ -252,6 +252,9 @@ MonoBehaviour:
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   spatialHashRunner: {fileID: 0}
   spawnCollider: {fileID: 0}
+  enableSplitting: 1
+  enableDebugLogs: 0
+  defaultShapeType: 0
   particleRenderer: {fileID: 0}
   edgeRenderer: {fileID: 0}
   nodeHoardMeshFilter: {fileID: 0}
@@ -532,10 +535,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3de46defec812994083af36645060d6c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  subdivisions: 2
-  maxNodes: 10000
-  separationForce: 52.7
-  separationDistance: 5
+  subdivisions: 0
+  maxNodes: 128
+  separationForce: 1000
+  separationDistance: 15
   attractionForce: 0
   laplacianSmoothing: 0
   nodeDrag: 0.8
@@ -543,6 +546,9 @@ MonoBehaviour:
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   spatialHashRunner: {fileID: 907189157}
   spawnCollider: {fileID: 436488696}
+  enableSplitting: 1
+  enableDebugLogs: 0
+  defaultShapeType: 0
   particleRenderer: {fileID: 907189156}
   edgeRenderer: {fileID: 907189158}
   nodeHoardMeshFilter: {fileID: 1220264837}
