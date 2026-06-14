@@ -36,7 +36,7 @@ namespace Growth3DCompute
 
         [Header("Shader Setup")]
             public ComputeShader computeShader;
-            //public ComputeShader splitterShader;
+            public ComputeShader splitterShader;
             public SpatialHashComputeRunner spatialHashRunner;
             public Collider spawnCollider;
 
@@ -64,15 +64,15 @@ namespace Growth3DCompute
 
         int[] counterArray;
 
-        //Node3D[] nodeData;
-        //HalfEdge3D[] halfEdgeData;
-        //Face3D[] faceData;
-
         // kernels
         protected int unlockEdgesKernel;
         protected int markEdgesKernel;
         protected int evaluateSplitsKernel;
         protected int unlockNodesKernel;
+
+        protected int markFlippableEdgesKernel;
+        protected int evaluateFlipsKernel;
+
         protected int applyNaturalForcesKernel;
         protected int moveKernel;
 
@@ -264,40 +264,52 @@ namespace Growth3DCompute
 
         void SetKernelsAndBuffers()
         {
-            unlockEdgesKernel = computeShader.FindKernel("UnlockEdges");
-            markEdgesKernel = computeShader.FindKernel("MarkEdges");
-            evaluateSplitsKernel = computeShader.FindKernel("EvaluateSplits");
-            unlockNodesKernel = computeShader.FindKernel("UnlockNodes");
+            unlockEdgesKernel = splitterShader.FindKernel("UnlockEdges");
+            markEdgesKernel = splitterShader.FindKernel("MarkEdges");
+            evaluateSplitsKernel = splitterShader.FindKernel("EvaluateSplits");
+            unlockNodesKernel = splitterShader.FindKernel("UnlockNodes");
+
+            markFlippableEdgesKernel = splitterShader.FindKernel("MarkFlippableEdges");
+            evaluateFlipsKernel = splitterShader.FindKernel("EvaluateFlips");
+
             applyNaturalForcesKernel = computeShader.FindKernel("ApplyNaturalForces");
             moveKernel = computeShader.FindKernel("MoveParticles");
 
             // Compute Shader
             ComputeHelper.SetBufferToKernels("GlobalCounters", counterBuffer, computeShader,
-                unlockEdgesKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, applyNaturalForcesKernel, moveKernel);
+                applyNaturalForcesKernel, moveKernel);
+            ComputeHelper.SetBufferToKernels("GlobalCounters", counterBuffer, splitterShader,
+                unlockEdgesKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
-            ComputeHelper.SetBufferToKernels("NodeLocks", nodeLocksBuffer, computeShader,
-                markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel);
+            ComputeHelper.SetBufferToKernels("NodeLocks", nodeLocksBuffer, splitterShader,
+                markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("Nodes", nodeBuffer, computeShader, 
-                markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, applyNaturalForcesKernel, moveKernel);
+                applyNaturalForcesKernel, moveKernel);
+            ComputeHelper.SetBufferToKernels("Nodes", nodeBuffer, splitterShader, 
+                unlockEdgesKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("HalfEdges", halfEdgeBuffer, computeShader,
-                unlockEdgesKernel, markEdgesKernel, evaluateSplitsKernel, applyNaturalForcesKernel, moveKernel);
+                applyNaturalForcesKernel, moveKernel);
+            ComputeHelper.SetBufferToKernels("HalfEdges", halfEdgeBuffer, splitterShader,
+                unlockEdgesKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("Faces", faceBuffer, computeShader, 
-                markEdgesKernel, evaluateSplitsKernel, applyNaturalForcesKernel, moveKernel);
+                applyNaturalForcesKernel, moveKernel);
+            ComputeHelper.SetBufferToKernels("Faces", faceBuffer, splitterShader, 
+                unlockEdgesKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("SpatialLookup", spatialLookupBuffer, computeShader, 
                  applyNaturalForcesKernel);
 
             ComputeHelper.SetBufferToKernels("StartIndices", startIndicesBuffer, computeShader,
                 applyNaturalForcesKernel);
-
         }
 
         void SetShaderParams()
         {
             computeShader.SetInt("maxNodes", maxNodes);
+            splitterShader.SetInt("maxNodes", maxNodes);
             computeShader.SetInt("hashTableSize", hashTableSize);
         }
 
@@ -307,7 +319,7 @@ namespace Growth3DCompute
             computeShader.SetFloat("deltaTime", Time.deltaTime);
 
             computeShader.SetFloat("splitDistanceThreshold", splitDistanceThreshold);
-            computeShader.SetFloat("splitDistanceThreshold", splitDistanceThreshold);
+            splitterShader.SetFloat("splitDistanceThreshold", splitDistanceThreshold);
 
             computeShader.SetFloat("separationForce", separationForce);
             computeShader.SetFloat("separationDistance", separationDistance);
@@ -320,8 +332,6 @@ namespace Growth3DCompute
 
             computeShader.SetVector("boundsCenter", spawnCollider.bounds.center);
             computeShader.SetVector("boundsExtents", spawnCollider.bounds.extents);
-
-            computeShader.SetInt("frameCount", Time.frameCount);
 
             spatialHashRunner.SetValues(separationDistance);
 
@@ -348,48 +358,108 @@ namespace Growth3DCompute
                 counterArray[3] = 0; // Reset the pending splits
                 counterBuffer.SetData(counterArray);
             }
-            UpdateCounters();
 
-            if (enableSplitting && nodeCount < maxNodes)
+            void SplitEdges()
             {
-                int maxIterations = 20;
+                int maxIterations = 40;
                 int iterations = 0;
                 int pendingSplits = 1;
-                int threadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 8.0f);
 
-                computeShader.Dispatch(unlockEdgesKernel, threadGroupsEdges, 1, 1); // Unlock all edges before starting the splitting iterations
+                int threadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 8.0f);
+                int initialThreadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
+
+                // Start with a clean slate
+                splitterShader.Dispatch(unlockNodesKernel, initialThreadGroupsNodes, 1, 1);
+                splitterShader.Dispatch(unlockEdgesKernel, threadGroupsEdges, 1, 1); // Unlock all edges before starting the splitting iterations
 
                 while (pendingSplits > 0 && iterations < maxIterations)
                 {
                     ResetPendingCounterBuffer();
 
-                    for (int i = 0; i < 20; i++)
+                    for (int i = 0; i < 4; i++)
                     {
-                        computeShader.SetInt("sliceIndex", i);
+                        splitterShader.SetInt("sliceIndex", i);
 
-                        computeShader.Dispatch(markEdgesKernel, threadGroupsEdges, 1, 1);
-                        computeShader.Dispatch(evaluateSplitsKernel, threadGroupsEdges, 1, 1);
+                        splitterShader.Dispatch(markEdgesKernel, threadGroupsEdges, 1, 1);
+                        splitterShader.Dispatch(evaluateSplitsKernel, threadGroupsEdges, 1, 1);
 
                         UpdateCounters(); // Read counts
                         pendingSplits = counterArray[3];
 
                         // Unlock the nodes for the *next* iteration
                         int threadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
-                        computeShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
+                        splitterShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
                     }
 
                     iterations++;
                 }
+
+                if (pendingSplits > 0)
+                {
+                    Debug.LogWarning($"SPLITTING: Reached max iterations ({maxIterations}) with {pendingSplits} pending splits remaining. Consider increasing maxIterations or adjusting split criteria.");
+                }
+            }
+            void FlipEdges()
+            {
+                UpdateCounters();
+
+                int maxIterations = 40;
+                int iterations = 0;
+                int pendingFlips = 1;
+
+                int initialThreadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 8.0f);
+                int initialThreadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
+
+                // Start with a clean slate
+                splitterShader.Dispatch(unlockNodesKernel, initialThreadGroupsNodes, 1, 1);
+                splitterShader.Dispatch(unlockEdgesKernel, initialThreadGroupsEdges, 1, 1); // Unlock all edges before starting the splitting iterations
+
+                while (pendingFlips > 0 && iterations < maxIterations)
+                {
+                    ResetPendingCounterBuffer();
+
+                    for (int i = 0; i < 4; i++)
+                    {
+                        splitterShader.SetInt("sliceIndex", i);
+
+                        splitterShader.Dispatch(markFlippableEdgesKernel, initialThreadGroupsEdges, 1, 1);
+                        splitterShader.Dispatch(evaluateFlipsKernel, initialThreadGroupsEdges, 1, 1);
+
+                        // set pendingFlips, and unlock the nodes and repeat
+                        UpdateCounters();
+                        pendingFlips = counterArray[3]; 
+
+                        splitterShader.Dispatch(unlockNodesKernel, initialThreadGroupsNodes, 1, 1);
+                    }
+
+                    iterations++;
+                }
+
+                if (pendingFlips > 0)
+                {
+                    Debug.LogWarning($"FLIPPING: Reached max iterations ({maxIterations}) with {pendingFlips} pending flips remaining. Consider increasing maxIterations or adjusting flip criteria.");
+                }
+            }
+
+            UpdateCounters();
+
+            if (enableSplitting && nodeCount < maxNodes)
+            {
+                SplitEdges();
             }
             else
             {
                 UpdateCounters();
                 int threadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
-                computeShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
+                splitterShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
             }
+
+            FlipEdges();
 
             // --- Physics Phase ---
             int finalThreadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
+
+            splitterShader.Dispatch(unlockNodesKernel, finalThreadGroupsNodes, 1, 1);
 
             spatialHashRunner.UpdateSpatialLookup(ref nodeBuffer, ref spatialLookupBuffer, ref startIndicesBuffer, nodeCount);
 
@@ -449,6 +519,9 @@ namespace Growth3DCompute
 
         public int wantsToSplit; // flag set by the GPU to indicate that this edge should be split
         public int canSplit;
+
+        public int wantsToFlip; // flag set by the GPU to indicate that this edge should be flipped
+        public int canFlip;
 
         public int isBoundary;
         public int isGhost;

@@ -252,6 +252,7 @@ MonoBehaviour:
   nodeDrag: 0.1
   splitDistanceThreshold: 5
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
+  splitterShader: {fileID: 0}
   spatialHashRunner: {fileID: 0}
   spawnCollider: {fileID: 0}
   enableSplitting: 1
@@ -538,8 +539,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   subdivisions: 0
-  maxNodes: 1000
-  separationForce: 203.6
+  maxNodes: 5000
+  separationForce: 300
   separationDistance: 15
   springStiffness: 3
   restLength: 3
@@ -548,11 +549,12 @@ MonoBehaviour:
   nodeDrag: 4.83
   splitDistanceThreshold: 4
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
+  splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
   spatialHashRunner: {fileID: 907189157}
   spawnCollider: {fileID: 436488696}
   enableSplitting: 1
   enableDebugLogs: 0
-  defaultShapeType: 2
+  defaultShapeType: 1
   particleRenderer: {fileID: 907189156}
   edgeRenderer: {fileID: 907189158}
   nodeHoardMeshFilter: {fileID: 1220264837}
