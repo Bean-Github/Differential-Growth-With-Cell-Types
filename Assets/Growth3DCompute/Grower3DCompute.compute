@@ -43,7 +43,7 @@ RWByteAddressBuffer GlobalCounters;
 
 
 // OVER NODES
-[numthreads(8, 1, 1)]
+[numthreads(64, 1, 1)]
 void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
@@ -186,7 +186,7 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
 }
 
 
-[numthreads(8,1,1)]
+[numthreads(64,1,1)]
 void MoveParticles (uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;

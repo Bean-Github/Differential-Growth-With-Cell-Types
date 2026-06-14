@@ -321,7 +321,7 @@ void FlagPending()
     GlobalCounters.InterlockedAdd(12, 1, dummy); // Byte 12 = pendingSplits
 }
 
-[numthreads(8, 1, 1)]
+[numthreads(64, 1, 1)]
 void UnlockEdges(uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
@@ -336,7 +336,7 @@ void UnlockEdges(uint3 id : SV_DispatchThreadID)
     EdgeWeights[index] = 0.0f;
 }
 
-[numthreads(8, 1, 1)]
+[numthreads(64, 1, 1)]
 void FindIndependentSet(uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
@@ -432,7 +432,7 @@ void FindIndependentSet(uint3 id : SV_DispatchThreadID)
     }
 }
 
-[numthreads(8, 1, 1)]
+[numthreads(64, 1, 1)]
 void MarkEdges(uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
@@ -464,7 +464,7 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
     }
 }
 
-[numthreads(8, 1, 1)]
+[numthreads(64, 1, 1)]
 void EvaluateSplits(uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
@@ -628,7 +628,7 @@ void FlipEdge(uint edgeIndex)
     Faces[leftFaceID] = leftFace;
 }
 
-[numthreads(8, 1, 1)]
+[numthreads(64, 1, 1)]
 void MarkFlippableEdges(uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
@@ -722,7 +722,7 @@ void MarkFlippableEdges(uint3 id : SV_DispatchThreadID)
     HalfEdges[index] = edge; // write back the modified edge with the wantsToFlip and canFlip flags
 }
 
-[numthreads(8, 1, 1)]
+[numthreads(64, 1, 1)]
 void EvaluateFlips(uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
@@ -756,7 +756,7 @@ void EvaluateFlips(uint3 id : SV_DispatchThreadID)
 }
 
 
-[numthreads(8, 1, 1)]
+[numthreads(64, 1, 1)]
 void UnlockNodes(uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;

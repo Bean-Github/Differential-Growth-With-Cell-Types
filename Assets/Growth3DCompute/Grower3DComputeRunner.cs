@@ -374,8 +374,8 @@ namespace Growth3DCompute
 
             void SplitEdges()
             {
-                int initialThreadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 8.0f);
-                int initialThreadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
+                int initialThreadGroupsNodes = Mathf.CeilToInt(nodeCount / 64.0f);
+                int initialThreadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 64.0f);
 
                 // Start with a clean slate
                 splitterShader.Dispatch(unlockNodesKernel, initialThreadGroupsNodes, 1, 1);
@@ -414,8 +414,8 @@ namespace Growth3DCompute
                 int iterations = 0;
                 int pendingFlips = 1;
 
-                int initialThreadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 8.0f);
-                int initialThreadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
+                int initialThreadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 64.0f);
+                int initialThreadGroupsNodes = Mathf.CeilToInt(nodeCount / 64.0f);
 
                 // Start with a clean slate
                 splitterShader.Dispatch(unlockNodesKernel, initialThreadGroupsNodes, 1, 1);
@@ -456,14 +456,14 @@ namespace Growth3DCompute
             else
             {
                 UpdateCounters();
-                int threadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
+                int threadGroupsNodes = Mathf.CeilToInt(nodeCount / 64.0f);
                 splitterShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
             }
 
             FlipEdges();
 
             // --- Physics Phase ---
-            int finalThreadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
+            int finalThreadGroupsNodes = Mathf.CeilToInt(nodeCount / 64.0f);
 
             splitterShader.Dispatch(unlockNodesKernel, finalThreadGroupsNodes, 1, 1);
 
