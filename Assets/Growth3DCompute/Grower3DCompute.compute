@@ -102,9 +102,13 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
 
             if (dist <= 0.0001)
             {
-                delta = float3(0.001 * (index % 3 == 0 ? 1 : -1),
-                   0.001 * (index % 2 == 0 ? 1 : -1),
-                   0.001);
+                // Generate a pseudo-random direction based on the position itself
+                float rx = frac(sin(dot(node.position.xy, float2(12.9898, 78.233))) * 43758.5453);
+                float ry = frac(sin(dot(node.position.yz, float2(12.9898, 78.233))) * 43758.5453);
+                float rz = frac(sin(dot(node.position.zx, float2(12.9898, 78.233))) * 43758.5453);
+    
+                // Convert 0..1 range to -0.5..0.5, normalize, and scale
+                delta = normalize(float3(rx, ry, rz) - 0.5f) * 0.001f;
                 dist = 0.001;
             }
 
@@ -161,7 +165,7 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
 
         float3 laplacianVector = neighborCenter - node.position;
 
-        node.position += laplacianVector * laplacianSmoothing * deltaTime;
+        node.velocity += laplacianVector * laplacianSmoothing * deltaTime;
     }
 
     // ==========================================

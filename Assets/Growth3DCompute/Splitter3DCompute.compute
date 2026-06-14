@@ -1,5 +1,6 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel UnlockEdges
+#pragma kernel FindIndependentSet
 #pragma kernel MarkEdges
 #pragma kernel EvaluateSplits
 #pragma kernel UnlockNodes
@@ -14,10 +15,9 @@ RWStructuredBuffer<Node3D> Nodes : register(u0);
 RWStructuredBuffer<HalfEdge3D> HalfEdges : register(u1);
 RWStructuredBuffer<Face3D> Faces : register(u2);
 
-// VALUES
-int sliceIndex;
-int randomOffset;
+RWStructuredBuffer<float> EdgeWeights : register(u3);
 
+// VALUES
 uint maxNodes;
 
 float splitDistanceThreshold;
@@ -191,12 +191,6 @@ void SplitTriangle(uint edgeIndex, uint allocatedNodeID, uint startEdgeID, uint 
         
         HalfEdges[oldPrev].next = eRightMidID; // fix the old prev to point to the new ghost]
 
-        // Set face and node pointers
-        newNode.halfEdge = eMidRightID;
-        topNode.halfEdge = eTopLeftID;
-        leftNode.halfEdge = eLeftMidID;
-        rightNode.halfEdge = eRightTopID;
-
         // Write back
         HalfEdges[eTopLeftID] = eTopLeft;
         HalfEdges[eRightTopID] = eRightTop;
@@ -211,9 +205,11 @@ void SplitTriangle(uint edgeIndex, uint allocatedNodeID, uint startEdgeID, uint 
         Faces[topFaceID] = topFace;
         Faces[newTopFaceID] = newTopFace;
 
-        Nodes[topNodeID] = topNode;
-        Nodes[leftNodeID] = leftNode;
-        Nodes[rightNodeID] = rightNode;
+        Nodes[topNodeID].halfEdge = eTopLeftID;
+        Nodes[leftNodeID].halfEdge = eLeftMidID;
+        Nodes[rightNodeID].halfEdge = eRightTopID;
+        
+        newNode.halfEdge = eMidRightID;
         Nodes[newNodeID] = newNode;
         
         return;
@@ -285,13 +281,6 @@ void SplitTriangle(uint edgeIndex, uint allocatedNodeID, uint startEdgeID, uint 
     // set face pointers
     bottomFace.halfEdge = eMidLeftID;
     newBottomFace.halfEdge = eRightMidID;
-    
-    // Set node pointers
-    newNode.halfEdge = eMidRightID;
-    topNode.halfEdge = eTopLeftID;
-    leftNode.halfEdge = eLeftBottomID;
-    rightNode.halfEdge = eRightTopID;
-    bottomNode.halfEdge = eBottomRightID;
 
     // Write back modified existing Edges AND the new ones we just modified
     HalfEdges[eTopLeftID] = eTopLeft;
@@ -316,10 +305,12 @@ void SplitTriangle(uint edgeIndex, uint allocatedNodeID, uint startEdgeID, uint 
     Faces[newTopFaceID] = newTopFace;
 
     // Write back Nodes
-    Nodes[topNodeID] = topNode;
-    Nodes[bottomNodeID] = bottomNode;
-    Nodes[leftNodeID] = leftNode;
-    Nodes[rightNodeID] = rightNode;
+    Nodes[topNodeID].halfEdge = eTopLeftID;
+    Nodes[bottomNodeID].halfEdge = eBottomRightID;
+    Nodes[leftNodeID].halfEdge = eLeftBottomID;
+    Nodes[rightNodeID].halfEdge = eRightTopID;
+
+    newNode.halfEdge = eMidRightID;
     Nodes[newNodeID] = newNode;
 }
 
@@ -339,11 +330,106 @@ void UnlockEdges(uint3 id : SV_DispatchThreadID)
     if (index >= halfEdgeCount)
         return;
     
-    HalfEdges[index].wantsToSplit = false;
+    //HalfEdges[index].wantsToSplit = false;
     HalfEdges[index].canSplit = 0;
     
-    HalfEdges[index].wantsToFlip = false;
-    HalfEdges[index].canFlip = false;
+    EdgeWeights[index] = 0.0f;
+}
+
+[numthreads(8, 1, 1)]
+void FindIndependentSet(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    int halfEdgeCount = GlobalCounters.Load(4);
+    
+    if (index >= halfEdgeCount)
+        return;
+
+    float myWeight = EdgeWeights[index];
+    
+    // If I don't want to split, bail out
+    if (myWeight == 0.0)
+        return;
+    
+    HalfEdge3D edge = HalfEdges[index];
+    HalfEdge3D twin = HalfEdges[edge.twin];
+
+    // --- 1. GATHER ALL 4 NODES ---
+    // Initialize array with a "null" value (UINT_MAX)
+    uint nodesToCheck[4] = { UINT_MAX, UINT_MAX, UINT_MAX, UINT_MAX };
+    
+    nodesToCheck[0] = edge.origin;
+    nodesToCheck[1] = edge.target;
+    
+    // Get the top node (target of the next edge)
+    if (!edge.isBoundary && !edge.isGhost)
+    {
+        nodesToCheck[2] = HalfEdges[edge.next].target;
+    }
+    
+    // Get the bottom node (target of the twin's next edge)
+    if (!twin.isBoundary && !twin.isGhost)
+    {
+        nodesToCheck[3] = HalfEdges[twin.next].target;
+    }
+
+    // --- 2. EVALUATE THE UMBRELLA OF ALL 4 NODES ---
+    bool isLocalMaximum = true;
+
+    for (int i = 0; i < 4; i++)
+    {
+        uint currentNodeID = nodesToCheck[i];
+        
+        // Skip if this node doesn't exist (e.g., boundary edge)
+        if (currentNodeID == UINT_MAX) 
+            continue;
+
+        uint currentEdge = Nodes[currentNodeID].halfEdge;
+        
+        if (currentEdge != UINT_MAX)
+        {
+            int infiniteLoopGuard = 0; // Prevent TDRs
+            
+            do
+            {
+                // Skip comparing against ourselves and our twin
+                if (currentEdge != index && currentEdge != edge.twin)
+                {
+                    float neighborWeight = EdgeWeights[currentEdge];
+                    
+                    uint myEdgeID = min(index, edge.twin);
+                    uint neighborEdgeID = min(currentEdge, HalfEdges[currentEdge].twin);
+                    
+                    if (neighborWeight > myWeight || (neighborWeight == myWeight && neighborEdgeID > myEdgeID))
+                    {
+                        isLocalMaximum = false;
+                        break; // Break the do-while loop
+                    }
+                }
+                
+                // Move to the next edge around the current node
+                currentEdge = HalfEdges[HalfEdges[currentEdge].twin].next;
+                
+                if (infiniteLoopGuard++ > 100)
+                    break; // Escape hatch
+                
+            } while (currentEdge != Nodes[currentNodeID].halfEdge && currentEdge != UINT_MAX);
+        }
+        
+        // If we already lost the race, stop checking the other nodes
+        if (!isLocalMaximum) 
+            break;
+    }
+    
+    // --- 3. APPLY RESULTS ---
+    if (isLocalMaximum)
+    {
+        HalfEdges[index].canSplit = true;
+    }
+    else
+    {
+        HalfEdges[index].canSplit = false;
+    }
 }
 
 [numthreads(8, 1, 1)]
@@ -354,10 +440,7 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
 
     if (index >= halfEdgeCount)
         return;
-    
-    if ((index + sliceIndex + randomOffset) % 4 != 0) 
-        return;
-    
+
     HalfEdge3D edge = HalfEdges[index];
     HalfEdge3D twinEdge = HalfEdges[edge.twin];
     
@@ -366,7 +449,7 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
         return;
     
     // Only allow the lower half-edge ID to handle the split evaluation
-    if (index > edge.twin) 
+    if (index >= edge.twin) 
         return;
     
     // determine if the edge wants to split
@@ -376,97 +459,8 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
 
     if (dist > splitDistanceThreshold)
     {
-        HalfEdges[index].wantsToSplit = true;
-    }
-    
-    // determine if the edge CAN split
-    if (HalfEdges[index].wantsToSplit && HalfEdges[index].canSplit == 0)
-    {
-        uint topNodeID = HalfEdges[edge.next].target;
-        uint rightNodeID = edge.target;
-        uint leftNodeID = edge.origin;
-        uint bottomNodeID = UINT_MAX;
-        
-        if (!edge.isBoundary)
-        {
-            bottomNodeID = HalfEdges[HalfEdges[edge.twin].next].target;
-        }
-        
-        uint nodesToLock[4];
-        nodesToLock[0] = leftNodeID;
-        nodesToLock[1] = rightNodeID;
-        nodesToLock[2] = topNodeID;
-        nodesToLock[3] = edge.isBoundary ? UINT_MAX : bottomNodeID; // UINT_MAX ignores the bottom node for boundaries
-
-        // 1. Sort the array ascending to enforce strict lock ordering
-        uint temp;
-        if (nodesToLock[0] > nodesToLock[1])
-        {
-            temp = nodesToLock[0];
-            nodesToLock[0] = nodesToLock[1];
-            nodesToLock[1] = temp;
-        }
-        if (nodesToLock[2] > nodesToLock[3])
-        {
-            temp = nodesToLock[2];
-            nodesToLock[2] = nodesToLock[3];
-            nodesToLock[3] = temp;
-        }
-        if (nodesToLock[0] > nodesToLock[2])
-        {
-            temp = nodesToLock[0];
-            nodesToLock[0] = nodesToLock[2];
-            nodesToLock[2] = temp;
-        }
-        if (nodesToLock[1] > nodesToLock[3])
-        {
-            temp = nodesToLock[1];
-            nodesToLock[1] = nodesToLock[3];
-            nodesToLock[3] = temp;
-        }
-        if (nodesToLock[1] > nodesToLock[2])
-        {
-            temp = nodesToLock[1];
-            nodesToLock[1] = nodesToLock[2];
-            nodesToLock[2] = temp;
-        }
-
-        // 2. Attempt to lock in sorted order
-        uint locksAcquired = 0;
-        bool failed = false;
-
-        for (int i = 0; i < 4; i++)
-        {
-            if (nodesToLock[i] == UINT_MAX) 
-                continue; // Skip if it's a boundary
-
-            uint lockResult;
-            InterlockedCompareExchange(NodeLocks[nodesToLock[i]], 0, 1, lockResult);
-            
-            if (lockResult != 0)
-            {
-                failed = true;
-                break; // Stop trying to lock, we failed the race
-            }
-            locksAcquired++;
-        }
-
-        // 3. Rollback if we failed
-        if (failed)
-        {
-            uint dummy;
-            // Only unlock the exact number of nodes we successfully locked
-            for (int j = 0; j < (int) locksAcquired; j++)
-            {
-                InterlockedExchange(NodeLocks[nodesToLock[j]], 0, dummy);
-            }
-            
-            FlagPending();
-            return;
-        }
-
-        // SUCCESS! We locked all required nodes without creating a livelock.
-        HalfEdges[index].canSplit = 1;
+        EdgeWeights[index] = dist;
+        EdgeWeights[edge.twin] = dist;
     }
 }
 
@@ -481,13 +475,18 @@ void EvaluateSplits(uint3 id : SV_DispatchThreadID)
     
     HalfEdge3D edge = HalfEdges[index];
     
-    if (edge.wantsToSplit && edge.canSplit == 1)
+    if (EdgeWeights[index] == 0.0f)
+        return;
+    
+    if (index >= edge.twin)
+        return;
+    
+    if (edge.canSplit)
     {
         // first check if we've already reached max node count before splitting
         uint allocatedNodeID;
         // Atomically add 1, and return the ID we just claimed into 'allocatedNodeID'
         GlobalCounters.InterlockedAdd(0, 1, allocatedNodeID);
-        
         
         if (allocatedNodeID < maxNodes)
         {
@@ -499,8 +498,6 @@ void EvaluateSplits(uint3 id : SV_DispatchThreadID)
             GlobalCounters.InterlockedAdd(8, facesNeeded, startFaceID);
         
             SplitTriangle(index, allocatedNodeID, startEdgeID, startFaceID);
-            
-            HalfEdges[index].canSplit = 2; // mark as just-split
         }
         else
         {
@@ -509,137 +506,19 @@ void EvaluateSplits(uint3 id : SV_DispatchThreadID)
             GlobalCounters.InterlockedAdd(0, -1, dummy);
         }
     }
-    
-    HalfEdges[index].wantsToSplit = false; // reset for next frame
-    if (HalfEdges[index].canSplit == 1)
+    else
     {
-        HalfEdges[index].canSplit = 0;
+        FlagPending();
     }
+
+    // reset for next iteration
+    HalfEdges[index].canSplit = false;
+    HalfEdges[edge.twin].canSplit = false;
+
+    EdgeWeights[index] = 0.0;
+    EdgeWeights[edge.twin] = 0.0;
 }
 
-
-[numthreads(8, 1, 1)]
-void MarkFlippableEdges(uint3 id : SV_DispatchThreadID)
-{
-    uint index = id.x;
-    int halfEdgeCount = GlobalCounters.Load(4);
-        
-    if ((index + sliceIndex + randomOffset) % 4 != 0) 
-        return;
-    
-    if (index >= halfEdgeCount)
-        return;
-    
-    HalfEdge3D edge = HalfEdges[index];
-    HalfEdge3D twin = HalfEdges[edge.twin];
-    
-    // Do not flip boundaries or ghost edges
-    if (edge.isBoundary || edge.isGhost)
-        return;
-        
-    if (twin.isBoundary || twin.isGhost)
-        return;
-
-    // Prevent both twins from evaluating the same quad simultaneously
-    if (index > edge.twin)
-        return;
-
-    // Gather the 4 nodes of the quadrilateral
-    uint e0 = index;
-    uint e1 = HalfEdges[e0].next;
-    uint e3 = edge.twin;
-    uint e4 = HalfEdges[e3].next;
-
-    uint n_top = HalfEdges[e0].target;
-    uint n_right = HalfEdges[e1].target;
-    uint n_bottom = HalfEdges[e3].target;
-    uint n_left = HalfEdges[e4].target;
-
-    float3 p_top = Nodes[n_top].position;
-    float3 p_right = Nodes[n_right].position;
-    float3 p_bottom = Nodes[n_bottom].position;
-    float3 p_left = Nodes[n_left].position;
-
-    // Calculate Current Opposite Angles (Left and Right)
-    // We use clamp() before acos() because floating point math can sometimes 
-    // return 1.000001, which causes acos() to output NaN and destroy your mesh!
-    float3 v_right_top = normalize(p_top - p_right);
-    float3 v_right_bottom = normalize(p_bottom - p_right);
-    float dot_right = clamp(dot(v_right_top, v_right_bottom), -1.0, 1.0);
-    float angle_right = acos(dot_right);
-
-    float3 v_left_top = normalize(p_top - p_left);
-    float3 v_left_bottom = normalize(p_bottom - p_left);
-    float dot_left = clamp(dot(v_left_top, v_left_bottom), -1.0, 1.0);
-    float angle_left = acos(dot_left);
-
-    float current_angle_sum = angle_left + angle_right;
-
-    // 4. Calculate Potential Flipped Opposite Angles (Top and Bottom)
-    float3 v_top_left = normalize(p_left - p_top);
-    float3 v_top_right = normalize(p_right - p_top);
-    float dot_top = clamp(dot(v_top_left, v_top_right), -1.0, 1.0);
-    float angle_top = acos(dot_top);
-
-    float3 v_bottom_left = normalize(p_left - p_bottom);
-    float3 v_bottom_right = normalize(p_right - p_bottom);
-    float dot_bottom = clamp(dot(v_bottom_left, v_bottom_right), -1.0, 1.0);
-    float angle_bottom = acos(dot_bottom);
-
-    float flipped_angle_sum = angle_top + angle_bottom;
-
-    // The Delaunay Test
-    // If the flipped angles are tighter (smaller) than the current angles, 
-    // it means the flipped triangles will be fatter and higher quality.
-    edge.wantsToFlip = current_angle_sum > flipped_angle_sum;
-
-    if (edge.wantsToFlip)
-    {
-        // Node Locking (Identical to your Split logic!)
-        // You MUST lock the nodes here, otherwise two adjacent quads 
-        // flipping at the same time will scramble each other's pointers.
-        uint lockTop, lockBottom, lockRight, lockLeft;
-
-        InterlockedCompareExchange(NodeLocks[n_left], 0, 1, lockLeft);
-        if (lockLeft != 0)
-        {
-            FlagPending();
-            return;
-        }
-
-        InterlockedCompareExchange(NodeLocks[n_right], 0, 1, lockRight);
-        if (lockRight != 0)
-        {
-            InterlockedExchange(NodeLocks[n_left], 0, lockLeft);
-            FlagPending();
-            return;
-        }
-
-        InterlockedCompareExchange(NodeLocks[n_top], 0, 1, lockTop);
-        if (lockTop != 0)
-        {
-            InterlockedExchange(NodeLocks[n_left], 0, lockLeft);
-            InterlockedExchange(NodeLocks[n_right], 0, lockRight);
-            FlagPending();
-            return;
-        }
-
-        InterlockedCompareExchange(NodeLocks[n_bottom], 0, 1, lockBottom);
-        if (lockBottom != 0)
-        {
-            InterlockedExchange(NodeLocks[n_left], 0, lockLeft);
-            InterlockedExchange(NodeLocks[n_right], 0, lockRight);
-            InterlockedExchange(NodeLocks[n_top], 0, lockTop);
-            FlagPending();
-            return;
-        }
-
-        // SUCCESS! We have the locks and the Delaunay condition is met.
-        edge.canFlip = true;
-    }
-    
-    HalfEdges[index] = edge; // write back the modified edge with the wantsToFlip and canFlip flags
-}
 
 void FlipEdge(uint edgeIndex)
 {
@@ -750,6 +629,100 @@ void FlipEdge(uint edgeIndex)
 }
 
 [numthreads(8, 1, 1)]
+void MarkFlippableEdges(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    int halfEdgeCount = GlobalCounters.Load(4);
+    
+    if (index >= halfEdgeCount)
+        return;
+    
+    HalfEdge3D edge = HalfEdges[index];
+    HalfEdge3D twin = HalfEdges[edge.twin];
+    
+    // Do not flip boundaries or ghost edges
+    if (edge.isBoundary || edge.isGhost)
+        return;
+        
+    if (twin.isBoundary || twin.isGhost)
+        return;
+
+    // Prevent both twins from evaluating the same quad simultaneously
+    if (index > edge.twin)
+        return;
+
+    // Gather the 4 nodes of the quadrilateral
+    uint e0 = index;
+    uint e1 = HalfEdges[e0].next;
+    uint e3 = edge.twin;
+    uint e4 = HalfEdges[e3].next;
+
+    uint n_top = HalfEdges[e0].target;
+    uint n_right = HalfEdges[e1].target;
+    uint n_bottom = HalfEdges[e3].target;
+    uint n_left = HalfEdges[e4].target;
+
+    float3 p_top = Nodes[n_top].position;
+    float3 p_right = Nodes[n_right].position;
+    float3 p_bottom = Nodes[n_bottom].position;
+    float3 p_left = Nodes[n_left].position;
+
+    // Calculate Current Opposite Angles (Left and Right)
+    // We use clamp() before acos() because floating point math can sometimes 
+    // return 1.000001, which causes acos() to output NaN and destroy your mesh!
+    float3 v_right_top = normalize(p_top - p_right);
+    float3 v_right_bottom = normalize(p_bottom - p_right);
+    float dot_right = clamp(dot(v_right_top, v_right_bottom), -1.0, 1.0);
+    float angle_right = acos(dot_right);
+
+    float3 v_left_top = normalize(p_top - p_left);
+    float3 v_left_bottom = normalize(p_bottom - p_left);
+    float dot_left = clamp(dot(v_left_top, v_left_bottom), -1.0, 1.0);
+    float angle_left = acos(dot_left);
+
+    float current_angle_sum = angle_left + angle_right;
+
+    // 4. Calculate Potential Flipped Opposite Angles (Top and Bottom)
+    float3 v_top_left = normalize(p_left - p_top);
+    float3 v_top_right = normalize(p_right - p_top);
+    float dot_top = clamp(dot(v_top_left, v_top_right), -1.0, 1.0);
+    float angle_top = acos(dot_top);
+
+    float3 v_bottom_left = normalize(p_left - p_bottom);
+    float3 v_bottom_right = normalize(p_right - p_bottom);
+    float dot_bottom = clamp(dot(v_bottom_left, v_bottom_right), -1.0, 1.0);
+    float angle_bottom = acos(dot_bottom);
+
+    float flipped_angle_sum = angle_top + angle_bottom;
+
+    // Calculate the face normals of the two current triangles
+    float3 normal_right = normalize(cross(p_top - p_right, p_bottom - p_right));
+    float3 normal_left = normalize(cross(p_bottom - p_left, p_top - p_left));
+
+    // Calculate the dihedral angle (how sharply the mesh is folded here)
+    float foldDot = dot(normal_right, normal_left);
+
+    // If the fold is too sharp (e.g., less than ~60 degrees), or if the quad is 
+    // highly non-convex (normals facing away from each other), abort the flip!
+    // A dot product of 0.5 roughly corresponds to 60 degrees.
+    if (foldDot < 0.5f)
+        return;
+    
+    // The Delaunay Test
+    // If the flipped angles are tighter (smaller) than the current angles, 
+    // it means the flipped triangles will be fatter and higher quality.
+    bool shouldFlip = current_angle_sum > flipped_angle_sum;
+
+    if (shouldFlip)
+    {
+        EdgeWeights[index] = current_angle_sum - flipped_angle_sum;
+        EdgeWeights[edge.twin] = current_angle_sum - flipped_angle_sum;
+    }
+    
+    HalfEdges[index] = edge; // write back the modified edge with the wantsToFlip and canFlip flags
+}
+
+[numthreads(8, 1, 1)]
 void EvaluateFlips(uint3 id : SV_DispatchThreadID)
 {
     uint index = id.x;
@@ -759,14 +732,27 @@ void EvaluateFlips(uint3 id : SV_DispatchThreadID)
         return;
     
     HalfEdge3D edge = HalfEdges[index];
+        
+    if (EdgeWeights[index] == 0.0f)
+        return;
     
-    if (edge.wantsToFlip && edge.canFlip)
+    if (index >= edge.twin)
+        return;
+    
+    if (edge.canSplit)
     {
         FlipEdge(index);
     }
+    else
+    {
+        FlagPending();
+    }
 
-    HalfEdges[index].wantsToFlip = false;
-    HalfEdges[index].canFlip = false;
+    HalfEdges[index].canSplit = false;
+    HalfEdges[edge.twin].canSplit = false;
+    
+    EdgeWeights[index] = 0.0;
+    EdgeWeights[edge.twin] = 0.0;
 }
 
 

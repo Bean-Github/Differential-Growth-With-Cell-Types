@@ -30,11 +30,11 @@ struct HalfEdge3D
     
     uint id;
         
-    bool wantsToSplit;
-    int canSplit;
+    //bool wantsToSplit;
+    bool canSplit;
     
-    bool wantsToFlip;
-    bool canFlip;
+    //bool wantsToFlip;
+    //bool canFlip;
     
     bool isBoundary;
     bool isGhost;

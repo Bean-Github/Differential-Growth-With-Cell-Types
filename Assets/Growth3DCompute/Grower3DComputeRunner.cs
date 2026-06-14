@@ -56,6 +56,8 @@ namespace Growth3DCompute
         ComputeBuffer halfEdgeBuffer;
         ComputeBuffer faceBuffer;
 
+        ComputeBuffer edgeWeightBuffer;
+
         ComputeBuffer spatialLookupBuffer;
         ComputeBuffer startIndicesBuffer;
 
@@ -69,6 +71,7 @@ namespace Growth3DCompute
         protected int markEdgesKernel;
         protected int evaluateSplitsKernel;
         protected int unlockNodesKernel;
+        protected int findIndependentSetKernel;
 
         protected int markFlippableEdgesKernel;
         protected int evaluateFlipsKernel;
@@ -138,7 +141,6 @@ namespace Growth3DCompute
                         $"Prev={debugHalfEdgeData[i].prev}, " +
                         $"Twin={debugHalfEdgeData[i].twin}, " +
                         $"Face={debugHalfEdgeData[i].face}" +
-                        $"WantsToSplit={debugHalfEdgeData[i].wantsToSplit}" +
                         $"CanSplit={debugHalfEdgeData[i].canSplit}" +
                         $"IsBoundary={debugHalfEdgeData[i].isBoundary}" +
                         $"IsGhost={debugHalfEdgeData[i].isGhost}"
@@ -213,6 +215,9 @@ namespace Growth3DCompute
             // init particles
             CreateTopologyBuffers();
 
+            float[] edgeWeights = new float[maxHalfEdges];
+            edgeWeightBuffer = new ComputeBuffer(maxHalfEdges, sizeof(float));
+
             spatialLookupBuffer = new ComputeBuffer(hashTableSize, sizeof(uint) * 3);
             startIndicesBuffer = new ComputeBuffer(hashTableSize, sizeof(uint));
         }
@@ -269,6 +274,8 @@ namespace Growth3DCompute
             evaluateSplitsKernel = splitterShader.FindKernel("EvaluateSplits");
             unlockNodesKernel = splitterShader.FindKernel("UnlockNodes");
 
+            findIndependentSetKernel = splitterShader.FindKernel("FindIndependentSet");
+
             markFlippableEdgesKernel = splitterShader.FindKernel("MarkFlippableEdges");
             evaluateFlipsKernel = splitterShader.FindKernel("EvaluateFlips");
 
@@ -279,7 +286,7 @@ namespace Growth3DCompute
             ComputeHelper.SetBufferToKernels("GlobalCounters", counterBuffer, computeShader,
                 applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("GlobalCounters", counterBuffer, splitterShader,
-                unlockEdgesKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
+                unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("NodeLocks", nodeLocksBuffer, splitterShader,
                 markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
@@ -287,12 +294,15 @@ namespace Growth3DCompute
             ComputeHelper.SetBufferToKernels("Nodes", nodeBuffer, computeShader, 
                 applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("Nodes", nodeBuffer, splitterShader, 
-                unlockEdgesKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
+                unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("HalfEdges", halfEdgeBuffer, computeShader,
                 applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("HalfEdges", halfEdgeBuffer, splitterShader,
-                unlockEdgesKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
+                unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
+
+            ComputeHelper.SetBufferToKernels("EdgeWeights", edgeWeightBuffer, splitterShader,
+                unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("Faces", faceBuffer, computeShader, 
                 applyNaturalForcesKernel, moveKernel);
@@ -359,49 +369,41 @@ namespace Growth3DCompute
                 counterBuffer.SetData(counterArray);
             }
 
-            bool pending = false;
             int maxIterations = 20;
+            bool pending = false;
 
             void SplitEdges()
             {
-                int iterations = 0;
-                int pendingSplits = 1;
-
-                int threadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 8.0f);
+                int initialThreadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 8.0f);
                 int initialThreadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
 
                 // Start with a clean slate
                 splitterShader.Dispatch(unlockNodesKernel, initialThreadGroupsNodes, 1, 1);
-                splitterShader.Dispatch(unlockEdgesKernel, threadGroupsEdges, 1, 1); // Unlock all edges before starting the splitting iterations
+                splitterShader.Dispatch(unlockEdgesKernel, initialThreadGroupsEdges, 1, 1); // Unlock all edges before starting the splitting iterations
+
+                int pendingSplits = 1;
+                int iterations = 0;
 
                 while (pendingSplits > 0 && iterations < maxIterations)
                 {
                     ResetPendingCounterBuffer();
 
-                    int randomOffset = Random.Range(0, 1000);
-                    for (int i = 0; i < 4; i++)
-                    {
-                        splitterShader.SetInt("sliceIndex", i);
-                        splitterShader.SetInt("randomOffset", randomOffset); // Add a random offset to help break ties in edge selection and reduce lock contention
+                    splitterShader.Dispatch(markEdgesKernel, initialThreadGroupsEdges, 1, 1);
+                    splitterShader.Dispatch(findIndependentSetKernel, initialThreadGroupsEdges, 1, 1);
+                    splitterShader.Dispatch(evaluateSplitsKernel, initialThreadGroupsEdges, 1, 1);
 
-                        splitterShader.Dispatch(markEdgesKernel, threadGroupsEdges, 1, 1);
-                        splitterShader.Dispatch(evaluateSplitsKernel, threadGroupsEdges, 1, 1);
-
-                        UpdateCounters(); // Read counts
-                        pendingSplits = counterArray[3];
-
-                        // Unlock the nodes for the *next* iteration
-                        int threadGroupsNodes = Mathf.CeilToInt(nodeCount / 8.0f);
-                        splitterShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
-                    }
+                    UpdateCounters();
+                    pendingSplits = counterArray[3];
 
                     iterations++;
                 }
 
+                print("Iterations used for SPLIT: " + iterations);
+
                 if (pendingSplits > 0)
                 {
                     pending = true;
-                    Debug.LogWarning($"SPLITTING: Reached max iterations ({maxIterations}) with {pendingSplits} pending splits remaining. Consider increasing maxIterations or adjusting split criteria.");
+                    Debug.LogWarning($"FLIPPING: Reached max iterations ({maxIterations}) with {pendingSplits} pending flips remaining. Consider increasing maxIterations or adjusting flip criteria.");
                 }
             }
 
@@ -423,24 +425,20 @@ namespace Growth3DCompute
                 {
                     ResetPendingCounterBuffer();
 
-                    int randomOffset = Random.Range(0, 1000);
-                    for (int i = 0; i < 4; i++)
-                    {
-                        splitterShader.SetInt("sliceIndex", i);
-                        splitterShader.SetInt("randomOffset", randomOffset); // Add a random offset to help break ties in edge selection and reduce lock contention
+                    splitterShader.Dispatch(markFlippableEdgesKernel, initialThreadGroupsEdges, 1, 1);
+                    splitterShader.Dispatch(findIndependentSetKernel, initialThreadGroupsEdges, 1, 1);
+                    splitterShader.Dispatch(evaluateFlipsKernel, initialThreadGroupsEdges, 1, 1);
 
-                        splitterShader.Dispatch(markFlippableEdgesKernel, initialThreadGroupsEdges, 1, 1);
-                        splitterShader.Dispatch(evaluateFlipsKernel, initialThreadGroupsEdges, 1, 1);
+                    // set pendingFlips, and unlock the nodes and repeat
+                    UpdateCounters();
+                    pendingFlips = counterArray[3]; 
 
-                        // set pendingFlips, and unlock the nodes and repeat
-                        UpdateCounters();
-                        pendingFlips = counterArray[3]; 
-
-                        splitterShader.Dispatch(unlockNodesKernel, initialThreadGroupsNodes, 1, 1);
-                    }
+                    splitterShader.Dispatch(unlockNodesKernel, initialThreadGroupsNodes, 1, 1);
 
                     iterations++;
                 }
+
+                print("Iterations used for FLIP: " + iterations);
 
                 if (pendingFlips > 0)
                 {
@@ -481,7 +479,8 @@ namespace Growth3DCompute
             // release all buffers to prevent memory leaks
             ComputeHelper.Release(
                 nodeBuffer, 
-                halfEdgeBuffer, 
+                halfEdgeBuffer,
+                edgeWeightBuffer,
                 faceBuffer, 
                 spatialLookupBuffer, 
                 startIndicesBuffer, 
@@ -525,11 +524,11 @@ namespace Growth3DCompute
         // this index
         public uint id;
 
-        public int wantsToSplit; // flag set by the GPU to indicate that this edge should be split
+        //public int wantsToSplit; // flag set by the GPU to indicate that this edge should be split
         public int canSplit;
 
-        public int wantsToFlip; // flag set by the GPU to indicate that this edge should be flipped
-        public int canFlip;
+        //public int wantsToFlip; // flag set by the GPU to indicate that this edge should be flipped
+        //public int canFlip;
 
         public int isBoundary;
         public int isGhost;

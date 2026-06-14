@@ -540,7 +540,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   subdivisions: 0
   maxNodes: 5000
-  separationForce: 300
+  separationForce: 100
   separationDistance: 15
   springStiffness: 3
   restLength: 3

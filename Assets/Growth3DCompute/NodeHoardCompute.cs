@@ -195,7 +195,7 @@ namespace Growth3DCompute
                 float x = Mathf.Cos(angle) * radius;
                 float z = Mathf.Sin(angle) * radius;
 
-                vertices.Add(new Vector3(x, 0.0f, z));
+                vertices.Add(new Vector3(x, 3.0f, z));
             }
 
             // 3. Create the 6 perfectly equilateral triangular faces
