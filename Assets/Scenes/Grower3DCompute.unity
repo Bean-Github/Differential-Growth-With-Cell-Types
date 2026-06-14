@@ -554,7 +554,7 @@ MonoBehaviour:
   spawnCollider: {fileID: 436488696}
   enableSplitting: 1
   enableDebugLogs: 0
-  defaultShapeType: 1
+  defaultShapeType: 2
   particleRenderer: {fileID: 907189156}
   edgeRenderer: {fileID: 907189158}
   nodeHoardMeshFilter: {fileID: 1220264837}

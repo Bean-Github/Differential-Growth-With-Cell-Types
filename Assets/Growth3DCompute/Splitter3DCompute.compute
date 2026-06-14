@@ -16,6 +16,7 @@ RWStructuredBuffer<Face3D> Faces : register(u2);
 
 // VALUES
 int sliceIndex;
+int randomOffset;
 
 uint maxNodes;
 
@@ -354,7 +355,7 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
     if (index >= halfEdgeCount)
         return;
     
-    if ((index + sliceIndex) % 4 != 0) 
+    if ((index + sliceIndex + randomOffset) % 4 != 0) 
         return;
     
     HalfEdge3D edge = HalfEdges[index];
@@ -391,59 +392,80 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
             bottomNodeID = HalfEdges[HalfEdges[edge.twin].next].target;
         }
         
-        uint lockTop, lockBottom, lockRight, lockLeft;
+        uint nodesToLock[4];
+        nodesToLock[0] = leftNodeID;
+        nodesToLock[1] = rightNodeID;
+        nodesToLock[2] = topNodeID;
+        nodesToLock[3] = edge.isBoundary ? UINT_MAX : bottomNodeID; // UINT_MAX ignores the bottom node for boundaries
 
-        // interlocked compare exchange is an atomic operation that sets the value at the given address to the new value (3rd parameter)
-        // IFF the current value at that address is equal to the expected value (2nd parameter).
-        // interlocked compare exchange returns the OLD value, 
-        // so if it returns 0 that means we successfully set it to 1 and acquired the lock
-        
-        // Try to lock Left (try to set to 1 if it's currently 0, and store the old value in lockLeft)
-        InterlockedCompareExchange(NodeLocks[leftNodeID], 0, 1, lockLeft);
-        if (lockLeft != 0)
+        // 1. Sort the array ascending to enforce strict lock ordering
+        uint temp;
+        if (nodesToLock[0] > nodesToLock[1])
         {
-            FlagPending();
-            return; // Failed! Abort. (lockLeft was 1, meaning some other thread has locked this node, so we can't split this edge)
+            temp = nodesToLock[0];
+            nodesToLock[0] = nodesToLock[1];
+            nodesToLock[1] = temp;
+        }
+        if (nodesToLock[2] > nodesToLock[3])
+        {
+            temp = nodesToLock[2];
+            nodesToLock[2] = nodesToLock[3];
+            nodesToLock[3] = temp;
+        }
+        if (nodesToLock[0] > nodesToLock[2])
+        {
+            temp = nodesToLock[0];
+            nodesToLock[0] = nodesToLock[2];
+            nodesToLock[2] = temp;
+        }
+        if (nodesToLock[1] > nodesToLock[3])
+        {
+            temp = nodesToLock[1];
+            nodesToLock[1] = nodesToLock[3];
+            nodesToLock[3] = temp;
+        }
+        if (nodesToLock[1] > nodesToLock[2])
+        {
+            temp = nodesToLock[1];
+            nodesToLock[1] = nodesToLock[2];
+            nodesToLock[2] = temp;
         }
 
-        // Try to lock Right
-        InterlockedCompareExchange(NodeLocks[rightNodeID], 0, 1, lockRight);
-        if (lockRight != 0)
-        {
-            InterlockedExchange(NodeLocks[leftNodeID], 0, lockLeft);
-            FlagPending();
-            return;
-        }
+        // 2. Attempt to lock in sorted order
+        uint locksAcquired = 0;
+        bool failed = false;
 
-        // Try to lock Top
-        InterlockedCompareExchange(NodeLocks[topNodeID], 0, 1, lockTop);
-        if (lockTop != 0)
+        for (int i = 0; i < 4; i++)
         {
-            // Failed! Unlock Left and Right.
-            InterlockedExchange(NodeLocks[leftNodeID], 0, lockLeft);
-            InterlockedExchange(NodeLocks[rightNodeID], 0, lockRight);
-            FlagPending();
-            return;
-        }
+            if (nodesToLock[i] == UINT_MAX) 
+                continue; // Skip if it's a boundary
 
-        // Try to lock Bottom (if not at boundary, otherwise there is no bottom!)
-        if (!edge.isBoundary)
-        {
-            InterlockedCompareExchange(NodeLocks[bottomNodeID], 0, 1, lockBottom);
-            if (lockBottom != 0)
+            uint lockResult;
+            InterlockedCompareExchange(NodeLocks[nodesToLock[i]], 0, 1, lockResult);
+            
+            if (lockResult != 0)
             {
-            // Failed! Unlock Left, Right, and Top.
-                InterlockedExchange(NodeLocks[leftNodeID], 0, lockLeft);
-                InterlockedExchange(NodeLocks[rightNodeID], 0, lockRight);
-                InterlockedExchange(NodeLocks[topNodeID], 0, lockTop);
-                FlagPending();
-                return;
+                failed = true;
+                break; // Stop trying to lock, we failed the race
             }
+            locksAcquired++;
         }
-        
-        // SUCCESS! We locked all 4 nodes. 
-        // Now we mark this edge so EvaluateSplits knows to execute the split.
-        // (You could add a 'uint wantsToSplit' field to HalfEdge3D for this)
+
+        // 3. Rollback if we failed
+        if (failed)
+        {
+            uint dummy;
+            // Only unlock the exact number of nodes we successfully locked
+            for (int j = 0; j < (int) locksAcquired; j++)
+            {
+                InterlockedExchange(NodeLocks[nodesToLock[j]], 0, dummy);
+            }
+            
+            FlagPending();
+            return;
+        }
+
+        // SUCCESS! We locked all required nodes without creating a livelock.
         HalfEdges[index].canSplit = 1;
     }
 }
@@ -502,7 +524,7 @@ void MarkFlippableEdges(uint3 id : SV_DispatchThreadID)
     uint index = id.x;
     int halfEdgeCount = GlobalCounters.Load(4);
         
-    if ((index + sliceIndex) % 4 != 0) 
+    if ((index + sliceIndex + randomOffset) % 4 != 0) 
         return;
     
     if (index >= halfEdgeCount)
@@ -748,7 +770,6 @@ void EvaluateFlips(uint3 id : SV_DispatchThreadID)
 }
 
 
-// Add this kernel:
 [numthreads(8, 1, 1)]
 void UnlockNodes(uint3 id : SV_DispatchThreadID)
 {

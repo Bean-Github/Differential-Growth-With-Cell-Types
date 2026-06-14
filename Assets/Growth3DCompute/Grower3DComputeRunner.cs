@@ -359,9 +359,11 @@ namespace Growth3DCompute
                 counterBuffer.SetData(counterArray);
             }
 
+            bool pending = false;
+            int maxIterations = 20;
+
             void SplitEdges()
             {
-                int maxIterations = 40;
                 int iterations = 0;
                 int pendingSplits = 1;
 
@@ -376,9 +378,11 @@ namespace Growth3DCompute
                 {
                     ResetPendingCounterBuffer();
 
+                    int randomOffset = Random.Range(0, 1000);
                     for (int i = 0; i < 4; i++)
                     {
                         splitterShader.SetInt("sliceIndex", i);
+                        splitterShader.SetInt("randomOffset", randomOffset); // Add a random offset to help break ties in edge selection and reduce lock contention
 
                         splitterShader.Dispatch(markEdgesKernel, threadGroupsEdges, 1, 1);
                         splitterShader.Dispatch(evaluateSplitsKernel, threadGroupsEdges, 1, 1);
@@ -396,14 +400,15 @@ namespace Growth3DCompute
 
                 if (pendingSplits > 0)
                 {
+                    pending = true;
                     Debug.LogWarning($"SPLITTING: Reached max iterations ({maxIterations}) with {pendingSplits} pending splits remaining. Consider increasing maxIterations or adjusting split criteria.");
                 }
             }
+
             void FlipEdges()
             {
                 UpdateCounters();
 
-                int maxIterations = 40;
                 int iterations = 0;
                 int pendingFlips = 1;
 
@@ -418,9 +423,11 @@ namespace Growth3DCompute
                 {
                     ResetPendingCounterBuffer();
 
+                    int randomOffset = Random.Range(0, 1000);
                     for (int i = 0; i < 4; i++)
                     {
                         splitterShader.SetInt("sliceIndex", i);
+                        splitterShader.SetInt("randomOffset", randomOffset); // Add a random offset to help break ties in edge selection and reduce lock contention
 
                         splitterShader.Dispatch(markFlippableEdgesKernel, initialThreadGroupsEdges, 1, 1);
                         splitterShader.Dispatch(evaluateFlipsKernel, initialThreadGroupsEdges, 1, 1);
@@ -437,6 +444,7 @@ namespace Growth3DCompute
 
                 if (pendingFlips > 0)
                 {
+                    pending = true;
                     Debug.LogWarning($"FLIPPING: Reached max iterations ({maxIterations}) with {pendingFlips} pending flips remaining. Consider increasing maxIterations or adjusting flip criteria.");
                 }
             }
