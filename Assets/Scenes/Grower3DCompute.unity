@@ -540,7 +540,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   subdivisions: 0
   maxNodes: 10000
-  separationForce: 600
+  separationForce: 400
   separationDistance: 15
   springStiffness: 3
   restLength: 4
@@ -554,7 +554,7 @@ MonoBehaviour:
   spawnCollider: {fileID: 436488696}
   enableSplitting: 1
   enableDebugLogs: 0
-  defaultShapeType: 1
+  defaultShapeType: 2
   particleRenderer: {fileID: 907189156}
   edgeRenderer: {fileID: 907189158}
   nodeHoardMeshFilter: {fileID: 1220264837}
