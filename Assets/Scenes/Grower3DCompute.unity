@@ -546,7 +546,7 @@ MonoBehaviour:
   separationDistance: 3
   laplacianSmoothing: 8.8
   gravity: 0
-  turgorPressure: 25
+  turgorPressure: 80
   nodeDrag: 10
   growthRate: 0.1
   baseRestLength: 4
