@@ -20,37 +20,55 @@ RWStructuredBuffer<float> EdgeWeights : register(u3);
 // VALUES
 uint maxNodes;
 
-float splitDistanceThreshold;
-
-
 RWByteAddressBuffer GlobalCounters;
 RWStructuredBuffer<uint> NodeLocks; // 0 = unlocked, 1 = locked
 
-Node3D AddNode(uint allocatedID, float3 position)
+Node3D AddNode(uint allocatedID, HalfEdge3D splitEdge)
 {
     //uint newNodeID;
     //GlobalCounters.InterlockedAdd(0, 1, newNodeID); // Byte 0 = Node Count
     
     Node3D node = (Node3D) 0;
     node.id = allocatedID;
-    node.position = position;
+    node.age = 0.0f;
+    
+    Node3D oldNode = Nodes[splitEdge.origin];
+    Node3D neighbor = Nodes[splitEdge.target];
+    
+    node.drag = (oldNode.drag + neighbor.drag) / 2.0f;
+    node.mass = (oldNode.mass + neighbor.mass) / 2.0f;
+    node.velocity = (oldNode.velocity + neighbor.velocity) / 2.0f;
+    node.growthRate = (oldNode.growthRate + neighbor.growthRate) / 2.0f;
+    node.position = (oldNode.position + neighbor.position) / 2.0f;
     
     Nodes[node.id] = node;
     
     return node;
 }
 
-HalfEdge3D AddEdge(uint allocatedID)
+HalfEdge3D AddEdge(uint allocatedID, HalfEdge3D copiedEdge)
 {
-    //uint newEdgeID;
-    //GlobalCounters.InterlockedAdd(4, 1, newEdgeID);
-    
     HalfEdge3D edge = (HalfEdge3D) 0;
     edge.id = allocatedID;
+    edge.age = 0.0f;
+ 
+    edge.baseRestLength = copiedEdge.baseRestLength;
+    edge.currRestLength = copiedEdge.baseRestLength;
+    edge.springStiffness = copiedEdge.springStiffness;
+    edge.splitDistanceThreshold = copiedEdge.splitDistanceThreshold;
     
     HalfEdges[edge.id] = edge;
     
     return edge;
+}
+
+void ResetEdge(uint edgeID)
+{
+    HalfEdge3D edge = HalfEdges[edgeID];
+    edge.age = 0.0f;
+    edge.currRestLength = edge.baseRestLength;
+    
+    HalfEdges[edgeID] = edge;
 }
 
 Face3D AddFace(uint allocatedID)
@@ -73,18 +91,15 @@ void SplitTriangle(uint edgeIndex, uint allocatedNodeID, uint startEdgeID, uint 
 
     // grab the 3 nodes involved in edgeToSplit's face
     uint topNodeID = HalfEdges[edgeToSplit.next].target;
-    uint rightNodeID = edgeToSplit.target;
     uint leftNodeID = edgeToSplit.origin;
+    uint rightNodeID = edgeToSplit.target;
 
     Node3D topNode = Nodes[topNodeID];
-    Node3D rightNode = Nodes[rightNodeID];
     Node3D leftNode = Nodes[leftNodeID];
+    Node3D rightNode = Nodes[rightNodeID];
     
     // create new node
-    float3 midPoint = (rightNode.position + leftNode.position) / 2.0f;
-    Node3D newNode = AddNode(allocatedNodeID, midPoint);
-    newNode.velocity = (rightNode.velocity + leftNode.velocity) / 2.0f;
-    newNode.mass = 1.0f;
+    Node3D newNode = AddNode(allocatedNodeID, edgeToSplit);
     uint newNodeID = newNode.id;
     
     // keep outer boundary edges, save references
@@ -106,10 +121,10 @@ void SplitTriangle(uint edgeIndex, uint allocatedNodeID, uint startEdgeID, uint 
     // create new face and new half-edges that can be used for both boundary and non-boundary splits
     Face3D newTopFace = AddFace(startFaceID);
         
-    HalfEdge3D eMidTop = AddEdge(startEdgeID);
-    HalfEdge3D eTopMid = AddEdge(startEdgeID + 1);
-    HalfEdge3D eMidRight = AddEdge(startEdgeID + 2);
-    HalfEdge3D eRightMid = AddEdge(startEdgeID + 3);
+    HalfEdge3D eMidTop = AddEdge(startEdgeID, edgeToSplit);
+    HalfEdge3D eTopMid = AddEdge(startEdgeID + 1, edgeToSplit);
+    HalfEdge3D eMidRight = AddEdge(startEdgeID + 2, edgeToSplit);
+    HalfEdge3D eRightMid = AddEdge(startEdgeID + 3, edgeToSplit);
     
     uint newTopFaceID = newTopFace.id;
     
@@ -118,6 +133,23 @@ void SplitTriangle(uint edgeIndex, uint allocatedNodeID, uint startEdgeID, uint 
     uint eMidTopID = eMidTop.id;
     uint eTopMidID = eTopMid.id;
     
+    // reset age and other values
+    eTopLeft.age = 0.0f;
+    eTopLeft.currRestLength = eTopLeft.baseRestLength;
+    eRightTop.age = 0.0f;
+    eRightTop.currRestLength = eRightTop.baseRestLength;
+    eMidLeft.age = 0.0f;
+    eMidLeft.currRestLength = eMidLeft.baseRestLength;
+    eMidTop.age = 0.0f;
+    eMidTop.currRestLength = eMidTop.baseRestLength;
+    eTopMid.age = 0.0f;
+    eTopMid.currRestLength = eTopMid.baseRestLength;
+    eMidRight.age = 0.0f;
+    eMidRight.currRestLength = eMidRight.baseRestLength;
+    eLeftMid.age = 0.0f;
+    eLeftMid.currRestLength = eLeftMid.baseRestLength;
+    eRightMid.age = 0.0f;
+    eRightMid.currRestLength = eRightMid.baseRestLength;
     
     // top right triangle
     eRightTop.face = newTopFaceID;
@@ -191,7 +223,7 @@ void SplitTriangle(uint edgeIndex, uint allocatedNodeID, uint startEdgeID, uint 
         
         HalfEdges[oldPrev].next = eRightMidID; // fix the old prev to point to the new ghost]
 
-        // Write back
+        // Write back        
         HalfEdges[eTopLeftID] = eTopLeft;
         HalfEdges[eRightTopID] = eRightTop;
         HalfEdges[eMidLeftID] = eMidLeft;
@@ -233,12 +265,21 @@ void SplitTriangle(uint edgeIndex, uint allocatedNodeID, uint startEdgeID, uint 
     Face3D newBottomFace = AddFace(startFaceID + 1);
     uint newBottomFaceID = newBottomFace.id;
 
-    HalfEdge3D eMidBottom = AddEdge(startEdgeID + 4);
-    HalfEdge3D eBottomMid = AddEdge(startEdgeID + 5);
-
+    HalfEdge3D eMidBottom = AddEdge(startEdgeID + 4, edgeToSplit);
+    HalfEdge3D eBottomMid = AddEdge(startEdgeID + 5, edgeToSplit);
+    
     // --- THE STITCHING PHASE ---
     uint eMidBottomID = eMidBottom.id;
     uint eBottomMidID = eBottomMid.id;
+    
+    eMidBottom.age = 0.0f;
+    eMidBottom.currRestLength = eMidBottom.baseRestLength;
+    eBottomMid.age = 0.0f;
+    eBottomMid.currRestLength = eBottomMid.baseRestLength;
+    eBottomRight.age = 0.0f;
+    eBottomRight.currRestLength = eBottomRight.baseRestLength;
+    eLeftBottom.age = 0.0f;
+    eLeftBottom.currRestLength = eLeftBottom.baseRestLength;
     
     // Bottom right Triangle
     eBottomRight.face = newBottomFaceID;
@@ -457,10 +498,13 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
     Node3D targetNode = Nodes[edge.target];
     float dist = distance(originNode.position, targetNode.position);
 
-    if (dist > splitDistanceThreshold)
+    if (dist > edge.splitDistanceThreshold)
     {
-        EdgeWeights[index] = dist;
-        EdgeWeights[edge.twin] = dist;
+        float3 centerPos = (Nodes[edge.origin].position + Nodes[edge.target].position) * 0.5f;
+        float spatialNoise = frac(sin(dot(centerPos, float3(12.9898, 78.233, 45.164))) * 43758.5453) * 0.0001f;
+        
+        EdgeWeights[index] = dist + spatialNoise;
+        EdgeWeights[edge.twin] = dist + spatialNoise;
     }
 }
 
@@ -518,7 +562,6 @@ void EvaluateSplits(uint3 id : SV_DispatchThreadID)
     EdgeWeights[index] = 0.0;
     EdgeWeights[edge.twin] = 0.0;
 }
-
 
 void FlipEdge(uint edgeIndex)
 {
@@ -715,8 +758,17 @@ void MarkFlippableEdges(uint3 id : SV_DispatchThreadID)
 
     if (shouldFlip)
     {
-        EdgeWeights[index] = current_angle_sum - flipped_angle_sum;
-        EdgeWeights[edge.twin] = current_angle_sum - flipped_angle_sum;
+// 1. Calculate the spatial center of the edge
+        float3 centerPos = (Nodes[edge.origin].position + Nodes[edge.target].position) * 0.5f;
+        
+        // 2. Generate a deterministic microscopic noise value based on that position
+        float spatialNoise = frac(sin(dot(centerPos, float3(12.9898, 78.233, 45.164))) * 43758.5453) * 0.0001f;
+        
+        // 3. Add the noise to the base weight!
+        float finalWeight = (current_angle_sum - flipped_angle_sum) + spatialNoise;
+        
+        EdgeWeights[index] = finalWeight;
+        EdgeWeights[edge.twin] = finalWeight;
     }
     
     HalfEdges[index] = edge; // write back the modified edge with the wantsToFlip and canFlip flags

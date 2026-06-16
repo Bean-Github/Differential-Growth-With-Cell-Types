@@ -1,4 +1,5 @@
 // Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel UpdateEdges
 #pragma kernel ApplyNaturalForces
 #pragma kernel MoveParticles
 
@@ -23,15 +24,17 @@ uint paddedNodeCount;
 float separationDistance;
 float separationForce;
 
-float springStiffness;
-float restLength;
 float laplacianSmoothing;
 
 float gravity;
 
-float nodeDrag;
-float splitDistanceThreshold;
+float turgorPressure;
 
+// temp
+//float nodeDrag;
+float baseRestLength;
+float springStiffness;
+float growthRate;
 
 //StructuredBuffer<uint> NeighborIndices;
 StructuredBuffer<Entry> SpatialLookup;
@@ -40,6 +43,32 @@ StructuredBuffer<uint> StartIndices;
 //RWByteAddressBuffer NodeCounter; 
 
 RWByteAddressBuffer GlobalCounters;
+
+
+// OVER EDGES
+[numthreads(64, 1, 1)]
+void UpdateEdges(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    int edgeCount = GlobalCounters.Load(4);
+    
+    if (index >= edgeCount)
+        return;
+    
+    HalfEdge3D edge = HalfEdges[index];
+        
+    Node3D node = Nodes[edge.origin];
+    Node3D neighbor = Nodes[edge.target];
+
+    // update edges
+    edge.age += deltaTime;
+    
+    float growthRate = (node.growthRate + neighbor.growthRate) / 2.0f;
+    edge.currRestLength += growthRate * deltaTime; // simple rest length adaptation over time
+    
+    HalfEdges[index] = edge;
+}
+
 
 
 // OVER NODES
@@ -55,6 +84,7 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
     Node3D node = Nodes[index];
 
     float3 totalForce = float3(0, 0, 0);
+    float3 vertexNormal = float3(0, 0, 0);
     
     int3 currCell = PositionToCellCoord(node.position, separationDistance);
     
@@ -120,7 +150,6 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
         }
     }
     
-    
     // ==========================================
     // ATTRACTION & LAPLACIAN
     // ==========================================
@@ -136,19 +165,40 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
         uint neighborNodeIndex = HalfEdges[currEdge].target;
         Node3D neighbor = Nodes[neighborNodeIndex];
 
-        // Attraction
-        float3 delta = neighbor.position - node.position;
+        // attraction
+        float3 delta = neighbor.position - node.position; // Points toward neighbor
         float dist = length(delta);
-        
+    
         if (dist > 0.00001f)
-        {
-            float springMagnitude = springStiffness * (dist - restLength);
+        {            
+            float currRestLength = HalfEdges[currEdge].currRestLength;
+            //float currRestLength = HalfEdges[currEdge].baseRestLength + HalfEdges[currEdge].age * growthRate;
+            
+            float springMagnitude = HalfEdges[currEdge].springStiffness * (dist - currRestLength);
+            //float springMagnitude = springStiffness * (dist - currRestLength);
+        
+        // Accumulate into the node's total force
             totalForce += (delta / dist) * springMagnitude;
         }
-
+        
         // Accumulate for Laplacian smoothing
         neighborCenter += neighbor.position;
         actualNeighborCount++;
+        
+        // --- NEW: Calculate Face Normal for Turgor Pressure ---
+        // To get the face normal, we need the NEXT node in this triangle
+        uint nextEdgeIndex = HalfEdges[currEdge].next;
+        uint nextNeighborIndex = HalfEdges[nextEdgeIndex].target;
+        Node3D nextNeighbor = Nodes[nextNeighborIndex];
+
+        float3 v1 = neighbor.position - node.position;
+        float3 v2 = nextNeighbor.position - node.position;
+        
+        // The cross product gives a normal vector perpendicular to the face.
+        // Its magnitude is proportional to the face area, providing perfect area-weighted pressure.
+        float3 faceNormal = cross(v1, v2);
+        vertexNormal += faceNormal;
+        // ------------------------------------------------------
         
         uint twin = HalfEdges[currEdge].twin;
         
@@ -168,11 +218,22 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
         node.velocity += laplacianVector * laplacianSmoothing * deltaTime;
     }
 
+    // --- NEW: Apply Turgor Pressure Force ---
+    if (length(vertexNormal) > 0.0001f)
+    {
+        // Normalize the accumulated vectors to get the final smooth vertex normal
+        vertexNormal = normalize(vertexNormal);
+        
+        // Push the node outward along its normal
+        totalForce += vertexNormal * turgorPressure;
+    }
+    
     // ==========================================
     // APPLY FORCES
     // ==========================================
-    totalForce += -node.velocity * nodeDrag;
+    totalForce += -node.velocity * node.drag; // apply drag
 
+    
     // F = m * a, so a = F / m
     float safeMass = max(node.mass, 0.001f);
     node.velocity += (totalForce / safeMass) * deltaTime;
@@ -195,6 +256,9 @@ void MoveParticles (uint3 id : SV_DispatchThreadID)
     
     if (id.x >= nodeCount)
         return;
+    
+    // age nodes
+    Nodes[index].age += deltaTime;
     
     // apply velocity
     Nodes[index].position += Nodes[index].velocity * deltaTime;
