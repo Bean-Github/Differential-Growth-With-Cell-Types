@@ -7,32 +7,27 @@ namespace Growth3DCompute
 { 
     public class Grower3DComputeRunner : MonoBehaviour
     {
-        public int subdivisions = 2;
-
         [Header("Parameters")]
             public int maxNodes = 100000;
             private int hashTableSize;
             private int maxFaces;
             private int maxHalfEdges;
 
-            private int nodeCount;
-            private int faceCount;
-            private int halfEdgeCount;
+            public int nodeCount;
+            public int faceCount;
+            public int halfEdgeCount;
 
-            [Tooltip("Strength of repulsion between nodes")]
+            public Grower3DGenotype genotype;
+
+        [Header("Global Physics Settings")]
+        [Tooltip("Strength of repulsion between nodes")]
             public float separationForce = 0.5f;
             [Tooltip("Maximum separation distance (also the spatial hash cell size)")]
             public float separationDistance = 3.0f;
-            public float laplacianSmoothing = 0.1f;
             public float gravity = 9.8f;
-            public float turgorPressure = 0.1f;
 
 
-        [Header("Temp Global Params")]
-        // node stuff
-            public float nodeDrag = 0.1f;
-            public float growthRate = 0.1f;
-
+        [Header("Edge Settings")]
         // edge stuff
             public float baseRestLength = 2.0f;
             public float springStiffness = 3.0f;
@@ -46,23 +41,17 @@ namespace Growth3DCompute
             public ComputeShader computeShader;
             public ComputeShader splitterShader;
             public SpatialHashComputeRunner spatialHashRunner;
-            public Collider spawnCollider;
 
             public bool enableSplitting = true;
             public bool enableDebugLogs = false;
 
             public int defaultShapeType = 0; // 0 = plane, 1 = sphere
 
-        // rendering
-        [Header("Rendering")]
-            public BasicParticleBufferRenderer particleRenderer;
-            public BasicEdgeBufferRenderer edgeRenderer;
-            public MeshFilter nodeHoardMeshFilter;
-
         // BUFFERS
-        ComputeBuffer nodeBuffer;
-        ComputeBuffer halfEdgeBuffer;
-        ComputeBuffer faceBuffer;
+        public ComputeBuffer nodeBuffer;
+        public ComputeBuffer halfEdgeBuffer;
+        public ComputeBuffer faceBuffer;
+        public ComputeBuffer nodeTypesBuffer;
 
         ComputeBuffer edgeWeightBuffer;
 
@@ -71,6 +60,7 @@ namespace Growth3DCompute
 
         ComputeBuffer counterBuffer;
         ComputeBuffer nodeLocksBuffer;
+
 
         int[] counterArray;
 
@@ -85,6 +75,7 @@ namespace Growth3DCompute
         protected int evaluateFlipsKernel;
 
         protected int updateEdgesKernel;
+        protected int calculateCurvaturesKernel;
         protected int applyNaturalForcesKernel;
         protected int moveKernel;
 
@@ -121,111 +112,89 @@ namespace Growth3DCompute
                 physicsAccumulator -= Time.fixedDeltaTime;
             }
 
-            // get the information back from the shader to render
-            particleRenderer.RenderParticles(nodeBuffer, nodeCount);
-            edgeRenderer.RenderEdges(nodeBuffer, halfEdgeBuffer, nodeCount, halfEdgeCount);
-
             #region Debug
 
-            if (enableDebugLogs)
-            {
-                //// extract the data back to CPU and log it for debugging
-                //Node3D[] debugNodeData = new Node3D[nodeCount];
-                //nodeBuffer.GetData(debugNodeData, 0, 0, nodeCount);
-                //for (int i = 0; i < nodeCount; i++)
-                //{
-                //    Debug.Log($"Node {i}: " +
-                //        $"Position={debugNodeData[i].position}, " +
-                //        $"Velocity={debugNodeData[i].velocity}, " +
-                //        $"Mass={debugNodeData[i].mass}" +
-                //        $"DebugInt={debugNodeData[i].debug_int}");
-                //}
+            //if (enableDebugLogs)
+            //{
+            //    //// extract the data back to CPU and log it for debugging
+            //    //Node3D[] debugNodeData = new Node3D[nodeCount];
+            //    //nodeBuffer.GetData(debugNodeData, 0, 0, nodeCount);
+            //    //for (int i = 0; i < nodeCount; i++)
+            //    //{
+            //    //    Debug.Log($"Node {i}: " +
+            //    //        $"Position={debugNodeData[i].position}, " +
+            //    //        $"Velocity={debugNodeData[i].velocity}, " +
+            //    //        $"Mass={debugNodeData[i].mass}" +
+            //    //        $"DebugInt={debugNodeData[i].debug_int}");
+            //    //}
 
-                //// debug: print all the sorted cell keys and their corresponding particle indices\
-                //Entry[] debugKeys = new Entry[hashTableSize];
-                //spatialLookupBuffer.GetData(debugKeys);
-                //for (int i = 0; i < hashTableSize; i++)
-                //{
-                //    Debug.Log($"Cell {i}: Key={debugKeys[i].cellKey}");
-                //    Debug.Log($"    Particle Index={debugKeys[i].particleIndex}, Hash={debugKeys[i].hash}");
-                //}
+            //    //// debug: print all the sorted cell keys and their corresponding particle indices\
+            //    //Entry[] debugKeys = new Entry[hashTableSize];
+            //    //spatialLookupBuffer.GetData(debugKeys);
+            //    //for (int i = 0; i < hashTableSize; i++)
+            //    //{
+            //    //    Debug.Log($"Cell {i}: Key={debugKeys[i].cellKey}");
+            //    //    Debug.Log($"    Particle Index={debugKeys[i].particleIndex}, Hash={debugKeys[i].hash}");
+            //    //}
 
-                HalfEdge3D[] debugHalfEdgeData = new HalfEdge3D[halfEdgeCount];
-                halfEdgeBuffer.GetData(debugHalfEdgeData, 0, 0, halfEdgeCount);
-                for (int i = 0; i < halfEdgeCount; i++)
-                {
-                    Debug.Log($"HalfEdge {i}: " +
-                        $"Origin={debugHalfEdgeData[i].origin}, " +
-                        $"Target={debugHalfEdgeData[i].target}, " +
-                        $"Next={debugHalfEdgeData[i].next}, " +
-                        $"Prev={debugHalfEdgeData[i].prev}, " +
-                        $"Twin={debugHalfEdgeData[i].twin}, " +
-                        $"Face={debugHalfEdgeData[i].face}" +
-                        $"CanSplit={debugHalfEdgeData[i].canSplit}" +
-                        $"IsBoundary={debugHalfEdgeData[i].isBoundary}" +
-                        $"IsGhost={debugHalfEdgeData[i].isGhost}" +
-                        $"CurrRestLength={debugHalfEdgeData[i].currRestLength}" +
-                        $"BaseRestLength={debugHalfEdgeData[i].baseRestLength}" +
-                        $"SplitDistanceThreshold={debugHalfEdgeData[i].splitDistanceThreshold}"
-                    );
-                }
-            }
+            //    HalfEdge3D[] debugHalfEdgeData = new HalfEdge3D[halfEdgeCount];
+            //    halfEdgeBuffer.GetData(debugHalfEdgeData, 0, 0, halfEdgeCount);
+            //    for (int i = 0; i < halfEdgeCount; i++)
+            //    {
+            //        Debug.Log($"HalfEdge {i}: " +
+            //            $"Origin={debugHalfEdgeData[i].origin}, " +
+            //            $"Target={debugHalfEdgeData[i].target}, " +
+            //            $"Next={debugHalfEdgeData[i].next}, " +
+            //            $"Prev={debugHalfEdgeData[i].prev}, " +
+            //            $"Twin={debugHalfEdgeData[i].twin}, " +
+            //            $"Face={debugHalfEdgeData[i].face}" +
+            //            $"CanSplit={debugHalfEdgeData[i].canSplit}" +
+            //            $"IsBoundary={debugHalfEdgeData[i].isBoundary}" +
+            //            $"IsGhost={debugHalfEdgeData[i].isGhost}" +
+            //            $"CurrRestLength={debugHalfEdgeData[i].currRestLength}" +
+            //            $"BaseRestLength={debugHalfEdgeData[i].baseRestLength}" +
+            //            $"SplitDistanceThreshold={debugHalfEdgeData[i].splitDistanceThreshold}"
+            //        );
+            //    }
+            //}
 
 
-            //SetTopologyBuffers(nodeHoardCompute);
-            if (Input.GetKeyDown(KeyCode.Space))
-            {
-                //// pick a random edge and split it
-                // Node3D[] debugNodeData = new Node3D[nodeCount];
-                //nodeBuffer.GetData(debugNodeData, 0, 0, nodeCount);
-                //for (int i = 0; i < Mathf.Min(nodeCount, 10); i++)
-                //{
-                //    Debug.Log($"Node {i}: " +
-                //        $"Position={debugNodeData[i].position}, " +
-                //        $"Velocity={debugNodeData[i].velocity}, " +
-                //        $"Mass={debugNodeData[i].mass}" +
-                //        $"DebugInt={debugNodeData[i].debug_int}");
-                //}
+            ////SetTopologyBuffers(nodeHoardCompute);
+            //if (Input.GetKeyDown(KeyCode.Space))
+            //{
+            //    //// pick a random edge and split it
+            //    // Node3D[] debugNodeData = new Node3D[nodeCount];
+            //    //nodeBuffer.GetData(debugNodeData, 0, 0, nodeCount);
+            //    //for (int i = 0; i < Mathf.Min(nodeCount, 10); i++)
+            //    //{
+            //    //    Debug.Log($"Node {i}: " +
+            //    //        $"Position={debugNodeData[i].position}, " +
+            //    //        $"Velocity={debugNodeData[i].velocity}, " +
+            //    //        $"Mass={debugNodeData[i].mass}" +
+            //    //        $"DebugInt={debugNodeData[i].debug_int}");
+            //    //}
 
-                //HalfEdge3D[] debugHalfEdgeData = new HalfEdge3D[halfEdgeCount];
-                //halfEdgeBuffer.GetData(debugHalfEdgeData, 0, 0, halfEdgeCount);
+            //    //HalfEdge3D[] debugHalfEdgeData = new HalfEdge3D[halfEdgeCount];
+            //    //halfEdgeBuffer.GetData(debugHalfEdgeData, 0, 0, halfEdgeCount);
 
-                //Face3D[] debugFaceData = new Face3D[faceCount];
-                //faceBuffer.GetData(debugFaceData, 0, 0, faceCount);
+            //    //Face3D[] debugFaceData = new Face3D[faceCount];
+            //    //faceBuffer.GetData(debugFaceData, 0, 0, faceCount);
 
-                //int randomEdgeIndex = Random.Range(0, halfEdgeCount);
-                //NodeHoardCompute nodeHoardCompute = new NodeHoardCompute(debugNodeData, debugHalfEdgeData, debugFaceData);
+            //    //int randomEdgeIndex = Random.Range(0, halfEdgeCount);
+            //    //NodeHoardCompute nodeHoardCompute = new NodeHoardCompute(debugNodeData, debugHalfEdgeData, debugFaceData);
 
-                //nodeHoardCompute.SplitTriangle(ref debugHalfEdgeData[randomEdgeIndex]);
+            //    //nodeHoardCompute.SplitTriangle(ref debugHalfEdgeData[randomEdgeIndex]);
 
-                //// send back to GPU
-                //nodeBuffer.SetData(nodeHoardCompute.allNodes);
-                //halfEdgeBuffer.SetData(nodeHoardCompute.halfEdges);
-                //faceBuffer.SetData(nodeHoardCompute.faces);
-            }
+            //    //// send back to GPU
+            //    //nodeBuffer.SetData(nodeHoardCompute.allNodes);
+            //    //halfEdgeBuffer.SetData(nodeHoardCompute.halfEdges);
+            //    //faceBuffer.SetData(nodeHoardCompute.faces);
+            //}
 
-            if (Input.GetKey(KeyCode.M))
-            {
-                // convert to mesh
-                // extract the data back to CPU and log it for debugging
-                Node3D[] nodeData = new Node3D[nodeCount];
-                nodeBuffer.GetData(nodeData, 0, 0, nodeCount);
-
-                HalfEdge3D[] halfEdgeData = new HalfEdge3D[halfEdgeCount];
-                halfEdgeBuffer.GetData(halfEdgeData, 0, 0, halfEdgeCount);
-
-                Face3D[] faceData = new Face3D[faceCount];
-                faceBuffer.GetData(faceData, 0, 0, faceCount);
-
-                NodeHoardCompute nodeHoardCompute = new NodeHoardCompute(nodeData, halfEdgeData, faceData);
-
-                Mesh newMesh = NodeHoardMeshGenerator.GenerateMesh(nodeHoardCompute);
-
-                nodeHoardMeshFilter.mesh = newMesh;
-            }
             #endregion
         }
 
+        #region Buffer Creation and Setup
         protected void CreateBuffers()
         {
             counterArray = new int[4];
@@ -238,43 +207,55 @@ namespace Growth3DCompute
             // init particles
             CreateTopologyBuffers();
 
+            // init edge weights
             float[] edgeWeights = new float[maxHalfEdges];
             edgeWeightBuffer = new ComputeBuffer(maxHalfEdges, sizeof(float));
 
+            // init spatial hash buffers
             spatialLookupBuffer = new ComputeBuffer(hashTableSize, sizeof(uint) * 3);
             startIndicesBuffer = new ComputeBuffer(hashTableSize, sizeof(uint));
         }
 
+        // sets up the shape / seed of the grower
         protected void CreateTopologyBuffers()
         {
             NodeHoardGenerator generator = new NodeHoardGenerator();
 
-            generator.nodeHoard.InitGlobalValues(1.0f, nodeDrag, growthRate, baseRestLength, springStiffness, splitDistanceThreshold);
+            generator.nodeHoard.InitGlobalValues(baseRestLength, springStiffness, splitDistanceThreshold);
 
             switch (defaultShapeType)
             {
                 case 0:
-                    generator.CreateTestPlane(10.0f, 10.0f, subdivisions, subdivisions);
+                    generator.LoadMesh(genotype.mesh);
                     break;
                 case 1:
-                    generator.CreateTestSphere(3.0f, subdivisions);
+                    generator.CreateTestSphere(3.0f, 0);
                     break;
                 case 2:
                     generator.CreateTestHexagon(5.0f);
                     break;
+                case 3:
+                    generator.CreateTestPlane(10.0f, 10.0f, 0, 0);
+                    break;
                 default:
-                    generator.CreateTestPlane(10.0f, 10.0f, subdivisions, subdivisions);
+                    generator.LoadMesh(genotype.mesh);
                     break;
             }
-                    //generator.CreateTestSphere(3.0f);
 
             nodeBuffer = new ComputeBuffer(hashTableSize, Marshal.SizeOf(typeof(Node3D)));
             halfEdgeBuffer = new ComputeBuffer(maxHalfEdges, Marshal.SizeOf(typeof(HalfEdge3D)));
             faceBuffer = new ComputeBuffer(maxFaces, Marshal.SizeOf(typeof(Face3D)));
 
+            // SETUP GENOTYPE
+            nodeTypesBuffer = new ComputeBuffer(genotype.cellTypes.Length, Marshal.SizeOf(typeof(NodeType)));
+            nodeTypesBuffer.SetData(genotype.cellTypes);
+
+            genotype.AssignStartCellTypes(generator.nodeHoard);
+
             SetTopologyBuffers(generator.nodeHoard);
         }
 
+        // given a nodeHoard, this sets the data
         protected unsafe void SetTopologyBuffers(NodeHoardCompute nodeHoard)
         {
             nodeBuffer.SetData(nodeHoard.allNodes);
@@ -305,12 +286,13 @@ namespace Growth3DCompute
             evaluateFlipsKernel = splitterShader.FindKernel("EvaluateFlips");
 
             updateEdgesKernel = computeShader.FindKernel("UpdateEdges");
+            calculateCurvaturesKernel = computeShader.FindKernel("CalculateCurvatures");
             applyNaturalForcesKernel = computeShader.FindKernel("ApplyNaturalForces");
             moveKernel = computeShader.FindKernel("MoveParticles");
 
             // Compute Shader
             ComputeHelper.SetBufferToKernels("GlobalCounters", counterBuffer, computeShader,
-                updateEdgesKernel, applyNaturalForcesKernel, moveKernel);
+                updateEdgesKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("GlobalCounters", counterBuffer, splitterShader,
                 unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
@@ -318,12 +300,12 @@ namespace Growth3DCompute
                 markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("Nodes", nodeBuffer, computeShader,
-                updateEdgesKernel, applyNaturalForcesKernel, moveKernel);
+                updateEdgesKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("Nodes", nodeBuffer, splitterShader, 
                 unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("HalfEdges", halfEdgeBuffer, computeShader,
-                updateEdgesKernel, applyNaturalForcesKernel, moveKernel);
+                updateEdgesKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("HalfEdges", halfEdgeBuffer, splitterShader,
                 unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
@@ -331,7 +313,7 @@ namespace Growth3DCompute
                 unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("Faces", faceBuffer, computeShader,
-                updateEdgesKernel, applyNaturalForcesKernel, moveKernel);
+                updateEdgesKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("Faces", faceBuffer, splitterShader, 
                 unlockEdgesKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
@@ -340,7 +322,15 @@ namespace Growth3DCompute
 
             ComputeHelper.SetBufferToKernels("StartIndices", startIndicesBuffer, computeShader,
                 applyNaturalForcesKernel);
+
+            //Shader.SetGlobalBuffer("NodeTypes", nodeTypesBuffer);
+
+            ComputeHelper.SetBufferToKernels("NodeTypes", nodeTypesBuffer, computeShader,
+                updateEdgesKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
+            ComputeHelper.SetBufferToKernels("NodeTypes", nodeTypesBuffer, splitterShader,
+                unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
         }
+        #endregion
 
         void SetShaderParams()
         {
@@ -351,7 +341,6 @@ namespace Growth3DCompute
 
         void SetShaderParamsRealtime()
         {
-            //computeShader.SetInt("nodeCount", nodeCount);
             computeShader.SetFloat("deltaTime", Time.fixedDeltaTime);
 
             computeShader.SetFloat("splitDistanceThreshold", splitDistanceThreshold);
@@ -360,29 +349,22 @@ namespace Growth3DCompute
             computeShader.SetFloat("separationForce", separationForce);
             computeShader.SetFloat("separationDistance", separationDistance);
             computeShader.SetFloat("springStiffness", springStiffness);
+            
             computeShader.SetFloat("baseRestLength", baseRestLength);
             splitterShader.SetFloat("baseRestLength", baseRestLength);
 
-            computeShader.SetFloat("laplacianSmoothing", laplacianSmoothing);
             computeShader.SetFloat("gravity", gravity);
-            computeShader.SetFloat("turgorPressure", turgorPressure);
-
-            computeShader.SetVector("boundsCenter", spawnCollider.bounds.center);
-            computeShader.SetVector("boundsExtents", spawnCollider.bounds.extents);
 
             spatialHashRunner.SetValues(separationDistance);
 
             computeShader.SetInt("paddedNodeCount", Mathf.NextPowerOfTwo(nodeCount));
 
-
             // temp
-            computeShader.SetFloat("growthRate", growthRate);
             computeShader.SetFloat("springStiffness", springStiffness);
-            computeShader.SetFloat("nodeDrag", nodeDrag);
             computeShader.SetFloat("baseRestLength", baseRestLength);
         }
 
-        // gets the current counts of nodes, half-edges, and faces from the GPU and updates the local variables accordingly
+        // updates the current counts of nodes, half-edges, and faces from the GPU
         void UpdateCounters()
         {
             counterBuffer.GetData(counterArray);
@@ -392,6 +374,11 @@ namespace Growth3DCompute
             faceCount = counterArray[2];
         }
 
+        /// <summary>
+        /// What happens:
+        /// first, split edges, then flip edges
+        /// then unlock nodes, update spatial hash, update edges, calculate curvatures, apply forces, and move nodes
+        /// </summary>
 
         void RunComputeShader()
         {
@@ -404,10 +391,11 @@ namespace Growth3DCompute
             }
 
             int maxIterations = 20;
-            bool pending = false;
 
             void SplitEdges()
             {
+                bool pending = false;
+
                 int initialThreadGroupsNodes = Mathf.CeilToInt(nodeCount / 64.0f);
                 int initialThreadGroupsEdges = Mathf.CeilToInt(halfEdgeCount / 64.0f);
 
@@ -443,6 +431,8 @@ namespace Growth3DCompute
 
             void FlipEdges()
             {
+                bool pending = false;
+
                 UpdateCounters();
 
                 int iterations = 0;
@@ -505,6 +495,7 @@ namespace Growth3DCompute
             spatialHashRunner.UpdateSpatialLookup(ref nodeBuffer, ref spatialLookupBuffer, ref startIndicesBuffer, nodeCount);
 
             computeShader.Dispatch(updateEdgesKernel, finalThreadGroupsEdges, 1, 1);
+            computeShader.Dispatch(calculateCurvaturesKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(applyNaturalForcesKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(moveKernel, finalThreadGroupsNodes, 1, 1);
         }
@@ -521,77 +512,10 @@ namespace Growth3DCompute
                 spatialLookupBuffer, 
                 startIndicesBuffer, 
                 counterBuffer, 
-                nodeLocksBuffer
+                nodeLocksBuffer,
+                nodeTypesBuffer
             );
         }
-    }
-
-    // ALL STRUCTS
-    public unsafe struct Node3D
-    {
-        // pointers
-        public uint halfEdge; // ID of one of the half-edges originating from this vertex
-        public uint id;
-
-        // physics
-        float age;
-
-        public Vector3 position;
-        public Vector3 velocity;
-
-        public float curvature;
-        public float mass;
-        public float drag;
-
-        public float growthRate;
-
-        public int debug_int; // for debugging purposes only
-    }
-
-    public unsafe struct HalfEdge3D
-    {
-        // pointers
-        public uint origin; // node refs
-        public uint target;
-
-        public uint next; // edge refs
-        public uint prev;
-        public uint twin;
-
-        // the face this half-edge belongs to
-        public uint face;
-
-        public uint id; // this index
-
-        // splitting info
-        public int canSplit;
-
-        public int isBoundary;
-        public int isGhost;
-
-        // physics
-        public float age;
-
-        public float springStiffness;
-
-        public float baseRestLength; // starting rest length for this edge
-        public float currRestLength;
-        public float splitDistanceThreshold;
-    };  
-
-    public unsafe struct Face3D
-    {   
-        public uint halfEdge; // ID of one of the half-edges bounding this face
-
-        // this index
-        public uint id;
-    };
-
-    public struct Entry
-    {
-        public uint particleIndex;
-        public uint hash;
-        public uint cellKey;
     }
 
 }

@@ -1,14 +1,74 @@
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 namespace Growth3DCompute
 {
 
+    // generates a node hoard from a simple shape, like a mesh, sphere, plane, or hexagon
     public class NodeHoardGenerator
     {
         public NodeHoardCompute nodeHoard = new NodeHoardCompute();
 
+        // loads a mesh from a Unity Mesh object into the NodeHoardCompute structure
+        // also welds vertices that are at the same physical location to avoid duplicate nodes
+        public void LoadMesh(Mesh mesh)
+        {
+            Vector3[] vertices = mesh.vertices;
+            int[] triangles = mesh.triangles;
+
+            // map the original Unity index (0 to vertices.Length) 
+            // to our new, compressed NodeHoard index.
+            int[] indexMap = new int[vertices.Length];
+
+            Dictionary<Vector3Int, uint> weldedVertices = new Dictionary<Vector3Int, uint>();
+
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                Vector3 vert = vertices[i];
+
+                // Quantize the vector to 3 decimal places to safely compare floats
+                Vector3Int quantizedPos = new Vector3Int(
+                    Mathf.RoundToInt(vert.x * 1000f),
+                    Mathf.RoundToInt(vert.y * 1000f),
+                    Mathf.RoundToInt(vert.z * 1000f)
+                );
+
+                // If we've already created a node at this exact physical location, reuse its ID
+                if (weldedVertices.TryGetValue(quantizedPos, out uint existingNodeId))
+                {
+                    indexMap[i] = (int)existingNodeId;
+                }
+                else
+                {
+                    // This is a brand new physical location. Add it to the hoard.
+                    uint newNodeId = nodeHoard.AddNode(vert); // Assuming '0' is default type
+
+                    weldedVertices.Add(quantizedPos, newNodeId);
+                    indexMap[i] = (int)newNodeId;
+                }
+            }
+
+            // Add triangles using the mapped/welded indices
+            for (int i = 0; i < triangles.Length; i += 3)
+            {
+                uint a = (uint)indexMap[triangles[i]];
+                uint b = (uint)indexMap[triangles[i + 1]];
+                uint c = (uint)indexMap[triangles[i + 2]];
+
+                // Safety Check: If welding collapsed an edge (a == b), it creates a degenerate 
+                // line/point instead of a triangle. We skip those to prevent crashing SutureTwin.
+                if (a != b && b != c && a != c)
+                {
+                    nodeHoard.AddTriangle(a, b, c);
+                }
+            }
+
+            nodeHoard.SealOpenBoundaries();
+        }
+
+        #region Random Debug Test Shapes
         public void CreateTestSphere(float startRadius, int subdivisions = 0)
         {
             // Adjust this for detail. 
@@ -226,11 +286,10 @@ namespace Growth3DCompute
 
             nodeHoard.SealOpenBoundaries();
         }
+        #endregion
     }
 
-
-
-    // THE MASTER STORER OF NODES AND EDGES
+    // linker between cpu and gpu data for the actual topology of the grower
     // stores all nodes and edges, and provides methods for adding new nodes and connecting them to neighbors
     public class NodeHoardCompute
     {
@@ -241,9 +300,6 @@ namespace Growth3DCompute
         private Dictionary<long, HalfEdge3D> edgeSutures;
 
         // globals
-        float globalMass = 1.0f;
-        float globalNodeDrag = 4.83f;
-        float globalGrowthRate = 1.0f;
         float globalBaseRestLength = 0.5f;
         float globalSpringStiffness = 3.0f;
         float globalSplitDistanceThreshold = 4.0f;
@@ -264,11 +320,8 @@ namespace Growth3DCompute
             edgeSutures = new Dictionary<long, HalfEdge3D>();
         }
 
-        public void InitGlobalValues(float mass, float nodeDrag, float growthRate, float baseRestLength, float springStiffness, float splitDistanceThreshold)
+        public void InitGlobalValues(float baseRestLength, float springStiffness, float splitDistanceThreshold)
         {
-            globalMass = mass;
-            globalNodeDrag = nodeDrag;
-            globalGrowthRate = growthRate;
             globalBaseRestLength = baseRestLength;
             globalSpringStiffness = springStiffness;
             globalSplitDistanceThreshold = splitDistanceThreshold;
@@ -290,24 +343,17 @@ namespace Growth3DCompute
             return faces[(int)id];
         }
 
-        public uint AddNode(Vector3 position)
-        { 
+        public uint AddNode(Vector3 position, int type = 0)
+        {
             Node3D newNode = new Node3D { 
                 position = position, 
                 halfEdge = uint.MaxValue
             };
-            return AddNode(ref newNode);
-        }
+            newNode.id = (uint)allNodes.Count;
+            newNode.type = (uint)type;
 
-        uint AddNode(ref Node3D node)
-        {
-            node.id = (uint)allNodes.Count;
-            node.mass = globalMass;
-            node.drag = globalNodeDrag;
-            node.growthRate = globalGrowthRate;
-
-            allNodes.Add(node);
-            return node.id;
+            allNodes.Add(newNode);
+            return newNode.id;
         }
 
         uint AddEdge(ref HalfEdge3D edge)
@@ -323,12 +369,6 @@ namespace Growth3DCompute
             return edge.id;
         }
 
-        uint AddFace(ref Face3D face)
-        {
-            face.id = (uint)faces.Count;
-            faces.Add(face);
-            return face.id;
-        }
         #endregion
 
         #region Edge Management
@@ -513,209 +553,7 @@ namespace Growth3DCompute
             edgeSutures.Clear();
         }
 
-        public void FixBoundaryNodePointers()
-        {
-            for (int i = 0; i < allNodes.Count; i++)
-            {
-                Node3D node = allNodes[i];
-                if (node.halfEdge == uint.MaxValue) continue;
 
-                uint startEdge = node.halfEdge;
-                uint currentEdge = startEdge;
-
-                // Circulate around the vertex
-                do
-                {
-                    HalfEdge3D he = halfEdges[(int)currentEdge];
-
-                    // If we find an edge with no twin, THIS is the outgoing boundary edge.
-                    if (he.twin == uint.MaxValue)
-                    {
-                        node.halfEdge = he.id;
-                        allNodes[i] = node;
-                        break; // Found the boundary, stop looking
-                    }
-
-                    // Move to the next outgoing edge around this vertex
-                    HalfEdge3D twinEdge = halfEdges[(int)he.twin];
-                    currentEdge = twinEdge.next;
-
-                } while (currentEdge != startEdge && currentEdge != uint.MaxValue);
-            }
-        }
-
-        //// splits a triangle!
-        //public void SplitTriangle(ref HalfEdge3D edgeToSplit)
-        //{
-        //    // edge to split goes from LEFT to RIGHT
-        //    Node3D topNode = GetNode(GetEdge(edgeToSplit.next).target); // (assuming standard CCW winding)
-        //    Node3D bottomNode = GetNode(GetEdge(GetEdge(edgeToSplit.twin).next).target);
-        //    Node3D rightNode = GetNode(edgeToSplit.target);
-        //    Node3D leftNode = GetNode(edgeToSplit.origin);
-
-        //    // create midpoint node
-        //    Vector3 midPoint = (rightNode.position + leftNode.position) / 2.0f;
-        //    Node3D newNode = new Node3D { position = midPoint };
-        //    newNode.velocity = (rightNode.velocity + leftNode.velocity) / 2.0f;
-
-        //    // 3. Keep the outer boundary edges, but save references to them
-        //    HalfEdge3D eTopLeft = GetEdge(edgeToSplit.prev);
-        //    HalfEdge3D eRightTop = GetEdge(edgeToSplit.next);
-        //    HalfEdge3D eBottomRight = GetEdge(GetEdge(edgeToSplit.twin).prev);
-        //    HalfEdge3D eLeftBottom = GetEdge(GetEdge(edgeToSplit.twin).next);
-
-        //    // 4. We reuse the 2 existing faces and the 2 existing half-edges (the middle ones)
-        //    Face3D topFace = GetFace(edgeToSplit.face);
-        //    Face3D bottomFace = GetFace(GetEdge(edgeToSplit.twin).face);
-        //    HalfEdge3D eLeftMid = edgeToSplit; // Re-purpose to go from leftNode -> mid
-        //    HalfEdge3D eMidLeft = GetEdge(edgeToSplit.twin); // Re-purpose to go from leftNode -> mid
-
-        //    // 5. Create the 6 brand NEW half-edges and 2 NEW faces required
-        //    Face3D newTopFace = new Face3D();   // a new face on top right
-        //    Face3D newBottomFace = new Face3D();    // a new face on bottom right
-
-        //    HalfEdge3D eMidTop = new HalfEdge3D();
-        //    HalfEdge3D eTopMid = new HalfEdge3D();
-        //    HalfEdge3D eMidBottom = new HalfEdge3D();
-        //    HalfEdge3D eBottomMid = new HalfEdge3D();
-        //    HalfEdge3D eMidRight = new HalfEdge3D();
-        //    HalfEdge3D eRightMid = new HalfEdge3D();
-
-        //    // add all newly created things to the master lists to generate their IDs!
-        //    AddNode(ref newNode);
-
-        //    AddFace(ref newTopFace);
-        //    AddFace(ref newBottomFace);
-
-        //    AddEdge(ref eMidTop);
-        //    AddEdge(ref eTopMid);
-        //    AddEdge(ref eMidBottom);
-        //    AddEdge(ref eBottomMid);
-        //    AddEdge(ref eRightMid);
-        //    AddEdge(ref eMidRight);
-
-        //    // --- THE STITCHING PHASE ---
-        //    // You now systematically assign the .next, .prev, .twin, .origin, and .face 
-        //    // for the 4 triangles radiating from newNode.
-
-        //    // Example of stitching the Top-Right triangle:
-        //    eRightTop.face = newTopFace.id; // Outer boundary edge belongs to the new face now
-        //    eRightTop.next = eTopMid.id;
-        //    eRightTop.prev = eMidRight.id;
-
-        //    eMidRight.origin = newNode.id;
-        //    eMidRight.target = rightNode.id;
-        //    eMidRight.twin = eRightMid.id;
-        //    eMidRight.next = eRightTop.id;
-        //    eMidRight.prev = eTopMid.id;
-        //    eMidRight.face = newTopFace.id;
-
-        //    eTopMid.origin = topNode.id;
-        //    eTopMid.target = newNode.id;
-        //    eTopMid.twin = eMidTop.id;
-        //    eTopMid.next = eMidRight.id;
-        //    eTopMid.prev = eRightTop.id;
-        //    eTopMid.face = newTopFace.id;
-
-        //    // Bottom right Triangle:
-        //    eBottomRight.face = newBottomFace.id; // Outer boundary edge belongs to the new face now
-        //    eBottomRight.next = eRightMid.id;
-        //    eBottomRight.prev = eMidBottom.id;
-
-        //    eMidBottom.origin = newNode.id;
-        //    eMidBottom.target = bottomNode.id;
-        //    eMidBottom.twin = eBottomMid.id;
-        //    eMidBottom.next = eBottomRight.id;
-        //    eMidBottom.prev = eRightMid.id;
-        //    eMidBottom.face = newBottomFace.id;
-
-        //    eRightMid.origin = rightNode.id;
-        //    eRightMid.target = newNode.id;
-        //    eRightMid.twin = eMidRight.id;
-        //    eRightMid.next = eMidBottom.id;
-        //    eRightMid.prev = eBottomRight.id;
-        //    eRightMid.face = newBottomFace.id;
-
-        //    // top left triangle
-        //    eMidTop.origin = newNode.id;
-        //    eMidTop.target = topNode.id;
-        //    eMidTop.twin = eTopMid.id;
-        //    eMidTop.next = eTopLeft.id;
-        //    eMidTop.prev = eLeftMid.id;
-        //    eMidTop.face = topFace.id;
-
-        //    eTopLeft.face = topFace.id; // Outer boundary edge
-        //    eTopLeft.next = eLeftMid.id;
-        //    eTopLeft.prev = eMidTop.id;
-
-        //    eLeftMid.origin = leftNode.id;
-        //    eLeftMid.target = newNode.id;
-        //    eLeftMid.twin = eMidLeft.id;
-        //    eLeftMid.next = eMidTop.id;
-        //    eLeftMid.prev = eTopLeft.id;
-        //    eLeftMid.face = topFace.id;
-
-        //    // bottom left triangle
-        //    eBottomMid.origin = bottomNode.id;
-        //    eBottomMid.target = newNode.id;
-        //    eBottomMid.twin = eMidBottom.id;
-        //    eBottomMid.next = eMidLeft.id;
-        //    eBottomMid.prev = eLeftBottom.id;
-        //    eBottomMid.face = bottomFace.id;
-
-        //    eMidLeft.origin = newNode.id;
-        //    eMidLeft.target = leftNode.id;
-        //    eMidLeft.twin = eLeftMid.id;
-        //    eMidLeft.next = eLeftBottom.id;
-        //    eMidLeft.prev = eBottomMid.id;
-        //    eMidLeft.face = bottomFace.id;
-
-        //    eLeftBottom.face = bottomFace.id; // Outer boundary edge
-        //    eLeftBottom.next = eBottomMid.id;
-        //    eLeftBottom.prev = eMidLeft.id;
-
-        //    // set face pointers
-        //    topFace.halfEdge = eLeftMid.id;
-        //    bottomFace.halfEdge = eMidLeft.id;
-        //    newTopFace.halfEdge = eMidRight.id;
-        //    newBottomFace.halfEdge = eRightMid.id;
-
-        //    // set node pointers
-        //    newNode.halfEdge = eMidRight.id;
-        //    topNode.halfEdge = eTopLeft.id;
-        //    leftNode.halfEdge = eLeftBottom.id;
-        //    bottomNode.halfEdge = eBottomRight.id;
-        //    rightNode.halfEdge = eRightTop.id;
-
-        //    // Write back modified existing Edges AND the new ones we just modified
-        //    halfEdges[(int)eTopLeft.id] = eTopLeft;
-        //    halfEdges[(int)eRightTop.id] = eRightTop;
-        //    halfEdges[(int)eBottomRight.id] = eBottomRight;
-        //    halfEdges[(int)eLeftBottom.id] = eLeftBottom;
-        //    halfEdges[(int)eLeftMid.id] = eLeftMid;
-        //    halfEdges[(int)eMidLeft.id] = eMidLeft;
-
-        //    // Write back new edges
-        //    halfEdges[(int)eMidTop.id] = eMidTop;
-        //    halfEdges[(int)eTopMid.id] = eTopMid;
-        //    halfEdges[(int)eMidBottom.id] = eMidBottom;
-        //    halfEdges[(int)eBottomMid.id] = eBottomMid;
-        //    halfEdges[(int)eRightMid.id] = eRightMid;
-        //    halfEdges[(int)eMidRight.id] = eMidRight;
-
-        //    // Write back Faces
-        //    faces[(int)topFace.id] = topFace;
-        //    faces[(int)bottomFace.id] = bottomFace;
-        //    faces[(int)newTopFace.id] = newTopFace;
-        //    faces[(int)newBottomFace.id] = newBottomFace;
-
-        //    // Write back Nodes
-        //    allNodes[(int)topNode.id] = topNode;
-        //    allNodes[(int)bottomNode.id] = bottomNode;
-        //    allNodes[(int)leftNode.id] = leftNode;
-        //    allNodes[(int)rightNode.id] = rightNode;
-        //    allNodes[(int)newNode.id] = newNode;
-        //}
         #endregion
     }
 

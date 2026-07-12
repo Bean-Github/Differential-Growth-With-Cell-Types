@@ -10,6 +10,7 @@
 #include "GrowthHelpers3D.hlsl"
 #include "GrowthStructs3D.hlsl"
 #include "SpatialHash/SpatialHashHelpers3D.hlsl"
+#include "CellTypes.hlsl"
 
 RWStructuredBuffer<Node3D> Nodes : register(u0);
 RWStructuredBuffer<HalfEdge3D> HalfEdges : register(u1);
@@ -35,10 +36,16 @@ Node3D AddNode(uint allocatedID, HalfEdge3D splitEdge)
     Node3D oldNode = Nodes[splitEdge.origin];
     Node3D neighbor = Nodes[splitEdge.target];
     
-    node.drag = (oldNode.drag + neighbor.drag) / 2.0f;
-    node.mass = (oldNode.mass + neighbor.mass) / 2.0f;
+    
+    NodeType oldNodeInfo;
+    GetCellInfo(node.type, oldNodeInfo);
+    
+    NodeType neighborInfo;
+    GetCellInfo(neighbor.type, neighborInfo);
+    
     node.velocity = (oldNode.velocity + neighbor.velocity) / 2.0f;
-    node.growthRate = (oldNode.growthRate + neighbor.growthRate) / 2.0f;
+
+    node.type = neighborInfo.childType;
     node.position = (oldNode.position + neighbor.position) / 2.0f;
     
     Nodes[node.id] = node;
@@ -377,6 +384,8 @@ void UnlockEdges(uint3 id : SV_DispatchThreadID)
     EdgeWeights[index] = 0.0f;
 }
 
+
+// finds an independent set of edges that want to split, and marks them as "canSplit" if they are the local maximum in their umbrella
 [numthreads(64, 1, 1)]
 void FindIndependentSet(uint3 id : SV_DispatchThreadID)
 {
@@ -473,6 +482,7 @@ void FindIndependentSet(uint3 id : SV_DispatchThreadID)
     }
 }
 
+// mark edges that want to split by calculating their edge length and comparing it to the split threshold
 [numthreads(64, 1, 1)]
 void MarkEdges(uint3 id : SV_DispatchThreadID)
 {
@@ -508,6 +518,7 @@ void MarkEdges(uint3 id : SV_DispatchThreadID)
     }
 }
 
+// if an edge is marked as "canSplit", we attempt to claim a new node ID and split the triangle
 [numthreads(64, 1, 1)]
 void EvaluateSplits(uint3 id : SV_DispatchThreadID)
 {

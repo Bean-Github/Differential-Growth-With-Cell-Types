@@ -1,11 +1,13 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel UpdateEdges
+#pragma kernel CalculateCurvatures
 #pragma kernel ApplyNaturalForces
 #pragma kernel MoveParticles
 
 #include "GrowthHelpers3D.hlsl"
 #include "GrowthStructs3D.hlsl"
 #include "SpatialHash/SpatialHashHelpers3D.hlsl"
+#include "CellTypes.hlsl"
 
 RWStructuredBuffer<Node3D> Nodes : register(u0);
 RWStructuredBuffer<HalfEdge3D> HalfEdges : register(u1);
@@ -18,27 +20,22 @@ int sliceIndex;
 
 uint maxNodes;
 uint hashTableSize; // for spatial hashing, nextpoweroftwo(maxNodes)
-uint paddedNodeCount;
+uint paddedNodeCount; // nextpoweroftwo(nodeCount)
 
 // physics
 float separationDistance;
 float separationForce;
 
-float laplacianSmoothing;
-
 float gravity;
 
-float turgorPressure;
-
-// temp
-//float nodeDrag;
 float baseRestLength;
 float springStiffness;
-float growthRate;
+
 
 //StructuredBuffer<uint> NeighborIndices;
 StructuredBuffer<Entry> SpatialLookup;
 StructuredBuffer<uint> StartIndices;
+
 
 //RWByteAddressBuffer NodeCounter; 
 
@@ -46,6 +43,8 @@ RWByteAddressBuffer GlobalCounters;
 
 
 // OVER EDGES
+// this kernel updates the edges based on the current state of the nodes and their growth rates. 
+// It adjusts the rest length of each edge, based on growth rates.
 [numthreads(64, 1, 1)]
 void UpdateEdges(uint3 id : SV_DispatchThreadID)
 {
@@ -60,15 +59,70 @@ void UpdateEdges(uint3 id : SV_DispatchThreadID)
     Node3D node = Nodes[edge.origin];
     Node3D neighbor = Nodes[edge.target];
 
+    NodeType info;
+    GetCellInfo(node.type, info);
+    
+    NodeType neighborInfo;
+    GetCellInfo(neighbor.type, neighborInfo);
+    
     // update edges
     edge.age += deltaTime;
     
-    float growthRate = (node.growthRate + neighbor.growthRate) / 2.0f;
-    edge.currRestLength += growthRate * deltaTime; // simple rest length adaptation over time
+    // edge growth is based on the average growth rate of the two nodes it connects
+    float growthRate = (info.growthRate + neighborInfo.growthRate) / 2.0f;
+    edge.currRestLength += growthRate * deltaTime;
+    
+    if (edge.currRestLength > separationDistance * 1.5f) 
+    {
+        edge.currRestLength = separationDistance; // clamp rest length to prevent runaway stretching before split can occur
+    }
     
     HalfEdges[index] = edge;
 }
 
+
+// calculate local node curvatures
+[numthreads(64, 1, 1)]
+void CalculateCurvatures(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    int nodeCount = GlobalCounters.Load(0);
+    
+    if (index >= nodeCount)
+        return;
+    
+    Node3D node = Nodes[index];
+    
+    float3 neighborCenter = float3(0, 0, 0);
+    int actualNeighborCount = 0;
+    uint startEdge = node.halfEdge;
+    uint currEdge = startEdge;
+    
+    // uses a clockwise traversal around the node
+    for (int j = 0; j < 64; j++)
+    {
+        uint neighborNodeIndex = HalfEdges[currEdge].target;
+        Node3D neighbor = Nodes[neighborNodeIndex];
+        
+        neighborCenter += neighbor.position;
+        actualNeighborCount++;
+        
+        uint twin = HalfEdges[currEdge].twin;
+        
+        currEdge = HalfEdges[twin].next;
+        
+        if (currEdge == startEdge)
+            break; // Closed mesh, full circle complete!
+    }
+    if (actualNeighborCount > 0)
+    {   
+        neighborCenter /= (float) actualNeighborCount;
+        float3 laplacianVector = neighborCenter - node.position;
+        node.curvature = length(laplacianVector);
+        
+        Nodes[index] = node;
+    }
+}
 
 
 // OVER NODES
@@ -87,6 +141,9 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
     float3 vertexNormal = float3(0, 0, 0);
     
     int3 currCell = PositionToCellCoord(node.position, separationDistance);
+    
+    NodeType info;
+    GetCellInfo(node.type, info);
     
     // ==========================================
     // SEPARATION
@@ -165,19 +222,17 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
         uint neighborNodeIndex = HalfEdges[currEdge].target;
         Node3D neighbor = Nodes[neighborNodeIndex];
 
-        // attraction
+        // attraction (spring forces)
         float3 delta = neighbor.position - node.position; // Points toward neighbor
         float dist = length(delta);
     
         if (dist > 0.00001f)
         {            
             float currRestLength = HalfEdges[currEdge].currRestLength;
-            //float currRestLength = HalfEdges[currEdge].baseRestLength + HalfEdges[currEdge].age * growthRate;
             
             float springMagnitude = HalfEdges[currEdge].springStiffness * (dist - currRestLength);
-            //float springMagnitude = springStiffness * (dist - currRestLength);
         
-        // Accumulate into the node's total force
+            // Accumulate into the node's total force
             totalForce += (delta / dist) * springMagnitude;
         }
         
@@ -215,7 +270,7 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
 
         float3 laplacianVector = neighborCenter - node.position;
 
-        node.velocity += laplacianVector * laplacianSmoothing * deltaTime;
+        node.velocity += laplacianVector * info.laplacianSmoothing * deltaTime;
     }
 
     // --- NEW: Apply Turgor Pressure Force ---
@@ -225,18 +280,19 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
         vertexNormal = normalize(vertexNormal);
         
         // Push the node outward along its normal
-        totalForce += vertexNormal * turgorPressure;
+        totalForce += vertexNormal * info.turgorPressure;
     }
     
     // ==========================================
     // APPLY FORCES
     // ==========================================
-    totalForce += -node.velocity * node.drag; // apply drag
-
     
     // F = m * a, so a = F / m
-    float safeMass = max(node.mass, 0.001f);
+    float safeMass = max(info.mass, 0.001f);
     node.velocity += (totalForce / safeMass) * deltaTime;
+    
+    // Apply drag as exponential decay (framerate independent and unconditionally stable)
+    node.velocity *= exp(-info.drag * deltaTime);
     
     // apply gravity
     node.velocity += float3(0, -gravity * deltaTime, 0);

@@ -62,11 +62,10 @@ Shader "Custom/ParticleEdge"
 
                 o.pos = mul(UNITY_MATRIX_VP, float4(worldPos, 1.0));
                 
-                // Color mapping by average velocity of the edge connection
-                float speed = length(source.velocity + target.velocity) * 0.5;
-                float colorT = saturate(speed / maxVelocity);
-                
-                o.color = float4(_EdgeColor.rgb, _EdgeColor.a * (1.0 - colorT * 0.5));
+                // Color by average curvature
+                float colorT = saturate((source.curvature + target.curvature) * 0.5);
+
+                o.color = float4(_EdgeColor.rgba * colorT);
 
                 return o;
             }

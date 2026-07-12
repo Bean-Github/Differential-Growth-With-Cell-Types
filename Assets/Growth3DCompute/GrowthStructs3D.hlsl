@@ -15,10 +15,9 @@ struct Node3D
     float3 velocity;
     
     float curvature;
-    float mass;
-    float drag;
     
-    float growthRate;
+    // settings
+    uint type;
     
     int debug_int;
 };
