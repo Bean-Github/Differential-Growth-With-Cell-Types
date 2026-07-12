@@ -15,6 +15,7 @@ public struct NodeType
     public float switchTime;
     public uint targetType;
 
+    public float inheritanceWeight;
     public uint childType;
 }
 
@@ -26,15 +27,17 @@ public unsafe struct Node3D
     public uint id;
 
     // physics
-    float age;
+    public float age;
 
     public Vector3 position;
     public Vector3 velocity;
 
     public float curvature;
 
+    public uint baseType;
+
     // settings
-    public uint type;
+    public NodeType type;
 
     public int debug_int; // for debugging purposes only
 }

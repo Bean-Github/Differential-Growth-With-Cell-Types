@@ -20,12 +20,13 @@ namespace Growth3DCompute
         {
             for (int i = 0; i < nodeHoard.allNodes.Count; i++)
             {
-                uint typeIndex = nodeHoard.allNodes[i].type;
-
                 Node3D node = nodeHoard.allNodes[i];
 
                 // change type based on condition
-                if (i == 0 || i == 1 || i == 2 || i == 3) node.type = 1;
+                if (i == 0) node.baseType = 1;
+
+                // set the type of the node based on its baseType
+                node.type = baseNodeTypes[node.baseType];
 
                 nodeHoard.allNodes[i] = node;
             }

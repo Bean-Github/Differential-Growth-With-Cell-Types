@@ -59,11 +59,9 @@ void UpdateEdges(uint3 id : SV_DispatchThreadID)
     Node3D node = Nodes[edge.origin];
     Node3D neighbor = Nodes[edge.target];
 
-    NodeType info;
-    GetCellInfo(node.type, info);
+    NodeType info = node.type;
     
-    NodeType neighborInfo;
-    GetCellInfo(neighbor.type, neighborInfo);
+    NodeType neighborInfo = neighbor.type;
     
     // update edges
     edge.age += deltaTime;
@@ -144,8 +142,7 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
     
     int3 currCell = PositionToCellCoord(node.position, separationDistance);
     
-    NodeType info;
-    GetCellInfo(node.type, info);
+    NodeType info = node.type;
     
     // ==========================================
     // SEPARATION
@@ -293,11 +290,11 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
     float safeMass = max(info.mass, 0.001f);
     node.velocity += (totalForce / safeMass) * deltaTime;
     
-    // Apply drag as exponential decay (framerate independent and unconditionally stable)
-    node.velocity *= exp(-info.drag * deltaTime);
-    
     // apply gravity
     node.velocity += float3(0, -gravity * deltaTime, 0);
+
+    // Apply drag as exponential decay (framerate independent and unconditionally stable)
+    node.velocity *= exp(-info.drag * deltaTime);
     
     node.debug_int = HalfEdges[node.halfEdge].twin;
     
@@ -315,8 +312,7 @@ void MoveParticles (uint3 id : SV_DispatchThreadID)
     if (id.x >= nodeCount)
         return;
     
-    NodeType info;
-    GetCellInfo(Nodes[index].type, info);
+    NodeType info = Nodes[index].type;
     
     // age nodes
     Nodes[index].age += deltaTime;
@@ -324,12 +320,14 @@ void MoveParticles (uint3 id : SV_DispatchThreadID)
     // switch types if the node has reached its switch time
     if (Nodes[index].age > info.switchTime)
     {
-        if (Nodes[index].type != info.targetType)
+        if (Nodes[index].baseType != info.targetType)
         {
             Nodes[index].age = 0.0f; // reset age when switching types
         }
         
-        Nodes[index].type = info.targetType;
+        Nodes[index].baseType = info.targetType;
+        
+        GetCellInfo(Nodes[index].baseType, Nodes[index].type);
     }
     
     // apply velocity

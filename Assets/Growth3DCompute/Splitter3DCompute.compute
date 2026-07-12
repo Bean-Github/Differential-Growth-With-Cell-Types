@@ -37,21 +37,48 @@ Node3D AddNode(uint allocatedID, HalfEdge3D splitEdge)
     node.age = 0.0f;
     
     NodeType oldNodeInfo;
-    GetCellInfo(node.type, oldNodeInfo);
+    GetCellInfo(oldNode.baseType, oldNodeInfo);
     
     NodeType neighborInfo;
-    GetCellInfo(neighbor.type, neighborInfo);
+    GetCellInfo(neighbor.baseType, neighborInfo);
     
     
     node.velocity = (oldNode.velocity + neighbor.velocity) / 2.0f;
 
-    node.type = neighborInfo.childType;
-    node.position = (oldNode.position + neighbor.position) / 2.0f;
+    // prevent NaN if both weights are 0
+    float weightSum = oldNodeInfo.inheritanceWeight + neighborInfo.inheritanceWeight;
+    float t = (weightSum > 0.0001f) ? (neighborInfo.inheritanceWeight / weightSum) : 0.5f;
     
-    // if same type, average the age, otherwise reset to 0.0f
-    if (node.type == neighbor.type)
+    // preference the heavier one
+    if (t <= 0.5f)
     {
-        node.age = neighbor.age;
+        node.baseType = oldNodeInfo.childType;
+    }
+    else
+    {
+        node.baseType = neighborInfo.childType;
+    }
+    
+    // blend the actual type of the child
+    NodeType oldNodeChildType;
+    NodeType neighborChildType;
+    GetCellInfo(oldNodeInfo.childType, oldNodeChildType);
+    GetCellInfo(neighborInfo.childType, neighborChildType);
+    
+    node.type = BlendTypes(oldNodeChildType, neighborChildType, t);
+    
+    node.position = (oldNode.position + neighbor.position) / 2.0f;
+
+    // if same type as the dominant parent, inherit age, otherwise it remains 0.0f
+    if (t <= 0.5f)
+    {
+        if (node.baseType == oldNode.baseType)
+            node.age = oldNode.age;
+    }
+    else
+    {
+        if (node.baseType == neighbor.baseType)
+            node.age = neighbor.age;
     }
 
     Nodes[node.id] = node;

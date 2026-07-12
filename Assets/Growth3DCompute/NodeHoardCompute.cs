@@ -241,47 +241,71 @@ namespace Growth3DCompute
             List<Vector3> vertices = new List<Vector3>();
             List<int[]> faces = new List<int[]>();
 
-            // 1. The Center Node (Index 0)
+            // Center
             vertices.Add(Vector3.zero);
 
-            // 2. The 6 Perimeter Nodes
             int sides = 6;
+
+            // First ring
+            float innerY = 3.0f;
+            float outerY = 3.1f;
+            float outerRadius = radius * 1.5f;
+
+            int firstRingStart = vertices.Count;
             for (int i = 0; i < sides; i++)
             {
-                // Calculate angle in radians (60 degrees per step)
                 float angle = i * Mathf.PI * 2f / sides;
-
-                // Flat on the XZ plane
                 float x = Mathf.Cos(angle) * radius;
                 float z = Mathf.Sin(angle) * radius;
 
-                vertices.Add(new Vector3(x, 3.0f, z));
+                vertices.Add(new Vector3(x, innerY, z));
             }
 
-            // 3. Create the 6 perfectly equilateral triangular faces
-            for (int i = 1; i <= sides; i++)
+            // Second ring
+            int secondRingStart = vertices.Count;
+            for (int i = 0; i < sides; i++)
             {
-                // Wraps the final triangle back to the first perimeter vertex (index 1)
-                int nextIndex = (i % sides) + 1;
+                float angle = i * Mathf.PI * 2f / sides;
+                float x = Mathf.Cos(angle) * outerRadius;
+                float z = Mathf.Sin(angle) * outerRadius;
 
-                // Add face. Winding order (0, next, current) ensures normals point UP
-                faces.Add(new int[] { 0, nextIndex, i });
+                vertices.Add(new Vector3(x, outerY, z));
             }
 
-            // 4. Add to NodeHoard securely
+            // Center fan
+            for (int i = 0; i < sides; i++)
+            {
+                int a = firstRingStart + i;
+                int b = firstRingStart + ((i + 1) % sides);
+
+                faces.Add(new int[] { 0, b, a });
+            }
+
+            // Connect the two rings
+            for (int i = 0; i < sides; i++)
+            {
+                int innerA = firstRingStart + i;
+                int innerB = firstRingStart + ((i + 1) % sides);
+
+                int outerA = secondRingStart + i;
+                int outerB = secondRingStart + ((i + 1) % sides);
+
+                // Quad split into two triangles
+                faces.Add(new int[] { innerA, innerB, outerB });
+                faces.Add(new int[] { innerA, outerB, outerA });
+            }
+
+            // Add to NodeHoard
             List<uint> finalNodes = new List<uint>();
             foreach (Vector3 vert in vertices)
-            {
                 finalNodes.Add(nodeHoard.AddNode(vert));
-            }
 
             foreach (int[] face in faces)
             {
-                uint a = finalNodes[face[0]];
-                uint b = finalNodes[face[1]];
-                uint c = finalNodes[face[2]];
-
-                nodeHoard.AddTriangle(a, b, c);
+                nodeHoard.AddTriangle(
+                    finalNodes[face[0]],
+                    finalNodes[face[1]],
+                    finalNodes[face[2]]);
             }
 
             nodeHoard.SealOpenBoundaries();
@@ -350,7 +374,7 @@ namespace Growth3DCompute
                 halfEdge = uint.MaxValue
             };
             newNode.id = (uint)allNodes.Count;
-            newNode.type = (uint)type;
+            newNode.baseType = (uint)type;
 
             allNodes.Add(newNode);
             return newNode.id;
@@ -425,6 +449,61 @@ namespace Growth3DCompute
             allNodes[(int)nodeA.id] = nodeA;
             allNodes[(int)nodeB.id] = nodeB;
             allNodes[(int)nodeC.id] = nodeC;
+
+            faces[(int)face.id] = face;
+
+            return face;
+        }
+
+        public Face3D AddQuad(uint a, uint b, uint c, uint d)
+        {
+            Node3D nodeA = GetNode(a);
+            Node3D nodeB = GetNode(b);
+            Node3D nodeC = GetNode(c);
+            Node3D nodeD = GetNode(d);
+
+            Face3D face = new Face3D();
+            faces.Add(face);
+            face.id = (uint)faces.Count - 1;
+
+            HalfEdge3D he1 = new HalfEdge3D { origin = nodeA.id, face = face.id };
+            HalfEdge3D he2 = new HalfEdge3D { origin = nodeB.id, face = face.id };
+            HalfEdge3D he3 = new HalfEdge3D { origin = nodeC.id, face = face.id };
+            HalfEdge3D he4 = new HalfEdge3D { origin = nodeD.id, face = face.id };
+
+            AddEdge(ref he1);
+            AddEdge(ref he2);
+            AddEdge(ref he3);
+            AddEdge(ref he4);
+
+            // Link the quad loop
+            he1.next = he2.id; he1.prev = he4.id; he1.target = b;
+            he2.next = he3.id; he2.prev = he1.id; he2.target = c;
+            he3.next = he4.id; he3.prev = he2.id; he3.target = d;
+            he4.next = he1.id; he4.prev = he3.id; he4.target = a;
+
+            // Suture twins
+            SutureTwin(ref he1, ref nodeA, ref nodeB);
+            SutureTwin(ref he2, ref nodeB, ref nodeC);
+            SutureTwin(ref he3, ref nodeC, ref nodeD);
+            SutureTwin(ref he4, ref nodeD, ref nodeA);
+
+            face.halfEdge = he1.id;
+            if (nodeA.halfEdge == uint.MaxValue) nodeA.halfEdge = he1.id;
+            if (nodeB.halfEdge == uint.MaxValue) nodeB.halfEdge = he2.id;
+            if (nodeC.halfEdge == uint.MaxValue) nodeC.halfEdge = he3.id;
+            if (nodeD.halfEdge == uint.MaxValue) nodeD.halfEdge = he4.id;
+
+            // Write back to lists
+            halfEdges[(int)he1.id] = he1;
+            halfEdges[(int)he2.id] = he2;
+            halfEdges[(int)he3.id] = he3;
+            halfEdges[(int)he4.id] = he4;
+
+            allNodes[(int)nodeA.id] = nodeA;
+            allNodes[(int)nodeB.id] = nodeB;
+            allNodes[(int)nodeC.id] = nodeC;
+            allNodes[(int)nodeD.id] = nodeD;
 
             faces[(int)face.id] = face;
 
