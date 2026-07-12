@@ -247,8 +247,8 @@ namespace Growth3DCompute
             faceBuffer = new ComputeBuffer(maxFaces, Marshal.SizeOf(typeof(Face3D)));
 
             // SETUP GENOTYPE
-            nodeTypesBuffer = new ComputeBuffer(genotype.cellTypes.Length, Marshal.SizeOf(typeof(NodeType)));
-            nodeTypesBuffer.SetData(genotype.cellTypes);
+            nodeTypesBuffer = new ComputeBuffer(genotype.baseNodeTypes.Length, Marshal.SizeOf(typeof(NodeType)));
+            nodeTypesBuffer.SetData(genotype.baseNodeTypes);
 
             genotype.AssignStartCellTypes(generator.nodeHoard);
 

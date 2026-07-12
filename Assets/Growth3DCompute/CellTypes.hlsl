@@ -9,6 +9,9 @@ struct NodeType
     
     float laplacianSmoothing;
     
+    float switchTime;
+    uint targetType;
+    
     uint childType;
 };
 

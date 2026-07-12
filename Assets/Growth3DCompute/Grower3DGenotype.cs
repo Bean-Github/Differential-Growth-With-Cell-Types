@@ -9,16 +9,11 @@ namespace Growth3DCompute
         // starting mesh
         public Mesh mesh;
 
-        // types of cells
-        public NodeType[] cellTypes;
+        // types of nodes, instantiated once
+        public NodeType[] baseNodeTypes;
 
         public Grower3DComputeRunner computeRunner;
 
-
-        private void Start()
-        {
-            
-        }
 
         // assign the starting cell types to the compute runner
         public void AssignStartCellTypes(NodeHoardCompute nodeHoard)
@@ -30,23 +25,17 @@ namespace Growth3DCompute
                 Node3D node = nodeHoard.allNodes[i];
 
                 // change type based on condition
-                node.type = 1;
+                if (i == 0 || i == 1 || i == 2 || i == 3) node.type = 1;
 
                 nodeHoard.allNodes[i] = node;
             }
         }
 
-
         // set genotype in real time
         private void Update()
         {
-            computeRunner.nodeTypesBuffer.SetData(cellTypes);
-
-
-            if (Time.time > 30.0f)
-            {
-                cellTypes[1].childType = 2;
-            }
+            computeRunner.nodeTypesBuffer.SetData(baseNodeTypes);
         }
+
     }
 }

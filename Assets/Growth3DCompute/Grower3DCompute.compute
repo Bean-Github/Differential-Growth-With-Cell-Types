@@ -74,7 +74,7 @@ void UpdateEdges(uint3 id : SV_DispatchThreadID)
     
     if (edge.currRestLength > separationDistance * 1.5f) 
     {
-        edge.currRestLength = separationDistance; // clamp rest length to prevent runaway stretching before split can occur
+        edge.currRestLength = separationDistance * 1.5f; // clamp rest length to prevent runaway stretching before split can occur
     }
     
     HalfEdges[index] = edge;
@@ -93,8 +93,8 @@ void CalculateCurvatures(uint3 id : SV_DispatchThreadID)
     
     Node3D node = Nodes[index];
     
-    float3 neighborCenter = float3(0, 0, 0);
-    int actualNeighborCount = 0;
+    float3 weightedCenter = float3(0, 0, 0);
+    float weightSum = 0.0;
     uint startEdge = node.halfEdge;
     uint currEdge = startEdge;
     
@@ -104,8 +104,10 @@ void CalculateCurvatures(uint3 id : SV_DispatchThreadID)
         uint neighborNodeIndex = HalfEdges[currEdge].target;
         Node3D neighbor = Nodes[neighborNodeIndex];
         
-        neighborCenter += neighbor.position;
-        actualNeighborCount++;
+        float w = 1.0 / max(length(neighbor.position - node.position), 1e-5);
+
+        weightedCenter += neighbor.position * w;
+        weightSum += w;
         
         uint twin = HalfEdges[currEdge].twin;
         
@@ -114,10 +116,10 @@ void CalculateCurvatures(uint3 id : SV_DispatchThreadID)
         if (currEdge == startEdge)
             break; // Closed mesh, full circle complete!
     }
-    if (actualNeighborCount > 0)
+    if (weightSum > 0)
     {   
-        neighborCenter /= (float) actualNeighborCount;
-        float3 laplacianVector = neighborCenter - node.position;
+        weightedCenter /= (float) weightSum;
+        float3 laplacianVector = weightedCenter - node.position;
         node.curvature = length(laplacianVector);
         
         Nodes[index] = node;
@@ -313,8 +315,22 @@ void MoveParticles (uint3 id : SV_DispatchThreadID)
     if (id.x >= nodeCount)
         return;
     
+    NodeType info;
+    GetCellInfo(Nodes[index].type, info);
+    
     // age nodes
     Nodes[index].age += deltaTime;
+    
+    // switch types if the node has reached its switch time
+    if (Nodes[index].age > info.switchTime)
+    {
+        if (Nodes[index].type != info.targetType)
+        {
+            Nodes[index].age = 0.0f; // reset age when switching types
+        }
+        
+        Nodes[index].type = info.targetType;
+    }
     
     // apply velocity
     Nodes[index].position += Nodes[index].velocity * deltaTime;

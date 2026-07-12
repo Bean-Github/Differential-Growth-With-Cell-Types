@@ -28,14 +28,13 @@ Node3D AddNode(uint allocatedID, HalfEdge3D splitEdge)
 {
     //uint newNodeID;
     //GlobalCounters.InterlockedAdd(0, 1, newNodeID); // Byte 0 = Node Count
+    Node3D oldNode = Nodes[splitEdge.origin];
+    Node3D neighbor = Nodes[splitEdge.target];
+    
     
     Node3D node = (Node3D) 0;
     node.id = allocatedID;
     node.age = 0.0f;
-    
-    Node3D oldNode = Nodes[splitEdge.origin];
-    Node3D neighbor = Nodes[splitEdge.target];
-    
     
     NodeType oldNodeInfo;
     GetCellInfo(node.type, oldNodeInfo);
@@ -43,11 +42,18 @@ Node3D AddNode(uint allocatedID, HalfEdge3D splitEdge)
     NodeType neighborInfo;
     GetCellInfo(neighbor.type, neighborInfo);
     
+    
     node.velocity = (oldNode.velocity + neighbor.velocity) / 2.0f;
 
     node.type = neighborInfo.childType;
     node.position = (oldNode.position + neighbor.position) / 2.0f;
     
+    // if same type, average the age, otherwise reset to 0.0f
+    if (node.type == neighbor.type)
+    {
+        node.age = neighbor.age;
+    }
+
     Nodes[node.id] = node;
     
     return node;
