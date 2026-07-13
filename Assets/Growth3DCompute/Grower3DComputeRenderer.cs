@@ -27,7 +27,7 @@ namespace Growth3DCompute
             particleRenderer.RenderParticles(computeRunner.nodeBuffer, computeRunner.nodeCount);
             edgeRenderer.RenderEdges(computeRunner.nodeBuffer, computeRunner.halfEdgeBuffer, computeRunner.nodeCount, computeRunner.halfEdgeCount);
 
-            if (Input.GetKey(KeyCode.M))
+            if (Input.GetKeyDown(KeyCode.M))
             {
                 // convert to mesh
                 // extract the data back to CPU and log it for debugging
@@ -41,6 +41,9 @@ namespace Growth3DCompute
                 computeRunner.faceBuffer.GetData(faceData, 0, 0, computeRunner.faceCount);
 
                 NodeHoardCompute nodeHoardCompute = new NodeHoardCompute(nodeData, halfEdgeData, faceData);
+
+                for (int i = 0; i < subdivisions; i++)
+                    nodeHoardCompute = SubdivideTriangles(nodeHoardCompute);
 
                 Mesh newMesh = NodeHoardMeshGenerator.GenerateMesh(nodeHoardCompute);
 
@@ -72,155 +75,83 @@ namespace Growth3DCompute
         }
 #endif
 
-        private NodeHoardCompute SubdivideTopology(NodeHoardCompute baseData)
+        private NodeHoardCompute SubdivideTriangles(NodeHoardCompute baseData)
         {
             NodeHoardCompute nextData = new NodeHoardCompute();
 
-            // We need to track the new Node IDs generated for Faces, Edges, and Vertices
-            uint[] facePointNodes = new uint[baseData.faces.Count];
-            uint[] edgePointNodes = new uint[baseData.halfEdges.Count];
-            uint[] vertexPointNodes = new uint[baseData.allNodes.Count];
+            // We only need to track original vertices and new edge midpoints
+            uint[] vertexNodes = new uint[baseData.allNodes.Count];
+            uint[] edgeMidpoints = new uint[baseData.halfEdges.Count];
 
-            // --- STEP 1: FACE POINTS ---
-            // Average of all original points of the face
-            Vector3[] rawFacePoints = new Vector3[baseData.faces.Count];
-            for (int i = 0; i < baseData.faces.Count; i++)
+            // --- STEP 1: KEEP ORIGINAL VERTICES ---
+            for (int i = 0; i < baseData.allNodes.Count; i++)
             {
-                Face3D face = baseData.faces[i];
-                uint startEdge = face.halfEdge;
-                uint currEdge = startEdge;
-                Vector3 center = Vector3.zero;
-                int vertexCount = 0;
-
-                do
-                {
-                    HalfEdge3D he = baseData.GetEdge(currEdge);
-                    center += baseData.GetNode(he.origin).position;
-                    vertexCount++;
-                    currEdge = he.next;
-                } while (currEdge != startEdge);
-
-                rawFacePoints[i] = center / vertexCount;
-                facePointNodes[i] = nextData.AddNode(rawFacePoints[i], 1); // Type 1 = Face Point
+                // For linear subdivision, we don't smooth the original vertices, just copy them.
+                vertexNodes[i] = nextData.AddNode(baseData.allNodes[i].position, 0);
             }
 
-            // --- STEP 2: EDGE POINTS ---
-            // Average of the two original edge endpoints AND the face points of the two adjoining faces.
+            // --- STEP 2: EDGE MIDPOINTS ---
             for (int i = 0; i < baseData.halfEdges.Count; i++)
             {
                 HalfEdge3D he = baseData.GetEdge((uint)i);
 
-                // Skip processing if this is a ghost edge, or if we've already processed its twin
                 if (he.isGhost == 1) continue;
-                if (he.twin != uint.MaxValue && he.id > he.twin) continue;
 
-                Vector3 v1 = baseData.GetNode(he.origin).position;
-                Vector3 v2 = baseData.GetNode(he.target).position;
-
-                Vector3 edgePointPos;
-
-                // Interior Edge
-                if (he.twin != uint.MaxValue && baseData.GetEdge(he.twin).isGhost == 0)
+                // Deduplicate: only skip if the twin is ALSO real and has a smaller ID
+                if (he.twin != uint.MaxValue)
                 {
-                    Vector3 f1 = rawFacePoints[he.face];
-                    Vector3 f2 = rawFacePoints[baseData.GetEdge(he.twin).face];
-                    edgePointPos = (v1 + v2 + f1 + f2) / 4f;
-                }
-                else // Boundary Edge
-                {
-                    edgePointPos = (v1 + v2) / 2f;
+                    HalfEdge3D twinEdge = baseData.GetEdge(he.twin);
+                    if (twinEdge.isGhost == 0 && he.id > he.twin)
+                        continue;
                 }
 
-                uint newEdgeNodeId = nextData.AddNode(edgePointPos, 2); // Type 2 = Edge Point
-                edgePointNodes[he.id] = newEdgeNodeId;
-                if (he.twin != uint.MaxValue) edgePointNodes[he.twin] = newEdgeNodeId;
+                Vector3 p1 = baseData.GetNode(he.origin).position;
+                Vector3 p2 = baseData.GetNode(he.target).position;
+
+                // Just take the exact middle of the edge
+                Vector3 midPoint = (p1 + p2) / 2f;
+
+                uint midId = nextData.AddNode(midPoint, 2); // Type 2 = Edge Point
+                edgeMidpoints[he.id] = midId;
+
+                if (he.twin != uint.MaxValue)
+                    edgeMidpoints[he.twin] = midId;
             }
 
-            // --- STEP 3: VERTEX POINTS (Moving original vertices) ---
-            for (int i = 0; i < baseData.allNodes.Count; i++)
-            {
-                Node3D node = baseData.allNodes[i];
-
-                // Find all faces and edges touching this vertex by circulating around its half-edges
-                uint startEdge = node.halfEdge;
-
-                if (startEdge == uint.MaxValue) continue; // Unconnected node
-
-                uint currEdge = startEdge;
-                Vector3 avgFacePoints = Vector3.zero;
-                Vector3 avgEdgeMidpoints = Vector3.zero;
-                int valence = 0;
-                bool isOnBoundary = false;
-
-                do
-                {
-                    HalfEdge3D he = baseData.GetEdge(currEdge);
-
-                    if (he.isGhost == 0)
-                    {
-                        avgFacePoints += rawFacePoints[he.face];
-                    }
-
-                    // Note: Catmull-Clark uses the midpoint of the ORIGINAL edge here, not the new Edge Point
-                    Vector3 edgeMidpoint = (baseData.GetNode(he.origin).position + baseData.GetNode(he.target).position) / 2f;
-                    avgEdgeMidpoints += edgeMidpoint;
-
-                    valence++;
-
-                    if (he.isBoundary == 1 || he.twin == uint.MaxValue || baseData.GetEdge(he.twin).isGhost == 1)
-                    {
-                        isOnBoundary = true;
-                    }
-
-                    // Move to the next half-edge around the vertex (Twin -> Next)
-                    if (he.twin != uint.MaxValue)
-                        currEdge = baseData.GetEdge(he.twin).next;
-                    else
-                        break; // Hit a hard boundary without ghosts
-
-                } while (currEdge != startEdge);
-
-                Vector3 newVertexPos;
-
-                if (isOnBoundary)
-                {
-                    // Simplified boundary smoothing rule
-                    newVertexPos = node.position;
-                }
-                else
-                {
-                    avgFacePoints /= valence;
-                    avgEdgeMidpoints /= valence;
-
-                    // Catmull-Clark Vertex Formula
-                    float n = valence;
-                    newVertexPos = (avgFacePoints + (2f * avgEdgeMidpoints) + ((n - 3f) * node.position)) / n;
-                }
-
-                vertexPointNodes[node.id] = nextData.AddNode(newVertexPos, 0); // Type 0 = Original Vertex
-            }
-
-            // --- STEP 4: WIRE UP NEW QUADS ---
-            // For each face, build a quad for each of its original edges
+            // --- STEP 3: WIRE UP 4 NEW TRIANGLES PER FACE ---
             for (int i = 0; i < baseData.faces.Count; i++)
             {
                 Face3D face = baseData.faces[i];
-                uint startEdge = face.halfEdge;
-                uint currEdge = startEdge;
 
-                do
+                // Because it is a triangle, we hardcode the 3 steps instead of looping!
+                HalfEdge3D e0 = baseData.GetEdge(face.halfEdge);
+                HalfEdge3D e1 = baseData.GetEdge(e0.next);
+                HalfEdge3D e2 = baseData.GetEdge(e1.next);
+
+                // Safety Check: Does e2 actually connect back to e0? 
+                if (e2.next != e0.id)
                 {
-                    HalfEdge3D he = baseData.GetEdge(currEdge);
+                    Debug.LogWarning($"Compute Shader corrupted Face {face.id}: Not a closed triangle. Skipping.");
+                    continue;
+                }
 
-                    uint vNew = vertexPointNodes[he.origin];             // 1. Adjusted original vertex
-                    uint eNext = edgePointNodes[he.id];                  // 2. Edge point of current edge
-                    uint fPoint = facePointNodes[face.id];               // 3. Central face point
-                    uint ePrev = edgePointNodes[baseData.GetEdge(he.prev).id]; // 4. Edge point of previous edge
+                // Get the 3 original corners
+                uint v0 = vertexNodes[e0.origin];
+                uint v1 = vertexNodes[e1.origin];
+                uint v2 = vertexNodes[e2.origin];
 
-                    nextData.AddQuad(vNew, eNext, fPoint, ePrev);
+                // Get the 3 edge midpoints
+                uint m0 = edgeMidpoints[e0.id];
+                uint m1 = edgeMidpoints[e1.id];
+                uint m2 = edgeMidpoints[e2.id];
 
-                    currEdge = he.next;
-                } while (currEdge != startEdge);
+                // Create the 4 new sub-triangles
+                // Note: You will need to implement AddTriangle() in NodeHoardCompute 
+                // if you previously only had AddQuad()
+                nextData.AddTriangle(v0, m0, m2); // Corner A
+                nextData.AddTriangle(m0, v1, m1); // Corner B
+                nextData.AddTriangle(m2, m1, v2); // Corner C
+                nextData.AddTriangle(m0, m1, m2); // The inverted center piece
             }
 
             // Seal boundaries of the new mesh to create the necessary ghost edges
@@ -228,6 +159,6 @@ namespace Growth3DCompute
 
             return nextData;
         }
-    }
 
+    }
 }

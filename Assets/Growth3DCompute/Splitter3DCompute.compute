@@ -42,7 +42,6 @@ Node3D AddNode(uint allocatedID, HalfEdge3D splitEdge)
     NodeType neighborInfo;
     GetCellInfo(neighbor.baseType, neighborInfo);
     
-    
     node.velocity = (oldNode.velocity + neighbor.velocity) / 2.0f;
 
     // prevent NaN if both weights are 0
