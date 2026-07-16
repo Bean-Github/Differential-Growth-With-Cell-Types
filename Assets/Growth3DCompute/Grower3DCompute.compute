@@ -29,8 +29,11 @@ float separationForce;
 float gravity;
 
 float baseRestLength;
-float springStiffness;
 
+float springStiffness;
+float springDamping;
+
+float lateralDamping;
 
 //StructuredBuffer<uint> NeighborIndices;
 StructuredBuffer<Entry> SpatialLookup;
@@ -220,19 +223,51 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
     {
         uint neighborNodeIndex = HalfEdges[currEdge].target;
         Node3D neighbor = Nodes[neighborNodeIndex];
+        
+        NodeType neighborInfo;
+        GetCellInfo(neighbor.baseType, neighborInfo);
 
         // attraction (spring forces)
         float3 delta = neighbor.position - node.position; // Points toward neighbor
         float dist = length(delta);
-    
-        if (dist > 0.00001f)
-        {            
-            float currRestLength = HalfEdges[currEdge].currRestLength;
-            
-            float springMagnitude = HalfEdges[currEdge].springStiffness * (dist - currRestLength);
         
-            // Accumulate into the node's total force
-            totalForce += (delta / dist) * springMagnitude;
+        if (dist > 0.00001f)
+        {
+            float3 dir = delta / dist;
+
+            // Spring force
+            float springMagnitude = springStiffness * (dist - HalfEdges[currEdge].currRestLength);
+
+            // Relative velocity
+            float3 relativeVelocity = neighbor.velocity - node.velocity;
+
+            // Split into parallel/perpendicular components
+            float relativeSpeed = dot(relativeVelocity, dir);
+            float3 parallelVelocity = relativeSpeed * dir;
+            float3 perpendicularVelocity = relativeVelocity - parallelVelocity;
+
+            // Effective mass
+            float m1 = max(info.mass, 1e-5);
+            float m2 = max(neighborInfo.mass, 1e-5);
+            float effectiveMass = (m1 * m2) / (m1 + m2);
+
+            // Critical damping coefficient
+            float criticalDamping = 2.0f * sqrt(springStiffness * effectiveMass);
+
+            // Spring damping (0 = none, 1 = critical)
+            float springDampingCoefficient = springDamping * criticalDamping;
+
+            // Lateral damping (same scale)
+            float lateralDampingCoefficient = lateralDamping * criticalDamping;
+
+            // Forces
+            float3 springForce = dir * springMagnitude;
+            float3 springDampingForce = dir * (springDampingCoefficient * relativeSpeed);
+            float3 lateralDampingForce = lateralDampingCoefficient * perpendicularVelocity;
+
+            totalForce += springForce
+                + springDampingForce
+                + lateralDampingForce;
         }
         
         // Accumulate for Laplacian smoothing

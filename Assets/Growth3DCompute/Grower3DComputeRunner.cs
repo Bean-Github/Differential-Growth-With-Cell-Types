@@ -31,6 +31,9 @@ namespace Growth3DCompute
         // edge stuff
             public float baseRestLength = 2.0f;
             public float springStiffness = 3.0f;
+            public float springDamping = 0.5f; // 1.0f = critical damping, 0.0f = no damping
+
+            public float lateralDamping = 1.0f;
 
             public float splitDistanceThreshold = 4.0f;
             
@@ -349,7 +352,9 @@ namespace Growth3DCompute
             computeShader.SetFloat("separationForce", separationForce);
             computeShader.SetFloat("separationDistance", separationDistance);
             computeShader.SetFloat("springStiffness", springStiffness);
-            
+            computeShader.SetFloat("springDamping", springDamping);
+            computeShader.SetFloat("lateralDamping", lateralDamping);
+
             computeShader.SetFloat("baseRestLength", baseRestLength);
             splitterShader.SetFloat("baseRestLength", baseRestLength);
 
@@ -358,10 +363,6 @@ namespace Growth3DCompute
             spatialHashRunner.SetValues(separationDistance);
 
             computeShader.SetInt("paddedNodeCount", Mathf.NextPowerOfTwo(nodeCount));
-
-            // temp
-            computeShader.SetFloat("springStiffness", springStiffness);
-            computeShader.SetFloat("baseRestLength", baseRestLength);
         }
 
         // updates the current counts of nodes, half-edges, and faces from the GPU

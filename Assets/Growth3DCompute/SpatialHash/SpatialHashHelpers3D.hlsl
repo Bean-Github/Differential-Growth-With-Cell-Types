@@ -86,19 +86,6 @@ uint KeyFromHash(uint hash, uint tableSize)
 int3 PositionToCellCoord(float3 position, float cellSize) 
 {    
     return (int3) floor((position) / cellSize);
-    
-    //float3 offset = (boundsCenter - boundsExtents);
-
-    //int3 numCells = (int3) ceil((boundsExtents * 2) / cellSize);
-    //int3 cell = (int3) floor((position - offset) / cellSize);
-    
-    //cell.x = clamp(cell.x, 0, numCells.x - 1);
-    //cell.y = clamp(cell.y, 0, numCells.y - 1);
-    //cell.z = clamp(cell.z, 0, numCells.z - 1);
-        
-    //return cell;
-    
-    //return (int3) floor(position / cellSize);
 }
 
 
