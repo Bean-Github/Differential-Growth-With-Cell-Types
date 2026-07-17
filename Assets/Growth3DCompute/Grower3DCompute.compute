@@ -1,5 +1,8 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel UpdateEdges
+
+#pragma kernel ResolveFaceCollisions
+
 #pragma kernel CalculateCurvatures
 #pragma kernel ApplyNaturalForces
 #pragma kernel MoveParticles
@@ -39,13 +42,16 @@ float lateralDamping;
 StructuredBuffer<Entry> SpatialLookup;
 StructuredBuffer<uint> StartIndices;
 
+StructuredBuffer<Entry> FaceSpatialLookup;
+StructuredBuffer<uint> FaceStartIndices;
+uint paddedFaceLookupCount;
 
 //RWByteAddressBuffer NodeCounter; 
 
 RWByteAddressBuffer GlobalCounters;
 
 
-// OVER EDGES
+// UPDATE EDGES
 // this kernel updates the edges based on the current state of the nodes and their growth rates. 
 // It adjusts the rest length of each edge, based on growth rates.
 [numthreads(64, 1, 1)]
@@ -81,6 +87,88 @@ void UpdateEdges(uint3 id : SV_DispatchThreadID)
     HalfEdges[index] = edge;
 }
 
+
+// UPDATE FACES
+// this kernel updates the faces by setting face position
+
+
+// RESOLVE COLLISIONS
+[numthreads(64, 1, 1)]
+void ResolveFaceCollisions(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    int nodeCount = GlobalCounters.Load(0);
+    
+    if (index >= nodeCount)
+        return;
+    
+    Node3D node = Nodes[index];
+    int3 currCell = PositionToCellCoord(node.position, separationDistance);
+    
+    // Define how "thick" the faces are (e.g., half your normal separation distance)
+    float collisionRadius = separationDistance * 0.5f;
+    float collisionStiffness = 50.0f; // Adjust this if nodes pass through faces at high speeds
+    
+    for (uint i = 0; i < 27; i++)
+    {
+        int3 offset = Offsets3D[i];
+        int3 targetCell = currCell + offset;
+        
+        uint hash = HashCell(targetCell.x, targetCell.y, targetCell.z);
+        uint cellKey = KeyFromHash(hash, hashTableSize);
+        uint startIndex = FaceStartIndices[cellKey];
+        
+        if (cellKey == UINT_MAX || startIndex == UINT_MAX)
+            continue;
+            
+        for (uint j = startIndex; j < paddedFaceLookupCount; j++)
+        {
+            Entry entry = FaceSpatialLookup[j];
+            
+            if (entry.cellKey != cellKey)
+                break; // Reached the end of this cell's data
+            if (entry.hash != hash)
+                continue; // Hash collision check
+            
+            Face3D face = Faces[entry.index];
+            
+            // Get the 3 nodes of the face
+            uint edge1 = face.halfEdge;
+            uint edge2 = HalfEdges[edge1].next;
+            uint edge3 = HalfEdges[edge2].next;
+            
+            uint nA = HalfEdges[edge1].target;
+            uint nB = HalfEdges[edge2].target;
+            uint nC = HalfEdges[edge3].target;
+            
+            // CRITICAL: Skip if this node is PART of the face (otherwise the mesh explodes)
+            if (index == nA || index == nB || index == nC) 
+                continue;
+                
+            float3 posA = Nodes[nA].position;
+            float3 posB = Nodes[nB].position;
+            float3 posC = Nodes[nC].position;
+            
+            // Find closest point and check distance
+            float3 closestPt = ClosestPointOnTriangle(node.position, posA, posB, posC);
+            float3 delta = node.position - closestPt;
+            float distSq = dot(delta, delta);
+            
+            if (distSq > 0.000001f && distSq < (collisionRadius * collisionRadius))
+            {
+                float dist = sqrt(distSq);
+                float3 pushDir = delta / dist;
+                float penetration = collisionRadius - dist;
+                
+                // Apply a strong repulsive impulse to push the node out of the face
+                node.velocity += pushDir * (penetration * collisionStiffness) * deltaTime;
+                node.position += pushDir * penetration;
+            }
+        }
+    }
+    
+    Nodes[index] = node;
+}
 
 // calculate local node curvatures
 [numthreads(64, 1, 1)]
@@ -171,7 +259,7 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
             if (SpatialLookup[j].hash != hash) // extra hash check to avoid false positives from different cells that hash to the same key
                 continue;
             
-            uint otherIndex = SpatialLookup[j].particleIndex;
+            uint otherIndex = SpatialLookup[j].index;
             
             if (otherIndex >= nodeCount)
                 continue;

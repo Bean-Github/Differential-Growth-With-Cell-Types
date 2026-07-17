@@ -252,10 +252,12 @@ MonoBehaviour:
   baseRestLength: 2
   springStiffness: 3
   springDamping: 0.5
+  lateralDamping: 1
   splitDistanceThreshold: 5
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   splitterShader: {fileID: 0}
   spatialHashRunner: {fileID: 0}
+  spatialHashFaceRunner: {fileID: 0}
   enableSplitting: 1
   enableDebugLogs: 0
   defaultShapeType: 0
@@ -504,10 +506,12 @@ MonoBehaviour:
   baseRestLength: 2
   springStiffness: 3.85
   springDamping: 0.5
+  lateralDamping: 1
   splitDistanceThreshold: 4
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
   spatialHashRunner: {fileID: 433824275}
+  spatialHashFaceRunner: {fileID: 0}
   enableSplitting: 1
   enableDebugLogs: 0
   defaultShapeType: 2
@@ -601,7 +605,8 @@ GameObject:
   m_Component:
   - component: {fileID: 610078306}
   - component: {fileID: 610078303}
-  - component: {fileID: 610078304}
+  - component: {fileID: 610078307}
+  - component: {fileID: 610078308}
   - component: {fileID: 610078305}
   m_Layer: 0
   m_Name: Grower 3D Compute
@@ -629,31 +634,19 @@ MonoBehaviour:
   genotype: {fileID: 610078305}
   separationForce: 5
   separationDistance: 7.6
-  gravity: 4
+  gravity: 0
   baseRestLength: 4
   springStiffness: 10
   springDamping: 1
+  lateralDamping: 1
   splitDistanceThreshold: 8
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
-  spatialHashRunner: {fileID: 610078304}
+  spatialHashRunner: {fileID: 610078307}
+  spatialHashFaceRunner: {fileID: 610078308}
   enableSplitting: 1
   enableDebugLogs: 0
   defaultShapeType: 1
---- !u!114 &610078304
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 610078302}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 78f0b37eec265594291e001961d1c47a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  spatialHashCompute: {fileID: 7200000, guid: 3e69aeeb657a8554d866d6b9563cf005, type: 3}
-  showDebugGrid: 0
 --- !u!114 &610078305
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -702,6 +695,34 @@ Transform:
   m_Children: []
   m_Father: {fileID: 739128564}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &610078307
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 610078302}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2fe120f6d9ea0243996afe6732a40dc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spatialHashCompute: {fileID: 7200000, guid: 3e69aeeb657a8554d866d6b9563cf005, type: 3}
+  showDebugGrid: 0
+--- !u!114 &610078308
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 610078302}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d931be86e058b8942b2f770f517cd39e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spatialHashCompute: {fileID: 7200000, guid: 70a715b15bc7f434caab87c84834540f, type: 3}
+  showDebugGrid: 0
 --- !u!1 &696636871
 GameObject:
   m_ObjectHideFlags: 0
@@ -712,7 +733,8 @@ GameObject:
   m_Component:
   - component: {fileID: 696636875}
   - component: {fileID: 696636872}
-  - component: {fileID: 696636873}
+  - component: {fileID: 696636877}
+  - component: {fileID: 696636876}
   - component: {fileID: 696636874}
   m_Layer: 0
   m_Name: Grower 3D Compute
@@ -744,27 +766,15 @@ MonoBehaviour:
   baseRestLength: 4
   springStiffness: 19.5
   springDamping: 0.5
+  lateralDamping: 1
   splitDistanceThreshold: 8
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
-  spatialHashRunner: {fileID: 696636873}
+  spatialHashRunner: {fileID: 696636877}
+  spatialHashFaceRunner: {fileID: 696636876}
   enableSplitting: 1
   enableDebugLogs: 0
   defaultShapeType: 2
---- !u!114 &696636873
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 696636871}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 78f0b37eec265594291e001961d1c47a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  spatialHashCompute: {fileID: 7200000, guid: 3e69aeeb657a8554d866d6b9563cf005, type: 3}
-  showDebugGrid: 0
 --- !u!114 &696636874
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -840,6 +850,34 @@ Transform:
   m_Children: []
   m_Father: {fileID: 51667901}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &696636876
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 696636871}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d931be86e058b8942b2f770f517cd39e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spatialHashCompute: {fileID: 7200000, guid: 70a715b15bc7f434caab87c84834540f, type: 3}
+  showDebugGrid: 0
+--- !u!114 &696636877
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 696636871}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2fe120f6d9ea0243996afe6732a40dc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spatialHashCompute: {fileID: 7200000, guid: 3e69aeeb657a8554d866d6b9563cf005, type: 3}
+  showDebugGrid: 0
 --- !u!1 &710712402
 GameObject:
   m_ObjectHideFlags: 0
@@ -882,10 +920,12 @@ MonoBehaviour:
   baseRestLength: 4
   springStiffness: 4
   springDamping: 0.5
+  lateralDamping: 1
   splitDistanceThreshold: 8
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
   spatialHashRunner: {fileID: 710712404}
+  spatialHashFaceRunner: {fileID: 0}
   enableSplitting: 1
   enableDebugLogs: 0
   defaultShapeType: 1
@@ -1824,6 +1864,7 @@ GameObject:
   - component: {fileID: 582640806288675200}
   - component: {fileID: 9206847156027151490}
   - component: {fileID: 9206847156027151491}
+  - component: {fileID: 9206847156027151493}
   - component: {fileID: 9206847156027151492}
   m_Layer: 0
   m_Name: Grower 3D Compute
@@ -1940,10 +1981,12 @@ MonoBehaviour:
   baseRestLength: 4
   springStiffness: 4
   springDamping: 0.5
+  lateralDamping: 1
   splitDistanceThreshold: 8
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
   spatialHashRunner: {fileID: 9206847156027151491}
+  spatialHashFaceRunner: {fileID: 9206847156027151493}
   enableSplitting: 1
   enableDebugLogs: 0
   defaultShapeType: 1
@@ -2000,9 +2043,23 @@ MonoBehaviour:
     laplacianSmoothing: 10
     switchTime: 16.77
     targetType: 0
-    inheritanceWeight: 0
+    inheritanceWeight: 1
     childType: 2
   computeRunner: {fileID: 9206847156027151490}
+--- !u!114 &9206847156027151493
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7563027752445441022}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d931be86e058b8942b2f770f517cd39e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spatialHashCompute: {fileID: 7200000, guid: 70a715b15bc7f434caab87c84834540f, type: 3}
+  showDebugGrid: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

@@ -35,7 +35,7 @@ static const int3 Offsets3D[27] =
 
 struct Entry
 {
-    uint particleIndex;
+    uint index;
     uint hash;
     uint cellKey;
 };
