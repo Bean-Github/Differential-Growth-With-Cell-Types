@@ -257,6 +257,7 @@ MonoBehaviour:
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   splitterShader: {fileID: 0}
   spatialHashRunner: {fileID: 0}
+  spatialHashEdgeRunner: {fileID: 0}
   spatialHashFaceRunner: {fileID: 0}
   enableSplitting: 1
   enableDebugLogs: 0
@@ -511,6 +512,7 @@ MonoBehaviour:
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
   spatialHashRunner: {fileID: 433824275}
+  spatialHashEdgeRunner: {fileID: 0}
   spatialHashFaceRunner: {fileID: 0}
   enableSplitting: 1
   enableDebugLogs: 0
@@ -606,6 +608,7 @@ GameObject:
   - component: {fileID: 610078306}
   - component: {fileID: 610078303}
   - component: {fileID: 610078307}
+  - component: {fileID: 610078309}
   - component: {fileID: 610078308}
   - component: {fileID: 610078305}
   m_Layer: 0
@@ -643,6 +646,7 @@ MonoBehaviour:
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
   spatialHashRunner: {fileID: 610078307}
+  spatialHashEdgeRunner: {fileID: 610078309}
   spatialHashFaceRunner: {fileID: 610078308}
   enableSplitting: 1
   enableDebugLogs: 0
@@ -723,6 +727,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   spatialHashCompute: {fileID: 7200000, guid: 70a715b15bc7f434caab87c84834540f, type: 3}
   showDebugGrid: 0
+--- !u!114 &610078309
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 610078302}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4dcb607a9d97f242ae1f96d5a4c315c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spatialHashCompute: {fileID: 7200000, guid: 22e0e142098cc82469601951d9bd4d34, type: 3}
+  showDebugGrid: 0
 --- !u!1 &696636871
 GameObject:
   m_ObjectHideFlags: 0
@@ -734,6 +752,7 @@ GameObject:
   - component: {fileID: 696636875}
   - component: {fileID: 696636872}
   - component: {fileID: 696636877}
+  - component: {fileID: 696636878}
   - component: {fileID: 696636876}
   - component: {fileID: 696636874}
   m_Layer: 0
@@ -771,6 +790,7 @@ MonoBehaviour:
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
   spatialHashRunner: {fileID: 696636877}
+  spatialHashEdgeRunner: {fileID: 696636878}
   spatialHashFaceRunner: {fileID: 696636876}
   enableSplitting: 1
   enableDebugLogs: 0
@@ -878,6 +898,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   spatialHashCompute: {fileID: 7200000, guid: 3e69aeeb657a8554d866d6b9563cf005, type: 3}
   showDebugGrid: 0
+--- !u!114 &696636878
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 696636871}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4dcb607a9d97f242ae1f96d5a4c315c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spatialHashCompute: {fileID: 7200000, guid: 22e0e142098cc82469601951d9bd4d34, type: 3}
+  showDebugGrid: 0
 --- !u!1 &710712402
 GameObject:
   m_ObjectHideFlags: 0
@@ -925,6 +959,7 @@ MonoBehaviour:
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
   spatialHashRunner: {fileID: 710712404}
+  spatialHashEdgeRunner: {fileID: 0}
   spatialHashFaceRunner: {fileID: 0}
   enableSplitting: 1
   enableDebugLogs: 0
@@ -1461,7 +1496,7 @@ MonoBehaviour:
   particleRenderer: {fileID: 1584528944}
   edgeRenderer: {fileID: 1584528943}
   nodeHoardMeshFilter: {fileID: 1584528942}
-  debugNodeTypes: 1
+  debugNodeTypes: 0
 --- !u!1 &1588838920
 GameObject:
   m_ObjectHideFlags: 0
@@ -1986,6 +2021,7 @@ MonoBehaviour:
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
   spatialHashRunner: {fileID: 9206847156027151491}
+  spatialHashEdgeRunner: {fileID: 0}
   spatialHashFaceRunner: {fileID: 9206847156027151493}
   enableSplitting: 1
   enableDebugLogs: 0

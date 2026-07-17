@@ -44,6 +44,7 @@ namespace Growth3DCompute
             public ComputeShader computeShader;
             public ComputeShader splitterShader;
             public SpatialHashComputeRunner spatialHashRunner;
+            public SpatialHashComputeRunner spatialHashEdgeRunner;
             public SpatialHashComputeRunner spatialHashFaceRunner;
 
             public bool enableSplitting = true;
@@ -63,13 +64,16 @@ namespace Growth3DCompute
         ComputeBuffer spatialLookupBuffer;
         ComputeBuffer startIndicesBuffer;
 
+        // edge hash data
+        ComputeBuffer spatialEdgeLookupBuffer;
+        ComputeBuffer startEdgeIndicesBuffer;
+
         // face hash data
         ComputeBuffer spatialFaceLookupBuffer;
         ComputeBuffer startFaceIndicesBuffer;
 
         ComputeBuffer counterBuffer; // buffer to store counts of nodes, half-edges, faces, pending splits
         ComputeBuffer nodeLocksBuffer; // buffer to store locks for nodes during splitting and flipping
-
 
 
 
@@ -87,6 +91,7 @@ namespace Growth3DCompute
 
         protected int updateEdgesKernel;
         protected int resolveFaceCollisionsKernel;
+        protected int resolveEdgeCollisionsKernel;
         protected int calculateCurvaturesKernel;
         protected int applyNaturalForcesKernel;
         protected int moveKernel;
@@ -227,6 +232,10 @@ namespace Growth3DCompute
             spatialLookupBuffer = new ComputeBuffer(hashTableSize, sizeof(uint) * 3);
             startIndicesBuffer = new ComputeBuffer(hashTableSize, sizeof(uint));
 
+            int maxEdgeLookupEntries = Mathf.NextPowerOfTwo(maxHalfEdges * 4);
+            spatialEdgeLookupBuffer = new ComputeBuffer(maxEdgeLookupEntries, sizeof(uint) * 3);
+            startEdgeIndicesBuffer = new ComputeBuffer(hashTableSize, sizeof(uint));
+
             int maxFaceLookupEntries = Mathf.NextPowerOfTwo(maxFaces * 9);
             spatialFaceLookupBuffer = new ComputeBuffer(maxFaceLookupEntries, sizeof(uint) * 3);
             startFaceIndicesBuffer = new ComputeBuffer(hashTableSize, sizeof(uint));
@@ -303,13 +312,14 @@ namespace Growth3DCompute
 
             updateEdgesKernel = computeShader.FindKernel("UpdateEdges");
             resolveFaceCollisionsKernel = computeShader.FindKernel("ResolveFaceCollisions");
+            resolveEdgeCollisionsKernel = computeShader.FindKernel("ResolveEdgeCollisions");
             calculateCurvaturesKernel = computeShader.FindKernel("CalculateCurvatures");
             applyNaturalForcesKernel = computeShader.FindKernel("ApplyNaturalForces");
             moveKernel = computeShader.FindKernel("MoveParticles");
 
             // Compute Shader
             ComputeHelper.SetBufferToKernels("GlobalCounters", counterBuffer, computeShader,
-                updateEdgesKernel, resolveFaceCollisionsKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
+                updateEdgesKernel, resolveFaceCollisionsKernel, resolveEdgeCollisionsKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("GlobalCounters", counterBuffer, splitterShader,
                 unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
@@ -317,12 +327,12 @@ namespace Growth3DCompute
                 markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("Nodes", nodeBuffer, computeShader,
-                updateEdgesKernel, resolveFaceCollisionsKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
+                updateEdgesKernel, resolveFaceCollisionsKernel, resolveEdgeCollisionsKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("Nodes", nodeBuffer, splitterShader, 
                 unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("HalfEdges", halfEdgeBuffer, computeShader,
-                updateEdgesKernel, resolveFaceCollisionsKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
+                updateEdgesKernel, resolveFaceCollisionsKernel, resolveEdgeCollisionsKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("HalfEdges", halfEdgeBuffer, splitterShader,
                 unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
@@ -339,6 +349,12 @@ namespace Growth3DCompute
                 applyNaturalForcesKernel);
             ComputeHelper.SetBufferToKernels("StartIndices", startIndicesBuffer, computeShader,
                 applyNaturalForcesKernel);
+
+            ComputeHelper.SetBufferToKernels("EdgeSpatialLookup", spatialEdgeLookupBuffer, computeShader,
+                updateEdgesKernel, resolveEdgeCollisionsKernel);
+            ComputeHelper.SetBufferToKernels("EdgeStartIndices", startEdgeIndicesBuffer, computeShader,
+                updateEdgesKernel, resolveEdgeCollisionsKernel);
+
             ComputeHelper.SetBufferToKernels("FaceSpatialLookup", spatialFaceLookupBuffer, computeShader,
                 applyNaturalForcesKernel, resolveFaceCollisionsKernel);
             ComputeHelper.SetBufferToKernels("FaceStartIndices", startFaceIndicesBuffer, computeShader,
@@ -378,9 +394,12 @@ namespace Growth3DCompute
             computeShader.SetFloat("gravity", gravity);
 
             spatialHashRunner.SetValues(this);
+            spatialHashEdgeRunner.SetValues(this);
             spatialHashFaceRunner.SetValues(this);
 
             computeShader.SetInt("paddedNodeCount", Mathf.NextPowerOfTwo(nodeCount));
+            computeShader.SetInt("paddedFaceLookupCount", Mathf.NextPowerOfTwo(faceCount * 9));
+            computeShader.SetInt("paddedEdgeLookupCount", Mathf.NextPowerOfTwo(halfEdgeCount * 4));
         }
 
         // updates the current counts of nodes, half-edges, and faces from the GPU
@@ -518,6 +537,13 @@ namespace Growth3DCompute
                 nodeCount
             );
 
+            spatialHashEdgeRunner.UpdateSpatialLookup(
+                ref halfEdgeBuffer,
+                ref spatialEdgeLookupBuffer,
+                ref startEdgeIndicesBuffer,
+                halfEdgeCount
+            );
+
             spatialHashFaceRunner.UpdateSpatialLookup(
                 ref faceBuffer, 
                 ref spatialFaceLookupBuffer, 
@@ -527,6 +553,7 @@ namespace Growth3DCompute
 
             computeShader.Dispatch(updateEdgesKernel, finalThreadGroupsEdges, 1, 1);
             computeShader.Dispatch(resolveFaceCollisionsKernel, finalThreadGroupsNodes, 1, 1);
+            //computeShader.Dispatch(resolveEdgeCollisionsKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(calculateCurvaturesKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(applyNaturalForcesKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(moveKernel, finalThreadGroupsNodes, 1, 1);
@@ -541,10 +568,14 @@ namespace Growth3DCompute
                 halfEdgeBuffer,
                 edgeWeightBuffer,
                 faceBuffer,
-                spatialFaceLookupBuffer,
-                startFaceIndicesBuffer,
+
                 spatialLookupBuffer, 
                 startIndicesBuffer, 
+                spatialEdgeLookupBuffer,
+                startEdgeIndicesBuffer,
+                spatialFaceLookupBuffer,
+                startFaceIndicesBuffer,
+
                 counterBuffer, 
                 nodeLocksBuffer,
                 nodeTypesBuffer

@@ -70,6 +70,84 @@ float3 ClosestPointOnTriangle(float3 p, float3 a, float3 b, float3 c)
     return u * a + v * b + w * c;
 }
 
+// Finds the closest point on a line segment AB to a point P
+float3 ClosestPointOnLineSegment(float3 p, float3 a, float3 b)
+{
+    float3 ab = b - a;
+    // Project P onto AB, computing the parameterized position t
+    float t = dot(p - a, ab) / max(dot(ab, ab), 0.00001f);
+    
+    // Clamp t to the [0, 1] range to stay on the line segment
+    t = saturate(t);
+    
+    return a + t * ab;
+}
+
+// Finds the closest points between two line segments: S1(p1 to q1) and S2(p2 to q2).
+// Returns the parameterized positions (s and t) from 0.0 to 1.0, and the actual 3D points (c1 and c2).
+void ClosestPointsOnTwoLineSegments(float3 p1, float3 q1, float3 p2, float3 q2,
+                                    out float s, out float t,
+                                    out float3 c1, out float3 c2)
+{
+    float3 d1 = q1 - p1; // Direction of S1
+    float3 d2 = q2 - p2; // Direction of S2
+    float3 r = p1 - p2;
+    float a = dot(d1, d1);
+    float e = dot(d2, d2);
+    float f = dot(d2, r);
+
+    // If both segments degenerate to points
+    if (a <= 0.00001f && e <= 0.00001f)
+    {
+        s = t = 0.0f;
+        c1 = p1;
+        c2 = p2;
+        return;
+    }
+    
+    if (a <= 0.00001f)
+    {
+        s = 0.0f;
+        t = saturate(f / e);
+    }
+    else
+    {
+        float c = dot(d1, r);
+        if (e <= 0.00001f)
+        {
+            t = 0.0f;
+            s = saturate(-c / a);
+        }
+        else
+        {
+            float b = dot(d1, d2);
+            float denom = a * e - b * b;
+            if (denom != 0.0f)
+            {
+                s = clamp((b * f - c * e) / denom, 0.0f, 1.0f);
+            }
+            else
+            {
+                s = 0.0f;
+            }
+            t = (b * s + f) / e;
+            if (t < 0.0f)
+            {
+                t = 0.0f;
+                s = saturate(-c / a);
+            }
+            else if (t > 1.0f)
+            {
+                t = 1.0f;
+                s = saturate((b - c) / a);
+            }
+        }
+    }
+    
+    c1 = p1 + d1 * s;
+    c2 = p2 + d2 * t;
+}
+
 //                      Smoothing Kernel calculations
 /* 
 Smoothing kernel equation extracted from 

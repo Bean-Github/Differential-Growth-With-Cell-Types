@@ -1,0 +1,183 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel ClearStartIndices
+#pragma kernel ClearSpatialLookup
+#pragma kernel CreateSpatialLookup
+#pragma kernel SortSpatialLookup
+#pragma kernel CalculateStartIndices
+
+#include "../GrowthHelpers3D.hlsl"
+#include "../GrowthStructs3D.hlsl"
+#include "SpatialHashHelpers3D.hlsl"
+
+RWStructuredBuffer<Node3D> nodeData;
+RWStructuredBuffer<HalfEdge3D> elementData;
+
+RWStructuredBuffer<Entry> spatialLookup;
+RWStructuredBuffer<uint> startIndices;
+
+// single element buffer to count how many entries are written to the spatial lookup buffer
+RWStructuredBuffer<uint> edgeEntryCounter;
+
+uint hashTableSize; // max node count
+uint elementCount; // actual node count
+uint paddedLookupCount; // padded actual node count
+
+float cellSize;
+
+uint faceEntryCount; // after counting how many cells faces occupy
+
+static const int GroupSize = 64;
+
+uint width;
+uint height;
+
+[numthreads(64, 1, 1)]
+void ClearStartIndices(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < hashTableSize)
+    {
+        startIndices[id.x] = UINT_MAX; // uint.MaxValue
+    }
+}
+
+[numthreads(64, 1, 1)]
+void ClearSpatialLookup(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < paddedLookupCount)
+    {
+        Entry falseEntry = { UINT_MAX, UINT_MAX, UINT_MAX };
+        spatialLookup[id.x] = falseEntry;
+    }
+}
+
+[numthreads(64, 1, 1)]
+void CreateSpatialLookup(uint3 id : SV_DispatchThreadID)
+{
+    uint i = id.x;
+    if (i >= elementCount)
+        return;
+    
+    HalfEdge3D edge = elementData[i];
+    
+    Node3D nodeA = nodeData[edge.target];
+    Node3D nodeB = nodeData[edge.origin];
+
+    float3 a = nodeA.position;
+    float3 b = nodeB.position;
+
+    float3 minPos = min(a, b);
+    float3 maxPos = max(a, b);
+
+    int3 minCell = PositionToCellCoord(minPos, cellSize);
+    int3 maxCell = PositionToCellCoord(maxPos, cellSize);
+
+    for (int x = minCell.x; x <= maxCell.x; x++)
+    {
+        for (int y = minCell.y; y <= maxCell.y; y++)
+        {
+            for (int z = minCell.z; z <= maxCell.z; z++)
+            {
+                uint hash = HashCell(x, y, z);
+                uint cellKey = KeyFromHash(hash, hashTableSize);
+
+                Entry entry;
+                entry.index = i;
+                entry.hash = hash;
+                entry.cellKey = cellKey;
+
+                // grab the next sequential index in the buffer
+                uint writeIndex;
+                InterlockedAdd(edgeEntryCounter[0], 1, writeIndex);
+
+                // write entry
+                if (writeIndex < paddedLookupCount)
+                {
+                    spatialLookup[writeIndex] = entry;
+                }
+            }
+        }
+    }
+}
+
+// each thread will handle more than one pair and swap if needed
+// sorts the spatial lookup buffer by cell key
+// it does this because then all particles in the same cell will be grouped
+[numthreads(64, 1, 1)]
+void SortSpatialLookup(uint3 id : SV_DispatchThreadID)
+{
+    // if index odd then descending, else ascending 
+    
+    // to find index low we want to essentially go one by one until we reach the end of the width, then hop down to the next pair
+    
+    uint globalIndex = id.x;
+    uint indexLow = globalIndex + (globalIndex / width) * width;
+    
+    // get index high
+    uint indexHigh = indexLow + width;
+    
+    if (indexHigh >= paddedLookupCount)
+    {
+        // if index high is out of bounds, return (for non power of 2 arrays)
+        return;
+    }
+    
+    // determine accending or descending based on the height and index low pos
+    bool accending = ((indexLow / height) % 2 == 0);
+
+    if (accending)
+    {
+    // even hop number, ascending
+        if (spatialLookup[indexLow].cellKey > spatialLookup[indexHigh].cellKey)
+        {
+        // swap
+            Entry temp = spatialLookup[indexLow];
+            spatialLookup[indexLow] = spatialLookup[indexHigh];
+            spatialLookup[indexHigh] = temp;
+        }
+    }
+    else
+    {
+    // odd hop number, descending
+        if (spatialLookup[indexLow].cellKey < spatialLookup[indexHigh].cellKey)
+        {
+        // swap
+            Entry temp = spatialLookup[indexLow];
+            spatialLookup[indexLow] = spatialLookup[indexHigh];
+            spatialLookup[indexHigh] = temp;
+        }
+    }
+}
+
+// after sorting, the smallest index for each cell key will be the start index for that cell. 
+// We can find this by looking for where the cell key changes in the sorted spatial lookup buffer. 
+// When we find a change in cell key, we know the current index is the smallest index for that new cell key, 
+// so we can set startIndices[cellKey] = currentIndex. We can do this in parallel by having each thread check 
+// if its current cell key is different from the previous entry's cell key (for thread 0, just check if it's different from UINT_MAX). 
+// If it's different, then we set the start index for that cell key to the current index. 
+[numthreads(64, 1, 1)]
+void CalculateStartIndices(uint3 id : SV_DispatchThreadID)
+{
+    uint i = id.x;
+    if (i >= paddedLookupCount)
+        return;
+        
+    uint key = spatialLookup[i].cellKey;
+    
+    if (key == UINT_MAX)
+        return;
+
+    // set the smallest index for this key
+    uint keyPrev = i == 0 ? UINT_MAX : spatialLookup[i - 1].cellKey;
+    
+    if (key != keyPrev)
+    {
+        startIndices[key] = i;
+    }
+}
+
+
+
+
+
+
+

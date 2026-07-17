@@ -2,6 +2,7 @@
 #pragma kernel UpdateEdges
 
 #pragma kernel ResolveFaceCollisions
+#pragma kernel ResolveEdgeCollisions
 
 #pragma kernel CalculateCurvatures
 #pragma kernel ApplyNaturalForces
@@ -41,6 +42,10 @@ float lateralDamping;
 //StructuredBuffer<uint> NeighborIndices;
 StructuredBuffer<Entry> SpatialLookup;
 StructuredBuffer<uint> StartIndices;
+
+StructuredBuffer<Entry> EdgeSpatialLookup;
+StructuredBuffer<uint> EdgeStartIndices;
+uint paddedEdgeLookupCount;
 
 StructuredBuffer<Entry> FaceSpatialLookup;
 StructuredBuffer<uint> FaceStartIndices;
@@ -88,10 +93,6 @@ void UpdateEdges(uint3 id : SV_DispatchThreadID)
 }
 
 
-// UPDATE FACES
-// this kernel updates the faces by setting face position
-
-
 // RESOLVE COLLISIONS
 [numthreads(64, 1, 1)]
 void ResolveFaceCollisions(uint3 id : SV_DispatchThreadID)
@@ -105,9 +106,26 @@ void ResolveFaceCollisions(uint3 id : SV_DispatchThreadID)
     Node3D node = Nodes[index];
     int3 currCell = PositionToCellCoord(node.position, separationDistance);
     
-    // Define how "thick" the faces are (e.g., half your normal separation distance)
     float collisionRadius = separationDistance * 0.5f;
-    float collisionStiffness = 50.0f; // Adjust this if nodes pass through faces at high speeds
+    float collisionStiffness = 50.0f;
+    
+    // Gather 1-Ring Neighbors for Topological Exclusion
+    uint neighbors[16];
+    int neighborCount = 0;
+    uint startEdge = node.halfEdge;
+    uint currEdge = startEdge;
+    
+    if (startEdge != UINT_MAX)
+    {
+        for (int k = 0; k < 16; k++)
+        {
+            neighbors[neighborCount++] = HalfEdges[currEdge].target;
+            uint twin = HalfEdges[currEdge].twin;
+            currEdge = HalfEdges[twin].next;
+            if (currEdge == startEdge)
+                break;
+        }
+    }
     
     for (uint i = 0; i < 27; i++)
     {
@@ -126,13 +144,12 @@ void ResolveFaceCollisions(uint3 id : SV_DispatchThreadID)
             Entry entry = FaceSpatialLookup[j];
             
             if (entry.cellKey != cellKey)
-                break; // Reached the end of this cell's data
+                break;
             if (entry.hash != hash)
-                continue; // Hash collision check
+                continue;
             
             Face3D face = Faces[entry.index];
             
-            // Get the 3 nodes of the face
             uint edge1 = face.halfEdge;
             uint edge2 = HalfEdges[edge1].next;
             uint edge3 = HalfEdges[edge2].next;
@@ -141,15 +158,27 @@ void ResolveFaceCollisions(uint3 id : SV_DispatchThreadID)
             uint nB = HalfEdges[edge2].target;
             uint nC = HalfEdges[edge3].target;
             
-            // CRITICAL: Skip if this node is PART of the face (otherwise the mesh explodes)
+            // Skip if this node is PART of the face
             if (index == nA || index == nB || index == nC) 
+                continue;
+                
+            // Skip if the face belongs to an immediate neighbor!
+            bool isNeighborFace = false;
+            for (int k = 0; k < neighborCount; k++)
+            {
+                if (neighbors[k] == nA || neighbors[k] == nB || neighbors[k] == nC)
+                {
+                    isNeighborFace = true;
+                    break;
+                }
+            }
+            if (isNeighborFace)
                 continue;
                 
             float3 posA = Nodes[nA].position;
             float3 posB = Nodes[nB].position;
             float3 posC = Nodes[nC].position;
             
-            // Find closest point and check distance
             float3 closestPt = ClosestPointOnTriangle(node.position, posA, posB, posC);
             float3 delta = node.position - closestPt;
             float distSq = dot(delta, delta);
@@ -160,15 +189,145 @@ void ResolveFaceCollisions(uint3 id : SV_DispatchThreadID)
                 float3 pushDir = delta / dist;
                 float penetration = collisionRadius - dist;
                 
-                // Apply a strong repulsive impulse to push the node out of the face
                 node.velocity += pushDir * (penetration * collisionStiffness) * deltaTime;
-                node.position += pushDir * penetration;
             }
         }
     }
     
     Nodes[index] = node;
 }
+
+
+// RESOLVE EDGE COLLISIONS
+[numthreads(64, 1, 1)]
+void ResolveEdgeCollisions(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    int nodeCount = GlobalCounters.Load(0);
+    
+    if (index >= nodeCount)
+        return;
+    
+    Node3D node = Nodes[index];
+    
+    // Edges are thin, so we use a slightly smaller collision radius than faces
+    float collisionRadius = separationDistance * 0.25f;
+    float collisionStiffness = 50.0f;
+    
+    // Gather 1-Ring Neighbors for Topological Exclusion
+    uint neighbors[16];
+    int neighborCount = 0;
+    uint startEdge = node.halfEdge;
+    uint currEdge = startEdge;
+    
+    if (startEdge != UINT_MAX)
+    {
+        for (int k = 0; k < 16; k++)
+        {
+            neighbors[neighborCount++] = HalfEdges[currEdge].target;
+            uint twin = HalfEdges[currEdge].twin;
+            currEdge = HalfEdges[twin].next;
+            if (currEdge == startEdge)
+                break;
+        }
+    }
+    
+    // Loop through all outgoing edges from this node
+    currEdge = startEdge;
+    if (startEdge != UINT_MAX)
+    {
+        for (int k = 0; k < 16; k++)
+        {
+            uint neighborIndex = HalfEdges[currEdge].target;
+            Node3D neighborNode = Nodes[neighborIndex];
+            
+            float3 p1 = node.position;
+            float3 q1 = neighborNode.position;
+            
+            // Look up the spatial hash based on the MIDPOINT of this edge
+            float3 edgeCenter = (p1 + q1) * 0.5f;
+            int3 currCell = PositionToCellCoord(edgeCenter, separationDistance);
+            
+            for (uint i = 0; i < 27; i++)
+            {
+                int3 offset = Offsets3D[i];
+                int3 targetCell = currCell + offset;
+                
+                uint hash = HashCell(targetCell.x, targetCell.y, targetCell.z);
+                uint cellKey = KeyFromHash(hash, hashTableSize);
+                uint startIndex = EdgeStartIndices[cellKey];
+                
+                if (cellKey == UINT_MAX || startIndex == UINT_MAX)
+                    continue;
+                    
+                for (uint j = startIndex; j < paddedEdgeLookupCount; j++)
+                {
+                    Entry entry = EdgeSpatialLookup[j];
+                    
+                    if (entry.cellKey != cellKey)
+                        break;
+                    if (entry.hash != hash)
+                        continue;
+                    
+                    HalfEdge3D otherEdge = HalfEdges[entry.index];
+                    uint nA = otherEdge.origin;
+                    uint nB = otherEdge.target;
+                    
+                    // Topological Exclusion: Skip if the other edge is connected to us or our immediate neighbors
+                    bool isNeighborEdge = false;
+                    if (nA == index || nB == index)
+                        isNeighborEdge = true;
+                    
+                    for (int n = 0; n < neighborCount; n++)
+                    {
+                        if (neighbors[n] == nA || neighbors[n] == nB)
+                        {
+                            isNeighborEdge = true;
+                            break;
+                        }
+                    }
+                    if (isNeighborEdge)
+                        continue;
+                    
+                    // Do the Edge-Edge Math!
+                    float3 p2 = Nodes[nA].position;
+                    float3 q2 = Nodes[nB].position;
+                    
+                    float s, t;
+                    float3 c1, c2;
+                    ClosestPointsOnTwoLineSegments(p1, q1, p2, q2, s, t, c1, c2);
+                    
+                    float3 delta = c1 - c2;
+                    float distSq = dot(delta, delta);
+                    
+                    if (distSq > 0.000001f && distSq < (collisionRadius * collisionRadius))
+                    {
+                        float dist = sqrt(distSq);
+                        float3 pushDir = delta / dist;
+                        float penetration = collisionRadius - dist;
+                        
+                        float birthGrace = smoothstep(0.0f, 0.5f, node.age);
+                        float rawForce = penetration * collisionStiffness * birthGrace;
+                        float finalForce = min(rawForce, 25.0f); // Velocity clamp
+                        
+                        // Barycentric weight: Apply force based on how close the collision is to THIS node (s=0 means at p1)
+                        float weight = 1.0f - s;
+                        
+                        node.velocity += pushDir * finalForce * weight * deltaTime;
+                    }
+                }
+            }
+            
+            uint twin = HalfEdges[currEdge].twin;
+            currEdge = HalfEdges[twin].next;
+            if (currEdge == startEdge)
+                break;
+        }
+    }
+    
+    Nodes[index] = node;
+}
+
 
 // calculate local node curvatures
 [numthreads(64, 1, 1)]
