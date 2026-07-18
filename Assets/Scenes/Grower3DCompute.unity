@@ -262,6 +262,7 @@ MonoBehaviour:
   enableSplitting: 1
   enableDebugLogs: 0
   defaultShapeType: 0
+  debug_totalAuxin: 0
 --- !u!1 &38157665
 GameObject:
   m_ObjectHideFlags: 0
@@ -517,6 +518,7 @@ MonoBehaviour:
   enableSplitting: 1
   enableDebugLogs: 0
   defaultShapeType: 2
+  debug_totalAuxin: 0
 --- !u!114 &433824275
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -554,6 +556,10 @@ MonoBehaviour:
     targetType: 3
     inheritanceWeight: 1
     childType: 2
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   - mass: 5
     drag: 1.32
     growthRate: 10.2
@@ -563,6 +569,10 @@ MonoBehaviour:
     targetType: 3
     inheritanceWeight: 13.13
     childType: 3
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   - mass: 6.51
     drag: 47.1
     growthRate: 1.1
@@ -572,6 +582,10 @@ MonoBehaviour:
     targetType: 3
     inheritanceWeight: 1
     childType: 3
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   - mass: 20
     drag: 100
     growthRate: 0
@@ -581,6 +595,10 @@ MonoBehaviour:
     targetType: 3
     inheritanceWeight: 0
     childType: 3
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   computeRunner: {fileID: 433824274}
 --- !u!4 &433824277
 Transform:
@@ -651,6 +669,7 @@ MonoBehaviour:
   enableSplitting: 1
   enableDebugLogs: 0
   defaultShapeType: 1
+  debug_totalAuxin: 0
 --- !u!114 &610078305
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -670,19 +689,27 @@ MonoBehaviour:
     growthRate: 0
     turgorPressure: 0
     laplacianSmoothing: 1.38
-    switchTime: 10
+    switchTime: -1
     targetType: 0
     inheritanceWeight: 0
     childType: 0
+    auxinGenerationRate: 0.1
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   - mass: 2.06
     drag: 2.19
-    growthRate: 11.09
+    growthRate: 0.26
     turgorPressure: 0.4
     laplacianSmoothing: 1.38
     switchTime: -1
     targetType: 1
     inheritanceWeight: 1
     childType: 1
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   computeRunner: {fileID: 610078303}
 --- !u!4 &610078306
 Transform:
@@ -795,6 +822,7 @@ MonoBehaviour:
   enableSplitting: 1
   enableDebugLogs: 0
   defaultShapeType: 2
+  debug_totalAuxin: 0
 --- !u!114 &696636874
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -818,6 +846,10 @@ MonoBehaviour:
     targetType: 3
     inheritanceWeight: 1
     childType: 2
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   - mass: 5
     drag: 15.7
     growthRate: 2.7
@@ -827,6 +859,10 @@ MonoBehaviour:
     targetType: 3
     inheritanceWeight: 13.13
     childType: 3
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   - mass: 2.6
     drag: 12
     growthRate: 1.66
@@ -836,6 +872,10 @@ MonoBehaviour:
     targetType: 3
     inheritanceWeight: 1
     childType: 4
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   - mass: 20
     drag: 100
     growthRate: 0
@@ -845,6 +885,10 @@ MonoBehaviour:
     targetType: 3
     inheritanceWeight: 0
     childType: 3
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   - mass: 2.6
     drag: 27.6
     growthRate: 0.07
@@ -854,6 +898,10 @@ MonoBehaviour:
     targetType: 3
     inheritanceWeight: 1
     childType: 4
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   computeRunner: {fileID: 696636872}
 --- !u!4 &696636875
 Transform:
@@ -964,6 +1012,7 @@ MonoBehaviour:
   enableSplitting: 1
   enableDebugLogs: 0
   defaultShapeType: 1
+  debug_totalAuxin: 0
 --- !u!114 &710712404
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1001,6 +1050,10 @@ MonoBehaviour:
     targetType: 0
     inheritanceWeight: 0
     childType: 0
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   - mass: 1
     drag: 3
     growthRate: 2
@@ -1010,6 +1063,10 @@ MonoBehaviour:
     targetType: 2
     inheritanceWeight: 0
     childType: 0
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   - mass: 2.99
     drag: 5
     growthRate: 4.64
@@ -1019,6 +1076,10 @@ MonoBehaviour:
     targetType: 0
     inheritanceWeight: 0
     childType: 3
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   - mass: 1
     drag: 9.9
     growthRate: 6
@@ -1028,6 +1089,10 @@ MonoBehaviour:
     targetType: 0
     inheritanceWeight: 0
     childType: 0
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   - mass: 27.8
     drag: 19.1
     growthRate: -1.28
@@ -1037,6 +1102,10 @@ MonoBehaviour:
     targetType: 0
     inheritanceWeight: 0
     childType: 0
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   computeRunner: {fileID: 710712403}
 --- !u!4 &710712406
 Transform:
@@ -1096,6 +1165,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1183562616}
   - component: {fileID: 1183562621}
+  - component: {fileID: 1183562622}
   - component: {fileID: 1183562620}
   - component: {fileID: 1183562619}
   - component: {fileID: 1183562618}
@@ -1219,10 +1289,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   computeRunner: {fileID: 610078303}
   subdivisions: 1
-  particleRenderer: {fileID: 1183562620}
+  particleRenderer: {fileID: 1183562622}
   edgeRenderer: {fileID: 1183562619}
   nodeHoardMeshFilter: {fileID: 1183562618}
   debugNodeTypes: 1
+--- !u!114 &1183562622
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1183562615}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3aefc08abe830c44c986057b5381d9ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  particleMaterial: {fileID: 2100000, guid: 7b05ee14c78fa1c45b0ed936ed2864ed, type: 2}
+  particleMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+  radius: 1
+  maxVelocity: 5
+  computeRunner: {fileID: 610078303}
 --- !u!1 &1540652528
 GameObject:
   m_ObjectHideFlags: 0
@@ -2026,6 +2113,7 @@ MonoBehaviour:
   enableSplitting: 1
   enableDebugLogs: 0
   defaultShapeType: 1
+  debug_totalAuxin: 0
 --- !u!114 &9206847156027151491
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2063,6 +2151,10 @@ MonoBehaviour:
     targetType: 0
     inheritanceWeight: 0
     childType: 0
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   - mass: 1
     drag: 6.97
     growthRate: 15
@@ -2072,6 +2164,10 @@ MonoBehaviour:
     targetType: 2
     inheritanceWeight: 0
     childType: 0
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   - mass: 1
     drag: 30
     growthRate: 5
@@ -2081,6 +2177,10 @@ MonoBehaviour:
     targetType: 0
     inheritanceWeight: 1
     childType: 2
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinAbsorptionRate: 0
+    auxinThreshold: 0
   computeRunner: {fileID: 9206847156027151490}
 --- !u!114 &9206847156027151493
 MonoBehaviour:

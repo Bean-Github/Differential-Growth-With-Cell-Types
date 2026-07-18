@@ -6,6 +6,9 @@
 #pragma kernel ApplyAccumulatedVelocities
 
 #pragma kernel CalculateCurvatures
+#pragma kernel UpdateAuxinLevels
+#pragma kernel ApplyAccumulatedAuxin
+
 #pragma kernel ApplyNaturalForces
 #pragma kernel MoveParticles
 
@@ -40,7 +43,6 @@ float springDamping;
 
 float lateralDamping;
 
-//StructuredBuffer<uint> NeighborIndices;
 StructuredBuffer<Entry> SpatialLookup;
 StructuredBuffer<uint> StartIndices;
 
@@ -54,8 +56,21 @@ uint paddedFaceLookupCount;
 
 RWByteAddressBuffer GlobalCounters;
 
+RWStructuredBuffer<int> TotalAuxin;
+RWStructuredBuffer<int> AccumulatedAuxinInt;
+
+void AtomicAddAuxin(uint nodeIndex, float auxinToAdd, out int previousValue)
+{
+    int auxinInt = (int) (auxinToAdd * FLOAT_TO_INT_SCALE);
+
+    InterlockedAdd(
+        AccumulatedAuxinInt[nodeIndex],
+        auxinInt,
+        previousValue
+    );
+}
+
 // accumulator for velocities to be applied after all collisions are resolved
-#define FLOAT_TO_INT_SCALE 10000.0f 
 RWStructuredBuffer<int> AccumulatedVelocityInt;
 
 void AtomicAddVelocity(uint nodeIndex, float3 velocityToAdd)
@@ -104,7 +119,6 @@ void UpdateEdges(uint3 id : SV_DispatchThreadID)
     
     HalfEdges[index] = edge;
 }
-
 
 // RESOLVE COLLISIONS
 [numthreads(64, 1, 1)]
@@ -224,7 +238,6 @@ void ResolveEdgeCollisions(uint3 id : SV_DispatchThreadID)
     // Prevent double-counting twins
     if (myEdge.twin != UINT_MAX && edgeIndex > myEdge.twin)
         return;
-    
     
     float3 p1 = Nodes[myEdge.origin].position;
     float3 q1 = Nodes[myEdge.target].position;
@@ -385,6 +398,124 @@ void CalculateCurvatures(uint3 id : SV_DispatchThreadID)
 }
 
 
+// update node auxin levels
+[numthreads(64, 1, 1)]
+void UpdateAuxinLevels(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    int nodeCount = GlobalCounters.Load(0);
+    
+    if (index >= nodeCount)
+        return;
+    
+    Node3D node = Nodes[index];
+    NodeType info = node.type;
+    int _;
+    
+    // increase auxin level
+    AtomicAddAuxin(index, info.auxinGenerationRate * deltaTime, _);
+    
+    // look around nearby and find the neighbor with the highest auxin level
+    HalfEdge3D currEdge = HalfEdges[node.halfEdge];
+    float maxAuxinLevel = node.currAuxinLevel;
+    int maxAuxinNeighborIndex = -1;
+    
+    for (int j = 0; j < 64; j++)
+    {
+        uint neighborNodeIndex = currEdge.target;
+        Node3D neighbor = Nodes[neighborNodeIndex];
+        
+        if (neighbor.currAuxinLevel > maxAuxinLevel)
+        {
+            maxAuxinLevel = neighbor.currAuxinLevel;
+            maxAuxinNeighborIndex = neighborNodeIndex;
+        }
+        
+        currEdge = HalfEdges[HalfEdges[currEdge.twin].next];
+        
+            
+        // absorb auxin from neighbors (we ensure this doesnt generate new auxin)
+        float requestedAbsorption = info.auxinAbsorptionRate * deltaTime;
+
+        int oldAccumulator;
+        AtomicAddAuxin(
+            neighborNodeIndex,
+            -requestedAbsorption,
+            oldAccumulator
+        );
+
+        // Calculate how much auxin the neighbor actually had available
+        float previousPending =
+            (float) oldAccumulator / FLOAT_TO_INT_SCALE;
+
+        float availableBefore =
+            neighbor.currAuxinLevel + previousPending;
+
+
+        // If we tried to take too much, refund the excess
+        float actualAbsorption = min(requestedAbsorption, max(availableBefore, 0));
+
+        float refund = requestedAbsorption - actualAbsorption;
+
+        if (refund > 0)
+        {
+            AtomicAddAuxin(
+                neighborNodeIndex,
+                refund,
+                oldAccumulator
+            );
+        }
+
+        // Give absorbed auxin to this node
+        AtomicAddAuxin(
+            index,
+            actualAbsorption,
+            oldAccumulator
+        );
+        
+        if (currEdge.id == node.halfEdge)
+            break; // Closed mesh, full circle complete!
+    }
+    
+    // if -1, then no neighbor has a higher auxin level, so this node is the "max" in its neighborhood
+    // otherwise, pump auxin to the neighbor with the highest level
+    if (maxAuxinNeighborIndex != -1)
+    {
+        // this node is not the max, so it will send auxin to the neighbor with the highest level
+        float auxinTransfer = info.auxinTransportRate * deltaTime;
+        
+        // ensure we don't transfer more than we have
+        auxinTransfer = min(auxinTransfer, node.currAuxinLevel);
+        
+        AtomicAddAuxin(index, -auxinTransfer, _);
+        
+        // atomically add to the neighbor's auxin level
+        AtomicAddAuxin(maxAuxinNeighborIndex, auxinTransfer, _);
+    }
+    
+    Nodes[index] = node;
+}
+
+[numthreads(64, 1, 1)]
+void ApplyAccumulatedAuxin(uint3 id : SV_DispatchThreadID)
+{
+    int index = id.x;
+    
+    if (index >= GlobalCounters.Load(0))
+        return;
+    
+    Node3D node = Nodes[index];
+    float auxinDelta = (float) AccumulatedAuxinInt[id.x] / FLOAT_TO_INT_SCALE;
+    
+    InterlockedAdd(TotalAuxin[0], AccumulatedAuxinInt[id.x]);
+    
+    node.currAuxinLevel = max(node.currAuxinLevel + auxinDelta, 0);
+    
+    AccumulatedAuxinInt[id.x] = 0; // reset for next frame
+    Nodes[index] = node;
+}
+
+
 // OVER NODES
 [numthreads(64, 1, 1)]
 void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
@@ -531,7 +662,8 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
         neighborCenter += neighbor.position;
         actualNeighborCount++;
         
-        // --- NEW: Calculate Face Normal for Turgor Pressure ---
+        // ------------------------------------------------------
+        // Calculate Face Normal for Turgor Pressure
         // To get the face normal, we need the NEXT node in this triangle
         uint nextEdgeIndex = HalfEdges[currEdge].next;
         uint nextNeighborIndex = HalfEdges[nextEdgeIndex].target;
@@ -564,7 +696,7 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
         node.velocity += laplacianVector * info.laplacianSmoothing * deltaTime;
     }
 
-    // --- NEW: Apply Turgor Pressure Force ---
+    // Apply Turgor Pressure Force
     if (length(vertexNormal) > 0.0001f)
     {
         // Normalize the accumulated vectors to get the final smooth vertex normal

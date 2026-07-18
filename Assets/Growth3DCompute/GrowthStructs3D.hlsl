@@ -15,6 +15,12 @@ struct NodeType
     float inheritanceWeight;
     
     uint childType;
+    
+    float auxinGenerationRate;
+    float auxinTransportRate;
+    float auxinAbsorptionRate;
+    
+    float auxinThreshold;
 };
 
 
@@ -45,6 +51,12 @@ NodeType BlendTypes(NodeType typeA, NodeType typeB, float blendFactor)
     
     blendedType.inheritanceWeight = lerp(typeA.inheritanceWeight, typeB.inheritanceWeight, hardBlendFactor);
     
+    blendedType.auxinGenerationRate = lerp(typeA.auxinGenerationRate, typeB.auxinGenerationRate, blendFactor);
+    blendedType.auxinTransportRate = lerp(typeA.auxinTransportRate, typeB.auxinTransportRate, blendFactor);
+    blendedType.auxinAbsorptionRate = lerp(typeA.auxinAbsorptionRate, typeB.auxinAbsorptionRate, blendFactor);
+    
+    blendedType.auxinThreshold = lerp(typeA.auxinThreshold, typeB.auxinThreshold, hardBlendFactor);
+    
     return blendedType;
 }
 
@@ -69,6 +81,8 @@ struct Node3D
     uint baseType;
     
     NodeType type;
+    
+    float currAuxinLevel;
     
     int debug_int;
 };

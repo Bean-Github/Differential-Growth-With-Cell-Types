@@ -8,9 +8,9 @@ public class BasicParticleBufferRenderer : MonoBehaviour
 
     public float maxVelocity = 5.0f;
 
-    public void RenderParticles(ComputeBuffer particleBuffer, int count)
+    public virtual void SetupMaterialProperties(ComputeBuffer particleBuffer, int count, out RenderParams rp)
     {
-        RenderParams rp = new RenderParams(particleMaterial);
+        rp = new RenderParams(particleMaterial);
         rp.worldBounds = new Bounds(Vector3.zero, 10000 * Vector3.one); // use tighter bounds
         rp.matProps = new MaterialPropertyBlock();
 
@@ -19,6 +19,11 @@ public class BasicParticleBufferRenderer : MonoBehaviour
         rp.matProps.SetFloat("_Radius", radius);
 
         rp.matProps.SetFloat("maxVelocity", maxVelocity);
+    }
+
+    public void RenderParticles(ComputeBuffer particleBuffer, int count)
+    {
+        SetupMaterialProperties(particleBuffer, count, out RenderParams rp);
 
         Graphics.RenderMeshPrimitives(rp, particleMesh, 0, count);
     }

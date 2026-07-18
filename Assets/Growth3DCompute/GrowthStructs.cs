@@ -17,6 +17,12 @@ public struct NodeType
 
     public float inheritanceWeight;
     public uint childType;
+
+    public float auxinGenerationRate;
+    public float auxinTransportRate;
+    public float auxinAbsorptionRate;
+
+    public float auxinThreshold;
 }
 
 // ALL STRUCTS
@@ -38,6 +44,9 @@ public unsafe struct Node3D
 
     // settings
     public NodeType type;
+
+    // auxin
+    public float currAuxinLevel;
 
     public int debug_int; // for debugging purposes only
 }

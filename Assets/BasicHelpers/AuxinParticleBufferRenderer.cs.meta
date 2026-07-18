@@ -1,10 +1,12 @@
 fileFormatVersion: 2
-guid: d206e9fb8126ae246a85c019f54be2f2
+guid: 3aefc08abe830c44c986057b5381d9ee
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
   defaultReferences:
-  - edgeMaterial: {fileID: 2100000, guid: f37636735fc4ce44dbadc5ddf5a872fd, type: 2}
+  - particleMaterial: {fileID: 2100000, guid: 7b05ee14c78fa1c45b0ed936ed2864ed, type: 2}
+  - particleMesh: {instanceID: 0}
+  - computeRunner: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

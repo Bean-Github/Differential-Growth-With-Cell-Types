@@ -52,6 +52,8 @@ namespace Growth3DCompute
 
             public int defaultShapeType = 0; // 0 = plane, 1 = sphere
 
+            public float debug_totalAuxin = 0.0f; // for debugging, shows the total auxin level in the system
+
         // BUFFERS
         public ComputeBuffer nodeBuffer;
         public ComputeBuffer halfEdgeBuffer;
@@ -75,12 +77,15 @@ namespace Growth3DCompute
         ComputeBuffer counterBuffer; // buffer to store counts of nodes, half-edges, faces, pending splits
         ComputeBuffer nodeLocksBuffer; // buffer to store locks for nodes during splitting and flipping
 
+        ComputeBuffer totalAuxinBuffer; // buffer to store total auxin levels for normalization. note: this is an int buffer, but it is really a float scaled by like 10000x
+        ComputeBuffer auxinAccumulatorBuffer; // buffer to indicate how to change the auxin levels
+
         // this is used to accumulate interlocked velocity data from the edge-edge collision phase
-        public ComputeBuffer velocityAccumulatorBuffer;
+        ComputeBuffer velocityAccumulatorBuffer;
 
         int[] counterArray;
 
-        // kernels
+        // KERNELS ---
         protected int unlockEdgesKernel;
         protected int markEdgesKernel;
         protected int evaluateSplitsKernel;
@@ -90,13 +95,19 @@ namespace Growth3DCompute
         protected int markFlippableEdgesKernel;
         protected int evaluateFlipsKernel;
 
+        // movement kernels
         protected int updateEdgesKernel;
         protected int resolveFaceCollisionsKernel;
         protected int resolveEdgeCollisionsKernel;
         protected int applyAccumulatedVelocitiesKernel;
         protected int calculateCurvaturesKernel;
+
+        protected int updateAuxinLevelsKernel;
+        protected int applyAccumulatedAuxinKernel;
+
         protected int applyNaturalForcesKernel;
         protected int moveKernel;
+        // ---
 
         void Start()
         {
@@ -132,6 +143,9 @@ namespace Growth3DCompute
             }
 
             #region Debug
+            int[] totalAuxinData = new int[1];
+            totalAuxinBuffer.GetData(totalAuxinData);
+            debug_totalAuxin = ((float) totalAuxinData[0]) / 10000.0f;
 
             //if (enableDebugLogs)
             //{
@@ -246,6 +260,13 @@ namespace Growth3DCompute
             velocityAccumulatorBuffer = new ComputeBuffer(maxNodes * 3, sizeof(int));
             int[] zeros = new int[maxNodes * 3];
             velocityAccumulatorBuffer.SetData(zeros);
+
+            // auxin
+            totalAuxinBuffer = new ComputeBuffer(1, sizeof(int));
+            totalAuxinBuffer.SetData(new int[] { 0 });
+            auxinAccumulatorBuffer = new ComputeBuffer(maxNodes, sizeof(int));
+            zeros = new int[maxNodes];
+            auxinAccumulatorBuffer.SetData(zeros);
         }
 
         // sets up the shape / seed of the grower
@@ -322,12 +343,17 @@ namespace Growth3DCompute
             resolveEdgeCollisionsKernel = computeShader.FindKernel("ResolveEdgeCollisions");
             applyAccumulatedVelocitiesKernel = computeShader.FindKernel("ApplyAccumulatedVelocities");
             calculateCurvaturesKernel = computeShader.FindKernel("CalculateCurvatures");
+            updateAuxinLevelsKernel = computeShader.FindKernel("UpdateAuxinLevels");
+            applyAccumulatedAuxinKernel = computeShader.FindKernel("ApplyAccumulatedAuxin");
             applyNaturalForcesKernel = computeShader.FindKernel("ApplyNaturalForces");
             moveKernel = computeShader.FindKernel("MoveParticles");
 
             // Compute Shader
             ComputeHelper.SetBufferToKernels("GlobalCounters", counterBuffer, computeShader,
-                updateEdgesKernel, resolveFaceCollisionsKernel, resolveEdgeCollisionsKernel, applyAccumulatedVelocitiesKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
+                updateEdgesKernel, resolveFaceCollisionsKernel, resolveEdgeCollisionsKernel, 
+                applyAccumulatedVelocitiesKernel, calculateCurvaturesKernel, 
+                updateAuxinLevelsKernel, applyAccumulatedAuxinKernel,
+                applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("GlobalCounters", counterBuffer, splitterShader,
                 unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
@@ -335,12 +361,14 @@ namespace Growth3DCompute
                 markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("Nodes", nodeBuffer, computeShader,
-                updateEdgesKernel, resolveFaceCollisionsKernel, resolveEdgeCollisionsKernel, applyAccumulatedVelocitiesKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
+                updateEdgesKernel, resolveFaceCollisionsKernel, resolveEdgeCollisionsKernel, 
+                applyAccumulatedVelocitiesKernel, calculateCurvaturesKernel, updateAuxinLevelsKernel, applyAccumulatedAuxinKernel,
+                applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("Nodes", nodeBuffer, splitterShader, 
                 unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("HalfEdges", halfEdgeBuffer, computeShader,
-                updateEdgesKernel, resolveFaceCollisionsKernel, resolveEdgeCollisionsKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
+                updateEdgesKernel, resolveFaceCollisionsKernel, resolveEdgeCollisionsKernel, calculateCurvaturesKernel, updateAuxinLevelsKernel, applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("HalfEdges", halfEdgeBuffer, splitterShader,
                 unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
@@ -368,9 +396,15 @@ namespace Growth3DCompute
             ComputeHelper.SetBufferToKernels("FaceStartIndices", startFaceIndicesBuffer, computeShader,
                 applyNaturalForcesKernel, resolveFaceCollisionsKernel);
 
+            // auxin buffers
+            ComputeHelper.SetBufferToKernels("TotalAuxin", totalAuxinBuffer, computeShader,
+                updateAuxinLevelsKernel, applyAccumulatedAuxinKernel, applyNaturalForcesKernel, moveKernel);
+            ComputeHelper.SetBufferToKernels("AccumulatedAuxinInt", auxinAccumulatorBuffer, computeShader,
+                updateAuxinLevelsKernel, applyAccumulatedAuxinKernel);
+
             // other buffers
             ComputeHelper.SetBufferToKernels("NodeTypes", nodeTypesBuffer, computeShader,
-                updateEdgesKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
+                updateEdgesKernel, calculateCurvaturesKernel, updateAuxinLevelsKernel, applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("NodeTypes", nodeTypesBuffer, splitterShader,
                 unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
         
@@ -567,6 +601,8 @@ namespace Growth3DCompute
             //computeShader.Dispatch(resolveEdgeCollisionsKernel, finalThreadGroupsEdges, 1, 1);
             //computeShader.Dispatch(applyAccumulatedVelocitiesKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(calculateCurvaturesKernel, finalThreadGroupsNodes, 1, 1);
+            computeShader.Dispatch(updateAuxinLevelsKernel, finalThreadGroupsNodes, 1, 1);
+            computeShader.Dispatch(applyAccumulatedAuxinKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(applyNaturalForcesKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(moveKernel, finalThreadGroupsNodes, 1, 1);
         }
@@ -591,7 +627,10 @@ namespace Growth3DCompute
 
                 counterBuffer, 
                 nodeLocksBuffer,
-                nodeTypesBuffer
+                nodeTypesBuffer,
+
+                totalAuxinBuffer,
+                auxinAccumulatorBuffer
             );
         }
     }

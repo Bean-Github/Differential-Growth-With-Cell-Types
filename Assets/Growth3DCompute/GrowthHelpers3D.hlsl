@@ -1,3 +1,4 @@
+#define FLOAT_TO_INT_SCALE 10000.0f 
 
 const uint UINT_MAX = 0xFFFFFFFF; // 2^32 - 1 = 4294967295
 
