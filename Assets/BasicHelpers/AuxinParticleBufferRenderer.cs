@@ -9,7 +9,13 @@ public class AuxinParticleBufferRenderer : BasicParticleBufferRenderer
     {
         base.SetupMaterialProperties(particleBuffer, count, out rp);
 
-        rp.matProps.SetFloat("_TotalAuxin", computeRunner.debug_totalAuxin);
+        float totalAuxin = computeRunner.debug_totalAuxin;
+        if (totalAuxin == 0.0f)
+        {
+            totalAuxin = 1.0f; // avoid division by zero
+        }
+
+        rp.matProps.SetFloat("_TotalAuxin", totalAuxin);
     }
 }
 

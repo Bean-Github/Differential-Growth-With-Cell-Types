@@ -17,6 +17,9 @@ namespace Growth3DCompute
             public int faceCount;
             public int halfEdgeCount;
 
+            [Range(0.0f, 20.0f)]
+            public float simulationSpeed = 1.0f;
+
             public Grower3DGenotype genotype;
 
         [Header("Global Physics Settings")]
@@ -48,6 +51,7 @@ namespace Growth3DCompute
             public SpatialHashComputeRunner spatialHashFaceRunner;
 
             public bool enableSplitting = true;
+            public bool enableFlipping = true;
             public bool selfCollisions = true;
             public bool enableDebugLogs = false;
 
@@ -128,11 +132,13 @@ namespace Growth3DCompute
         float physicsAccumulator = 0.0f;
         private void Update()
         {
+            Time.timeScale = simulationSpeed;
+
             print("curr num nodes: " + nodeCount);
             print("curr num half-edges: " + halfEdgeCount);
             print("curr num faces: " + faceCount);
 
-            physicsAccumulator += Time.deltaTime;
+            physicsAccumulator += Time.unscaledDeltaTime * simulationSpeed;
 
             // If the game lags and deltaTime is 0.048, this will safely run the simulation 3 times 
             // with small, stable steps to catch up, completely preventing spring explosions.
@@ -304,7 +310,25 @@ namespace Growth3DCompute
             nodeTypesBuffer = new ComputeBuffer(genotype.baseNodeTypes.Length, Marshal.SizeOf(typeof(NodeType)));
             nodeTypesBuffer.SetData(genotype.baseNodeTypes);
 
-            genotype.AssignStartCellTypes(generator.nodeHoard);
+
+            // assign the starting cell types to the compute runner
+            void AssignStartCellTypes(NodeHoardCompute nodeHoard)
+            {
+                for (int i = 0; i < nodeHoard.allNodes.Count; i++)
+                {
+                    Node3D node = nodeHoard.allNodes[i];
+
+                    // change type based on condition
+                    //if (i == 0) node.baseType = 1;
+
+                    // set the type of the node based on its baseType
+                    node.type = genotype.baseNodeTypes[node.baseType];
+
+                    nodeHoard.allNodes[i] = node;
+                }
+            }
+
+            AssignStartCellTypes(generator.nodeHoard);
 
             SetTopologyBuffers(generator.nodeHoard);
         }
@@ -446,6 +470,8 @@ namespace Growth3DCompute
             computeShader.SetInt("paddedNodeCount", Mathf.NextPowerOfTwo(nodeCount));
             computeShader.SetInt("paddedFaceLookupCount", Mathf.NextPowerOfTwo(faceCount * 9));
             computeShader.SetInt("paddedEdgeLookupCount", Mathf.NextPowerOfTwo(halfEdgeCount * 4));
+
+            nodeTypesBuffer.SetData(genotype.baseNodeTypes);
         }
 
         // updates the current counts of nodes, half-edges, and faces from the GPU
@@ -568,7 +594,10 @@ namespace Growth3DCompute
                 splitterShader.Dispatch(unlockNodesKernel, threadGroupsNodes, 1, 1);
             }
 
-            FlipEdges();
+            if (enableFlipping)
+            {
+                FlipEdges();
+            }
 
             // --- Physics Phase ---
             int finalThreadGroupsNodes = Mathf.CeilToInt(nodeCount / 64.0f);

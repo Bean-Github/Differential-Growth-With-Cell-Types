@@ -132,7 +132,6 @@ GameObject:
   - component: {fileID: 2174504}
   - component: {fileID: 2174503}
   - component: {fileID: 2174502}
-  - component: {fileID: 2174505}
   m_Layer: 0
   m_Name: Grower 3D Compute
   m_TagString: Untagged
@@ -156,7 +155,8 @@ MonoBehaviour:
   nodeCount: 0
   faceCount: 0
   halfEdgeCount: 0
-  genotype: {fileID: 2174505}
+  simulationSpeed: 5
+  genotype: {fileID: 0}
   separationForce: 1.25
   separationDistance: 7.6
   gravity: 0.6
@@ -171,6 +171,7 @@ MonoBehaviour:
   spatialHashEdgeRunner: {fileID: 2174503}
   spatialHashFaceRunner: {fileID: 2174502}
   enableSplitting: 1
+  enableFlipping: 1
   selfCollisions: 0
   enableDebugLogs: 0
   defaultShapeType: 1
@@ -217,77 +218,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   spatialHashCompute: {fileID: 7200000, guid: 3e69aeeb657a8554d866d6b9563cf005, type: 3}
   showDebugGrid: 0
---- !u!114 &2174505
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2174500}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4c04127b527fec24fb7d6827dfc66200, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  baseNodeTypes:
-  - mass: 1.98
-    drag: 30.77
-    growthRate: 0
-    turgorPressure: 0
-    laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 2
-    inheritanceWeight: 0
-    childType: 0
-    auxinGenerationRate: 0
-    auxinTransportRate: 1.05
-    auxinDiffusionRate: 0.1
-    auxinStealRate: 0
-    auxinThreshold: 2
-  - mass: 2.06
-    drag: 9.12
-    growthRate: 1.87
-    turgorPressure: 0.4
-    laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 1
-    inheritanceWeight: 1
-    childType: 0
-    auxinGenerationRate: 0.6
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0.66
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 2.06
-    drag: 1.78
-    growthRate: 0.9
-    turgorPressure: 0.4
-    laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 2
-    inheritanceWeight: 2
-    childType: 3
-    auxinGenerationRate: 0.19
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0.23
-    auxinStealRate: 0
-    auxinThreshold: 33.76
-  - mass: 2.06
-    drag: 30.77
-    growthRate: 0
-    turgorPressure: 0
-    laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 3
-    inheritanceWeight: 0
-    childType: 3
-    auxinGenerationRate: -0.73
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0.1
-    auxinStealRate: 0.38
-    auxinThreshold: 50.32
-  computeRunner: {fileID: 2174501}
 --- !u!4 &2174506
 Transform:
   m_ObjectHideFlags: 0
@@ -429,6 +359,7 @@ MonoBehaviour:
   nodeCount: 0
   faceCount: 0
   halfEdgeCount: 0
+  simulationSpeed: 1
   genotype: {fileID: 0}
   separationForce: 0.5
   separationDistance: 3
@@ -444,6 +375,7 @@ MonoBehaviour:
   spatialHashEdgeRunner: {fileID: 0}
   spatialHashFaceRunner: {fileID: 0}
   enableSplitting: 1
+  enableFlipping: 1
   selfCollisions: 1
   enableDebugLogs: 0
   defaultShapeType: 0
@@ -695,7 +627,6 @@ GameObject:
   - component: {fileID: 433824277}
   - component: {fileID: 433824274}
   - component: {fileID: 433824275}
-  - component: {fileID: 433824276}
   m_Layer: 0
   m_Name: Grower 3D Compute
   m_TagString: Untagged
@@ -719,7 +650,8 @@ MonoBehaviour:
   nodeCount: 0
   faceCount: 0
   halfEdgeCount: 0
-  genotype: {fileID: 433824276}
+  simulationSpeed: 1
+  genotype: {fileID: 0}
   separationForce: 1000
   separationDistance: 20
   gravity: 4
@@ -734,6 +666,7 @@ MonoBehaviour:
   spatialHashEdgeRunner: {fileID: 0}
   spatialHashFaceRunner: {fileID: 0}
   enableSplitting: 1
+  enableFlipping: 1
   selfCollisions: 1
   enableDebugLogs: 0
   defaultShapeType: 2
@@ -752,77 +685,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   spatialHashCompute: {fileID: 7200000, guid: 3e69aeeb657a8554d866d6b9563cf005, type: 3}
   showDebugGrid: 0
---- !u!114 &433824276
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 433824273}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4c04127b527fec24fb7d6827dfc66200, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  baseNodeTypes:
-  - mass: 3.27
-    drag: 18.1
-    growthRate: 1.94
-    turgorPressure: 0.83
-    laplacianSmoothing: 1.38
-    switchTime: 30
-    targetType: 3
-    inheritanceWeight: 1
-    childType: 2
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 5
-    drag: 1.32
-    growthRate: 10.2
-    turgorPressure: 0
-    laplacianSmoothing: 0.5
-    switchTime: 23.57
-    targetType: 3
-    inheritanceWeight: 13.13
-    childType: 3
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 6.51
-    drag: 47.1
-    growthRate: 1.1
-    turgorPressure: 0.27
-    laplacianSmoothing: 1
-    switchTime: 30
-    targetType: 3
-    inheritanceWeight: 1
-    childType: 3
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 20
-    drag: 100
-    growthRate: 0
-    turgorPressure: 0
-    laplacianSmoothing: 0.3
-    switchTime: 999
-    targetType: 3
-    inheritanceWeight: 0
-    childType: 3
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  computeRunner: {fileID: 433824274}
 --- !u!4 &433824277
 Transform:
   m_ObjectHideFlags: 0
@@ -1006,7 +868,6 @@ GameObject:
   - component: {fileID: 610078307}
   - component: {fileID: 610078309}
   - component: {fileID: 610078308}
-  - component: {fileID: 610078305}
   m_Layer: 0
   m_Name: Grower 3D Compute
   m_TagString: Untagged
@@ -1030,7 +891,8 @@ MonoBehaviour:
   nodeCount: 0
   faceCount: 0
   halfEdgeCount: 0
-  genotype: {fileID: 610078305}
+  simulationSpeed: 1
+  genotype: {fileID: 11400000, guid: 64bc26fb05f573441960be47207591be, type: 2}
   separationForce: 1.25
   separationDistance: 7.6
   gravity: 0
@@ -1045,81 +907,11 @@ MonoBehaviour:
   spatialHashEdgeRunner: {fileID: 610078309}
   spatialHashFaceRunner: {fileID: 610078308}
   enableSplitting: 1
+  enableFlipping: 0
   selfCollisions: 0
   enableDebugLogs: 0
   defaultShapeType: 1
   debug_totalAuxin: 0
---- !u!114 &610078305
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 610078302}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4c04127b527fec24fb7d6827dfc66200, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  baseNodeTypes:
-  - mass: 1.98
-    drag: 30.77
-    growthRate: 0
-    turgorPressure: 0
-    laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 2
-    inheritanceWeight: 0
-    childType: 0
-    auxinGenerationRate: 0
-    auxinTransportRate: 1.05
-    auxinDiffusionRate: 0.1
-    auxinStealRate: 0
-    auxinThreshold: 2
-  - mass: 2.06
-    drag: 2.19
-    growthRate: 1.87
-    turgorPressure: 0.4
-    laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 1
-    inheritanceWeight: 1
-    childType: 0
-    auxinGenerationRate: 0.6
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0.66
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 2.06
-    drag: 1.78
-    growthRate: 1.73
-    turgorPressure: 0.4
-    laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 2
-    inheritanceWeight: 2
-    childType: 3
-    auxinGenerationRate: 0.19
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0.23
-    auxinStealRate: 0
-    auxinThreshold: 33.76
-  - mass: 2.06
-    drag: 30.77
-    growthRate: 0
-    turgorPressure: 0
-    laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 3
-    inheritanceWeight: 0
-    childType: 3
-    auxinGenerationRate: -0.73
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0.1
-    auxinStealRate: 0.38
-    auxinThreshold: 50.32
-  computeRunner: {fileID: 610078303}
 --- !u!4 &610078306
 Transform:
   m_ObjectHideFlags: 0
@@ -1190,7 +982,6 @@ GameObject:
   - component: {fileID: 696636877}
   - component: {fileID: 696636878}
   - component: {fileID: 696636876}
-  - component: {fileID: 696636874}
   m_Layer: 0
   m_Name: Grower 3D Compute
   m_TagString: Untagged
@@ -1214,7 +1005,8 @@ MonoBehaviour:
   nodeCount: 0
   faceCount: 0
   halfEdgeCount: 0
-  genotype: {fileID: 696636874}
+  simulationSpeed: 1
+  genotype: {fileID: 0}
   separationForce: 487.6
   separationDistance: 10.4
   gravity: 4
@@ -1229,95 +1021,11 @@ MonoBehaviour:
   spatialHashEdgeRunner: {fileID: 696636878}
   spatialHashFaceRunner: {fileID: 696636876}
   enableSplitting: 1
+  enableFlipping: 1
   selfCollisions: 1
   enableDebugLogs: 0
   defaultShapeType: 2
   debug_totalAuxin: 0
---- !u!114 &696636874
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 696636871}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4c04127b527fec24fb7d6827dfc66200, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  baseNodeTypes:
-  - mass: 3.27
-    drag: 10
-    growthRate: 3.27
-    turgorPressure: 0.4
-    laplacianSmoothing: 1.38
-    switchTime: 10
-    targetType: 3
-    inheritanceWeight: 1
-    childType: 2
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 5
-    drag: 15.7
-    growthRate: 2.7
-    turgorPressure: 0
-    laplacianSmoothing: 0.5
-    switchTime: 17.73
-    targetType: 3
-    inheritanceWeight: 13.13
-    childType: 3
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 2.6
-    drag: 12
-    growthRate: 1.66
-    turgorPressure: -0.34
-    laplacianSmoothing: 0.41
-    switchTime: 10
-    targetType: 3
-    inheritanceWeight: 1
-    childType: 4
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 20
-    drag: 100
-    growthRate: 0
-    turgorPressure: 0
-    laplacianSmoothing: 0.3
-    switchTime: 999
-    targetType: 3
-    inheritanceWeight: 0
-    childType: 3
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 2.6
-    drag: 27.6
-    growthRate: 0.07
-    turgorPressure: 1.63
-    laplacianSmoothing: 0.41
-    switchTime: 10
-    targetType: 3
-    inheritanceWeight: 1
-    childType: 4
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  computeRunner: {fileID: 696636872}
 --- !u!4 &696636875
 Transform:
   m_ObjectHideFlags: 0
@@ -1386,7 +1094,6 @@ GameObject:
   - component: {fileID: 710712406}
   - component: {fileID: 710712403}
   - component: {fileID: 710712404}
-  - component: {fileID: 710712405}
   m_Layer: 0
   m_Name: Grower 3D Compute
   m_TagString: Untagged
@@ -1410,7 +1117,8 @@ MonoBehaviour:
   nodeCount: 0
   faceCount: 0
   halfEdgeCount: 0
-  genotype: {fileID: 710712405}
+  simulationSpeed: 1
+  genotype: {fileID: 0}
   separationForce: 1000
   separationDistance: 20
   gravity: 0
@@ -1425,6 +1133,7 @@ MonoBehaviour:
   spatialHashEdgeRunner: {fileID: 0}
   spatialHashFaceRunner: {fileID: 0}
   enableSplitting: 1
+  enableFlipping: 1
   selfCollisions: 1
   enableDebugLogs: 0
   defaultShapeType: 1
@@ -1443,91 +1152,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   spatialHashCompute: {fileID: 7200000, guid: 3e69aeeb657a8554d866d6b9563cf005, type: 3}
   showDebugGrid: 0
---- !u!114 &710712405
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 710712402}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4c04127b527fec24fb7d6827dfc66200, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  baseNodeTypes:
-  - mass: 5
-    drag: 10
-    growthRate: 0
-    turgorPressure: 0
-    laplacianSmoothing: 0.5
-    switchTime: 0
-    targetType: 0
-    inheritanceWeight: 0
-    childType: 0
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 1
-    drag: 3
-    growthRate: 2
-    turgorPressure: 0
-    laplacianSmoothing: 0.5
-    switchTime: 15
-    targetType: 2
-    inheritanceWeight: 0
-    childType: 0
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 2.99
-    drag: 5
-    growthRate: 4.64
-    turgorPressure: 0.1
-    laplacianSmoothing: 1.48
-    switchTime: 15.06
-    targetType: 0
-    inheritanceWeight: 0
-    childType: 3
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 1
-    drag: 9.9
-    growthRate: 6
-    turgorPressure: 0.1
-    laplacianSmoothing: 0.05
-    switchTime: 10
-    targetType: 0
-    inheritanceWeight: 0
-    childType: 0
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 27.8
-    drag: 19.1
-    growthRate: -1.28
-    turgorPressure: 0.1
-    laplacianSmoothing: 0.05
-    switchTime: 10
-    targetType: 0
-    inheritanceWeight: 0
-    childType: 0
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  computeRunner: {fileID: 710712403}
 --- !u!4 &710712406
 Transform:
   m_ObjectHideFlags: 0
@@ -1777,7 +1401,6 @@ GameObject:
   - component: {fileID: 1307367333}
   - component: {fileID: 1307367332}
   - component: {fileID: 1307367331}
-  - component: {fileID: 1307367334}
   m_Layer: 0
   m_Name: Grower 3D Compute
   m_TagString: Untagged
@@ -1801,7 +1424,8 @@ MonoBehaviour:
   nodeCount: 0
   faceCount: 0
   halfEdgeCount: 0
-  genotype: {fileID: 1307367334}
+  simulationSpeed: 1
+  genotype: {fileID: 0}
   separationForce: 1.25
   separationDistance: 7.6
   gravity: 0
@@ -1816,6 +1440,7 @@ MonoBehaviour:
   spatialHashEdgeRunner: {fileID: 1307367332}
   spatialHashFaceRunner: {fileID: 1307367331}
   enableSplitting: 1
+  enableFlipping: 1
   selfCollisions: 0
   enableDebugLogs: 0
   defaultShapeType: 1
@@ -1862,77 +1487,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   spatialHashCompute: {fileID: 7200000, guid: 3e69aeeb657a8554d866d6b9563cf005, type: 3}
   showDebugGrid: 0
---- !u!114 &1307367334
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1307367329}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4c04127b527fec24fb7d6827dfc66200, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  baseNodeTypes:
-  - mass: 1.98
-    drag: 30.77
-    growthRate: 0
-    turgorPressure: 0
-    laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 2
-    inheritanceWeight: 0
-    childType: 0
-    auxinGenerationRate: 0
-    auxinTransportRate: 1.05
-    auxinDiffusionRate: 0.1
-    auxinStealRate: 0
-    auxinThreshold: 2
-  - mass: 2.06
-    drag: 2.19
-    growthRate: 1.87
-    turgorPressure: 0.4
-    laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 1
-    inheritanceWeight: 1
-    childType: 0
-    auxinGenerationRate: 0.6
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0.66
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 2.06
-    drag: 1.78
-    growthRate: 1.73
-    turgorPressure: 0.4
-    laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 2
-    inheritanceWeight: 2
-    childType: 3
-    auxinGenerationRate: 0.19
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0.23
-    auxinStealRate: 0
-    auxinThreshold: 33.76
-  - mass: 2.06
-    drag: 30.77
-    growthRate: 0
-    turgorPressure: 0
-    laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 3
-    inheritanceWeight: 0
-    childType: 3
-    auxinGenerationRate: -0.73
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0.1
-    auxinStealRate: 0.38
-    auxinThreshold: 50.32
-  computeRunner: {fileID: 1307367330}
 --- !u!4 &1307367335
 Transform:
   m_ObjectHideFlags: 0
@@ -2780,7 +2334,6 @@ GameObject:
   - component: {fileID: 9206847156027151490}
   - component: {fileID: 9206847156027151491}
   - component: {fileID: 9206847156027151493}
-  - component: {fileID: 9206847156027151492}
   m_Layer: 0
   m_Name: Grower 3D Compute
   m_TagString: Untagged
@@ -2889,7 +2442,8 @@ MonoBehaviour:
   nodeCount: 0
   faceCount: 0
   halfEdgeCount: 0
-  genotype: {fileID: 9206847156027151492}
+  simulationSpeed: 1
+  genotype: {fileID: 0}
   separationForce: 1000
   separationDistance: 20
   gravity: 0
@@ -2904,6 +2458,7 @@ MonoBehaviour:
   spatialHashEdgeRunner: {fileID: 0}
   spatialHashFaceRunner: {fileID: 9206847156027151493}
   enableSplitting: 1
+  enableFlipping: 1
   selfCollisions: 1
   enableDebugLogs: 0
   defaultShapeType: 1
@@ -2922,63 +2477,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   spatialHashCompute: {fileID: 7200000, guid: 3e69aeeb657a8554d866d6b9563cf005, type: 3}
   showDebugGrid: 0
---- !u!114 &9206847156027151492
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7563027752445441022}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4c04127b527fec24fb7d6827dfc66200, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  baseNodeTypes:
-  - mass: 5
-    drag: 10
-    growthRate: 0
-    turgorPressure: 0
-    laplacianSmoothing: 0.5
-    switchTime: 0
-    targetType: 0
-    inheritanceWeight: 0
-    childType: 0
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 1
-    drag: 6.97
-    growthRate: 15
-    turgorPressure: 0.5
-    laplacianSmoothing: 0.5
-    switchTime: 10
-    targetType: 2
-    inheritanceWeight: 0
-    childType: 0
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 1
-    drag: 30
-    growthRate: 5
-    turgorPressure: 60
-    laplacianSmoothing: 10
-    switchTime: 16.77
-    targetType: 0
-    inheritanceWeight: 1
-    childType: 2
-    auxinGenerationRate: 0
-    auxinTransportRate: 0
-    auxinDiffusionRate: 0
-    auxinStealRate: 0
-    auxinThreshold: 0
-  computeRunner: {fileID: 9206847156027151490}
 --- !u!114 &9206847156027151493
 MonoBehaviour:
   m_ObjectHideFlags: 0

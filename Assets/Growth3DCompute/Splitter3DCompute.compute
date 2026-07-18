@@ -10,7 +10,6 @@
 #include "GrowthHelpers3D.hlsl"
 #include "GrowthStructs3D.hlsl"
 #include "SpatialHash/SpatialHashHelpers3D.hlsl"
-#include "CellTypes.hlsl"
 
 RWStructuredBuffer<Node3D> Nodes : register(u0);
 RWStructuredBuffer<HalfEdge3D> HalfEdges : register(u1);

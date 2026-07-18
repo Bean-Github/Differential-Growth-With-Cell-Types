@@ -1,0 +1,80 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-3326653703466248662
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ad05ed8dc3005934ebd72faf22121ee3, type: 3}
+  m_Name: NodeTypeGraphLayout
+  m_EditorClassIdentifier: 
+  entries:
+  - displayName: Type 0
+    position: {x: 94.399994, y: 30.399994}
+  - displayName: Type 1
+    position: {x: 388.60873, y: 30.400015}
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c04127b527fec24fb7d6827dfc66200, type: 3}
+  m_Name: New Grower Genotype
+  m_EditorClassIdentifier: 
+  mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+  baseNodeTypes:
+  - mass: 1
+    drag: 10
+    growthRate: 0
+    turgorPressure: 0
+    laplacianSmoothing: 1
+    switchTime: -1
+    targetType: 0
+    inheritanceWeight: 0
+    childType: 0
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0
+    auxinThreshold: 0
+  - mass: 1
+    drag: 10
+    growthRate: 0
+    turgorPressure: 0
+    laplacianSmoothing: 1
+    switchTime: -1
+    targetType: 1
+    inheritanceWeight: 0
+    childType: 1
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0
+    auxinThreshold: 0
+--- !u!114 &7364168805971651657
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40727a7cd0a12f74ea8c79b679d693d6, type: 3}
+  m_Name: NodeTypeGraphLayout
+  m_EditorClassIdentifier: 
+  entries:
+  - displayName: Type 0
+    position: {x: -64.44001, y: 104.79994}
+  - displayName: Type 1
+    position: {x: 320.97968, y: 25.008224}
+  - displayName: Type 2
+    position: {x: 560, y: 0}
