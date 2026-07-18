@@ -244,7 +244,7 @@ void ResolveEdgeCollisions(uint3 id : SV_DispatchThreadID)
     float3 edgeCenter = (p1 + q1) * 0.5f;
     int3 currCell = PositionToCellCoord(edgeCenter, separationDistance);
     
-    float collisionRadius = separationDistance * 0.1f;
+    float collisionRadius = separationDistance * 0.4f;
     float collisionStiffness = 50.0f;
     
     for (uint i = 0; i < 27; i++)

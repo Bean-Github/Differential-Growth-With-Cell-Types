@@ -887,14 +887,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3de46defec812994083af36645060d6c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxNodes: 2000
+  maxNodes: 10000
   nodeCount: 0
   faceCount: 0
   halfEdgeCount: 0
-  simulationSpeed: 1
+  simulationSpeed: 3
   genotype: {fileID: 11400000, guid: 64bc26fb05f573441960be47207591be, type: 2}
   separationForce: 1.25
-  separationDistance: 7.6
+  separationDistance: 3.33
   gravity: 0
   baseRestLength: 2
   springStiffness: 5.99
@@ -908,7 +908,7 @@ MonoBehaviour:
   spatialHashFaceRunner: {fileID: 610078308}
   enableSplitting: 1
   enableFlipping: 0
-  selfCollisions: 0
+  selfCollisions: 1
   enableDebugLogs: 0
   defaultShapeType: 1
   debug_totalAuxin: 0

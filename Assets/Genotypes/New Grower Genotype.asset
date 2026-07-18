@@ -13,10 +13,14 @@ MonoBehaviour:
   m_Name: NodeTypeGraphLayout
   m_EditorClassIdentifier: 
   entries:
-  - displayName: Type 0
-    position: {x: 94.399994, y: 30.399994}
-  - displayName: Type 1
-    position: {x: 388.60873, y: 30.400015}
+  - displayName: Stem
+    position: {x: 190.90814, y: -0.00002861023}
+  - displayName: Apical Meristem
+    position: {x: -168.75136, y: 164.79999}
+  - displayName: Leaf Apex
+    position: {x: 515.22534, y: 0.000013083536}
+  - displayName: Leaf
+    position: {x: 840, y: 0}
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -31,34 +35,62 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   baseNodeTypes:
-  - mass: 1
-    drag: 10
+  - mass: 1.98
+    drag: 30.77
     growthRate: 0
-    turgorPressure: 0
-    laplacianSmoothing: 1
+    turgorPressure: 2.45
+    laplacianSmoothing: 1.38
     switchTime: -1
-    targetType: 0
+    targetType: 2
     inheritanceWeight: 0
     childType: 0
     auxinGenerationRate: 0
-    auxinTransportRate: 0
+    auxinTransportRate: 1.05
     auxinDiffusionRate: 0.1
     auxinStealRate: 0
-    auxinThreshold: 0
-  - mass: 1
-    drag: 10
-    growthRate: 0
-    turgorPressure: 0
-    laplacianSmoothing: 1
+    auxinThreshold: 2
+  - mass: 2.06
+    drag: 1.45
+    growthRate: 3
+    turgorPressure: 0.4
+    laplacianSmoothing: 1.38
     switchTime: -1
     targetType: 1
-    inheritanceWeight: 0
-    childType: 1
-    auxinGenerationRate: 0
+    inheritanceWeight: 1
+    childType: 0
+    auxinGenerationRate: 0.6
     auxinTransportRate: 0
-    auxinDiffusionRate: 0.1
+    auxinDiffusionRate: 0.66
     auxinStealRate: 0
     auxinThreshold: 0
+  - mass: 2.06
+    drag: 1.78
+    growthRate: 1.73
+    turgorPressure: 0.4
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 2
+    inheritanceWeight: 2
+    childType: 3
+    auxinGenerationRate: 0.19
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.23
+    auxinStealRate: 0
+    auxinThreshold: 33.76
+  - mass: 2.06
+    drag: 30.77
+    growthRate: 0
+    turgorPressure: 0
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 3
+    inheritanceWeight: 0
+    childType: 3
+    auxinGenerationRate: -0.73
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0.38
+    auxinThreshold: 50.32
 --- !u!114 &7364168805971651657
 MonoBehaviour:
   m_ObjectHideFlags: 1

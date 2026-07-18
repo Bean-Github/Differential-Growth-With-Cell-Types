@@ -20,6 +20,8 @@ namespace Growth3DCompute
             [Range(0.0f, 20.0f)]
             public float simulationSpeed = 1.0f;
 
+            const int MaxStepsPerFrame = 20;
+
             public Grower3DGenotype genotype;
 
         [Header("Global Physics Settings")]
@@ -132,21 +134,23 @@ namespace Growth3DCompute
         float physicsAccumulator = 0.0f;
         private void Update()
         {
-            Time.timeScale = simulationSpeed;
-
             print("curr num nodes: " + nodeCount);
             print("curr num half-edges: " + halfEdgeCount);
             print("curr num faces: " + faceCount);
 
             physicsAccumulator += Time.unscaledDeltaTime * simulationSpeed;
 
+            int steps = 0;
+
             // If the game lags and deltaTime is 0.048, this will safely run the simulation 3 times 
             // with small, stable steps to catch up, completely preventing spring explosions.
-            while (physicsAccumulator >= Time.fixedDeltaTime)
+            while (physicsAccumulator >= Time.fixedDeltaTime && steps < MaxStepsPerFrame)
             {
                 RunComputeShader();
 
                 physicsAccumulator -= Time.fixedDeltaTime;
+
+                steps++;
             }
 
             #region Debug
@@ -319,7 +323,7 @@ namespace Growth3DCompute
                     Node3D node = nodeHoard.allNodes[i];
 
                     // change type based on condition
-                    //if (i == 0) node.baseType = 1;
+                    if (i == 0) node.baseType = 1;
 
                     // set the type of the node based on its baseType
                     node.type = genotype.baseNodeTypes[node.baseType];
