@@ -75,7 +75,8 @@ namespace Growth3DCompute
         ComputeBuffer counterBuffer; // buffer to store counts of nodes, half-edges, faces, pending splits
         ComputeBuffer nodeLocksBuffer; // buffer to store locks for nodes during splitting and flipping
 
-
+        // this is used to accumulate interlocked velocity data from the edge-edge collision phase
+        public ComputeBuffer velocityAccumulatorBuffer;
 
         int[] counterArray;
 
@@ -92,6 +93,7 @@ namespace Growth3DCompute
         protected int updateEdgesKernel;
         protected int resolveFaceCollisionsKernel;
         protected int resolveEdgeCollisionsKernel;
+        protected int applyAccumulatedVelocitiesKernel;
         protected int calculateCurvaturesKernel;
         protected int applyNaturalForcesKernel;
         protected int moveKernel;
@@ -239,6 +241,11 @@ namespace Growth3DCompute
             int maxFaceLookupEntries = Mathf.NextPowerOfTwo(maxFaces * 9);
             spatialFaceLookupBuffer = new ComputeBuffer(maxFaceLookupEntries, sizeof(uint) * 3);
             startFaceIndicesBuffer = new ComputeBuffer(hashTableSize, sizeof(uint));
+
+            // set velocity accumulator buffer
+            velocityAccumulatorBuffer = new ComputeBuffer(maxNodes * 3, sizeof(int));
+            int[] zeros = new int[maxNodes * 3];
+            velocityAccumulatorBuffer.SetData(zeros);
         }
 
         // sets up the shape / seed of the grower
@@ -313,13 +320,14 @@ namespace Growth3DCompute
             updateEdgesKernel = computeShader.FindKernel("UpdateEdges");
             resolveFaceCollisionsKernel = computeShader.FindKernel("ResolveFaceCollisions");
             resolveEdgeCollisionsKernel = computeShader.FindKernel("ResolveEdgeCollisions");
+            applyAccumulatedVelocitiesKernel = computeShader.FindKernel("ApplyAccumulatedVelocities");
             calculateCurvaturesKernel = computeShader.FindKernel("CalculateCurvatures");
             applyNaturalForcesKernel = computeShader.FindKernel("ApplyNaturalForces");
             moveKernel = computeShader.FindKernel("MoveParticles");
 
             // Compute Shader
             ComputeHelper.SetBufferToKernels("GlobalCounters", counterBuffer, computeShader,
-                updateEdgesKernel, resolveFaceCollisionsKernel, resolveEdgeCollisionsKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
+                updateEdgesKernel, resolveFaceCollisionsKernel, resolveEdgeCollisionsKernel, applyAccumulatedVelocitiesKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("GlobalCounters", counterBuffer, splitterShader,
                 unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
@@ -327,7 +335,7 @@ namespace Growth3DCompute
                 markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
             ComputeHelper.SetBufferToKernels("Nodes", nodeBuffer, computeShader,
-                updateEdgesKernel, resolveFaceCollisionsKernel, resolveEdgeCollisionsKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
+                updateEdgesKernel, resolveFaceCollisionsKernel, resolveEdgeCollisionsKernel, applyAccumulatedVelocitiesKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("Nodes", nodeBuffer, splitterShader, 
                 unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
 
@@ -365,6 +373,9 @@ namespace Growth3DCompute
                 updateEdgesKernel, calculateCurvaturesKernel, applyNaturalForcesKernel, moveKernel);
             ComputeHelper.SetBufferToKernels("NodeTypes", nodeTypesBuffer, splitterShader,
                 unlockEdgesKernel, findIndependentSetKernel, markEdgesKernel, evaluateSplitsKernel, unlockNodesKernel, markFlippableEdgesKernel, evaluateFlipsKernel);
+        
+            ComputeHelper.SetBufferToKernels("AccumulatedVelocityInt", velocityAccumulatorBuffer, computeShader,
+                resolveEdgeCollisionsKernel, applyAccumulatedVelocitiesKernel);
         }
         #endregion
 
@@ -553,7 +564,8 @@ namespace Growth3DCompute
 
             computeShader.Dispatch(updateEdgesKernel, finalThreadGroupsEdges, 1, 1);
             computeShader.Dispatch(resolveFaceCollisionsKernel, finalThreadGroupsNodes, 1, 1);
-            //computeShader.Dispatch(resolveEdgeCollisionsKernel, finalThreadGroupsNodes, 1, 1);
+            //computeShader.Dispatch(resolveEdgeCollisionsKernel, finalThreadGroupsEdges, 1, 1);
+            //computeShader.Dispatch(applyAccumulatedVelocitiesKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(calculateCurvaturesKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(applyNaturalForcesKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(moveKernel, finalThreadGroupsNodes, 1, 1);
@@ -575,6 +587,7 @@ namespace Growth3DCompute
                 startEdgeIndicesBuffer,
                 spatialFaceLookupBuffer,
                 startFaceIndicesBuffer,
+                velocityAccumulatorBuffer,
 
                 counterBuffer, 
                 nodeLocksBuffer,

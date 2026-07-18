@@ -672,17 +672,17 @@ MonoBehaviour:
     laplacianSmoothing: 1.38
     switchTime: 10
     targetType: 0
-    inheritanceWeight: 1
+    inheritanceWeight: 0
     childType: 0
   - mass: 2.06
     drag: 2.19
-    growthRate: 0.96
+    growthRate: 11.09
     turgorPressure: 0.4
     laplacianSmoothing: 1.38
     switchTime: -1
     targetType: 1
     inheritanceWeight: 1
-    childType: 0
+    childType: 1
   computeRunner: {fileID: 610078303}
 --- !u!4 &610078306
 Transform:

@@ -3,6 +3,7 @@
 
 #pragma kernel ResolveFaceCollisions
 #pragma kernel ResolveEdgeCollisions
+#pragma kernel ApplyAccumulatedVelocities
 
 #pragma kernel CalculateCurvatures
 #pragma kernel ApplyNaturalForces
@@ -51,10 +52,22 @@ StructuredBuffer<Entry> FaceSpatialLookup;
 StructuredBuffer<uint> FaceStartIndices;
 uint paddedFaceLookupCount;
 
-//RWByteAddressBuffer NodeCounter; 
-
 RWByteAddressBuffer GlobalCounters;
 
+// accumulator for velocities to be applied after all collisions are resolved
+#define FLOAT_TO_INT_SCALE 10000.0f 
+RWStructuredBuffer<int> AccumulatedVelocityInt;
+
+void AtomicAddVelocity(uint nodeIndex, float3 velocityToAdd)
+{
+    int3 intVel = (int3) (velocityToAdd * FLOAT_TO_INT_SCALE);
+    
+    uint base = nodeIndex * 3;
+    
+    InterlockedAdd(AccumulatedVelocityInt[base], intVel.x);
+    InterlockedAdd(AccumulatedVelocityInt[base + 1], intVel.y);
+    InterlockedAdd(AccumulatedVelocityInt[base + 2], intVel.z);
+}
 
 // UPDATE EDGES
 // this kernel updates the edges based on the current state of the nodes and their growth rates. 
@@ -197,135 +210,132 @@ void ResolveFaceCollisions(uint3 id : SV_DispatchThreadID)
     Nodes[index] = node;
 }
 
-
-// RESOLVE EDGE COLLISIONS
 [numthreads(64, 1, 1)]
 void ResolveEdgeCollisions(uint3 id : SV_DispatchThreadID)
 {
+    uint edgeIndex = id.x;
+    int edgeCount = GlobalCounters.Load(4);
+
+    if (edgeIndex >= edgeCount)
+        return;
+    
+    HalfEdge3D myEdge = HalfEdges[edgeIndex];
+    
+    // Prevent double-counting twins
+    if (myEdge.twin != UINT_MAX && edgeIndex > myEdge.twin)
+        return;
+    
+    
+    float3 p1 = Nodes[myEdge.origin].position;
+    float3 q1 = Nodes[myEdge.target].position;
+    
+    float3 edgeCenter = (p1 + q1) * 0.5f;
+    int3 currCell = PositionToCellCoord(edgeCenter, separationDistance);
+    
+    float collisionRadius = separationDistance * 0.5f;
+    float collisionStiffness = 50.0f;
+    
+    [loop]
+    for (uint i = 0; i < 27; i++)
+    {
+        int3 offset = Offsets3D[i];
+        int3 targetCell = currCell + offset;
+        
+        uint hash = HashCell(targetCell.x, targetCell.y, targetCell.z);
+        uint cellKey = KeyFromHash(hash, hashTableSize);
+        uint startIndex = EdgeStartIndices[cellKey];
+        
+        if (cellKey == UINT_MAX || startIndex == UINT_MAX)
+            continue;
+        
+        [loop]
+        for (uint j = startIndex; j < paddedEdgeLookupCount; j++)
+        {
+            Entry entry = EdgeSpatialLookup[j];
+            
+            if (entry.cellKey != cellKey || entry.hash != hash)
+                break;
+            
+            HalfEdge3D otherEdge = HalfEdges[entry.index];
+            
+            // enforce an order, preventing double-counting edge pairs (eg . edge 5 vs edge 7 and edge 7 vs edge 5)
+            if (edgeIndex >= entry.index)
+                continue;
+            
+            // exclude edges that share a vertex (topological neighbors)
+            if (myEdge.origin == otherEdge.origin || myEdge.origin == otherEdge.target ||
+                myEdge.target == otherEdge.origin || myEdge.target == otherEdge.target)
+                continue;
+                
+            // Do the Edge-Edge Math
+            
+            // find closest points between the two edges
+            float s, t; // parameterized positions along the edges (0.0 to 1.0)
+            float3 c1, c2; // actual closest points in 3D space
+            
+            ClosestPointsOnTwoLineSegments(p1, q1,
+                Nodes[otherEdge.origin].position, Nodes[otherEdge.target].position, s, t, c1, c2);
+            
+            bool isColliding = (length(c1 - c2) < collisionRadius);
+            
+            // apply forces to all four nodes involved in the edge-edge collision at the same time
+            // note: must use interlocked operations
+            if (isColliding)
+            {
+                float3 delta = c1 - c2;
+                float dist = length(delta);
+    
+                // Prevent division by zero
+                if (dist > 0.0001f)
+                {
+                    float3 pushDir = delta / dist;
+                    float penetration = collisionRadius - dist;
+        
+                    // Calculate the total impulse vector to separate the edges
+                    float3 impulse = pushDir * (penetration * collisionStiffness * deltaTime);
+        
+                    // Barycentric distribution based on where the collision happened on the segments
+                    // myEdge gets pushed in +pushDir, otherEdge gets pushed in -pushDir
+                    float3 forceMyOrigin = impulse * (1.0f - s);
+                    float3 forceMyTarget = impulse * s;
+                    float3 forceOtherOrigin = -impulse * (1.0f - t);
+                    float3 forceOtherTarget = -impulse * t;
+        
+                    // Atomically add to the accumulator buffer
+                    AtomicAddVelocity(myEdge.origin, forceMyOrigin);
+                    AtomicAddVelocity(myEdge.target, forceMyTarget);
+                    AtomicAddVelocity(otherEdge.origin, forceOtherOrigin);
+                    AtomicAddVelocity(otherEdge.target, forceOtherTarget);
+                }
+            }
+        }
+    }
+}
+
+// run after the collision shader finishes
+[numthreads(64, 1, 1)]
+void ApplyAccumulatedVelocities(uint3 id : SV_DispatchThreadID)
+{
     uint index = id.x;
     int nodeCount = GlobalCounters.Load(0);
-    
+
     if (index >= nodeCount)
         return;
     
-    Node3D node = Nodes[index];
+    int xVel = AccumulatedVelocityInt[index * 3 + 0];
+    int yVel = AccumulatedVelocityInt[index * 3 + 1];
+    int zVel = AccumulatedVelocityInt[index * 3 + 2];
     
-    // Edges are thin, so we use a slightly smaller collision radius than faces
-    float collisionRadius = separationDistance * 0.25f;
-    float collisionStiffness = 50.0f;
+    int3 accIntVel = int3(xVel, yVel, zVel);
     
-    // Gather 1-Ring Neighbors for Topological Exclusion
-    uint neighbors[16];
-    int neighborCount = 0;
-    uint startEdge = node.halfEdge;
-    uint currEdge = startEdge;
+    // Convert back to float and add to the actual velocity
+    float3 finalVelDelta = (float3) accIntVel / FLOAT_TO_INT_SCALE;
+    Nodes[index].velocity += finalVelDelta;
     
-    if (startEdge != UINT_MAX)
-    {
-        for (int k = 0; k < 16; k++)
-        {
-            neighbors[neighborCount++] = HalfEdges[currEdge].target;
-            uint twin = HalfEdges[currEdge].twin;
-            currEdge = HalfEdges[twin].next;
-            if (currEdge == startEdge)
-                break;
-        }
-    }
-    
-    // Loop through all outgoing edges from this node
-    currEdge = startEdge;
-    if (startEdge != UINT_MAX)
-    {
-        for (int k = 0; k < 16; k++)
-        {
-            uint neighborIndex = HalfEdges[currEdge].target;
-            Node3D neighborNode = Nodes[neighborIndex];
-            
-            float3 p1 = node.position;
-            float3 q1 = neighborNode.position;
-            
-            // Look up the spatial hash based on the MIDPOINT of this edge
-            float3 edgeCenter = (p1 + q1) * 0.5f;
-            int3 currCell = PositionToCellCoord(edgeCenter, separationDistance);
-            
-            for (uint i = 0; i < 27; i++)
-            {
-                int3 offset = Offsets3D[i];
-                int3 targetCell = currCell + offset;
-                
-                uint hash = HashCell(targetCell.x, targetCell.y, targetCell.z);
-                uint cellKey = KeyFromHash(hash, hashTableSize);
-                uint startIndex = EdgeStartIndices[cellKey];
-                
-                if (cellKey == UINT_MAX || startIndex == UINT_MAX)
-                    continue;
-                    
-                for (uint j = startIndex; j < paddedEdgeLookupCount; j++)
-                {
-                    Entry entry = EdgeSpatialLookup[j];
-                    
-                    if (entry.cellKey != cellKey)
-                        break;
-                    if (entry.hash != hash)
-                        continue;
-                    
-                    HalfEdge3D otherEdge = HalfEdges[entry.index];
-                    uint nA = otherEdge.origin;
-                    uint nB = otherEdge.target;
-                    
-                    // Topological Exclusion: Skip if the other edge is connected to us or our immediate neighbors
-                    bool isNeighborEdge = false;
-                    if (nA == index || nB == index)
-                        isNeighborEdge = true;
-                    
-                    for (int n = 0; n < neighborCount; n++)
-                    {
-                        if (neighbors[n] == nA || neighbors[n] == nB)
-                        {
-                            isNeighborEdge = true;
-                            break;
-                        }
-                    }
-                    if (isNeighborEdge)
-                        continue;
-                    
-                    // Do the Edge-Edge Math!
-                    float3 p2 = Nodes[nA].position;
-                    float3 q2 = Nodes[nB].position;
-                    
-                    float s, t;
-                    float3 c1, c2;
-                    ClosestPointsOnTwoLineSegments(p1, q1, p2, q2, s, t, c1, c2);
-                    
-                    float3 delta = c1 - c2;
-                    float distSq = dot(delta, delta);
-                    
-                    if (distSq > 0.000001f && distSq < (collisionRadius * collisionRadius))
-                    {
-                        float dist = sqrt(distSq);
-                        float3 pushDir = delta / dist;
-                        float penetration = collisionRadius - dist;
-                        
-                        float birthGrace = smoothstep(0.0f, 0.5f, node.age);
-                        float rawForce = penetration * collisionStiffness * birthGrace;
-                        float finalForce = min(rawForce, 25.0f); // Velocity clamp
-                        
-                        // Barycentric weight: Apply force based on how close the collision is to THIS node (s=0 means at p1)
-                        float weight = 1.0f - s;
-                        
-                        node.velocity += pushDir * finalForce * weight * deltaTime;
-                    }
-                }
-            }
-            
-            uint twin = HalfEdges[currEdge].twin;
-            currEdge = HalfEdges[twin].next;
-            if (currEdge == startEdge)
-                break;
-        }
-    }
-    
-    Nodes[index] = node;
+    // Reset the accumulator for the next frame
+    AccumulatedVelocityInt[index * 3 + 0] = 0;
+    AccumulatedVelocityInt[index * 3 + 1] = 0;
+    AccumulatedVelocityInt[index * 3 + 2] = 0;
 }
 
 
