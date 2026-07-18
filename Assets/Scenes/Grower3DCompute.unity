@@ -119,6 +119,190 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &2174500
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2174506}
+  - component: {fileID: 2174501}
+  - component: {fileID: 2174504}
+  - component: {fileID: 2174503}
+  - component: {fileID: 2174502}
+  - component: {fileID: 2174505}
+  m_Layer: 0
+  m_Name: Grower 3D Compute
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2174501
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2174500}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3de46defec812994083af36645060d6c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxNodes: 2000
+  nodeCount: 0
+  faceCount: 0
+  halfEdgeCount: 0
+  genotype: {fileID: 2174505}
+  separationForce: 1.25
+  separationDistance: 7.6
+  gravity: 0.6
+  baseRestLength: 2
+  springStiffness: 5.99
+  springDamping: 1
+  lateralDamping: 1
+  splitDistanceThreshold: 4
+  computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
+  splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
+  spatialHashRunner: {fileID: 2174504}
+  spatialHashEdgeRunner: {fileID: 2174503}
+  spatialHashFaceRunner: {fileID: 2174502}
+  enableSplitting: 1
+  selfCollisions: 0
+  enableDebugLogs: 0
+  defaultShapeType: 1
+  debug_totalAuxin: 0
+--- !u!114 &2174502
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2174500}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d931be86e058b8942b2f770f517cd39e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spatialHashCompute: {fileID: 7200000, guid: 70a715b15bc7f434caab87c84834540f, type: 3}
+  showDebugGrid: 0
+--- !u!114 &2174503
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2174500}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4dcb607a9d97f242ae1f96d5a4c315c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spatialHashCompute: {fileID: 7200000, guid: 22e0e142098cc82469601951d9bd4d34, type: 3}
+  showDebugGrid: 0
+--- !u!114 &2174504
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2174500}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2fe120f6d9ea0243996afe6732a40dc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spatialHashCompute: {fileID: 7200000, guid: 3e69aeeb657a8554d866d6b9563cf005, type: 3}
+  showDebugGrid: 0
+--- !u!114 &2174505
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2174500}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c04127b527fec24fb7d6827dfc66200, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  baseNodeTypes:
+  - mass: 1.98
+    drag: 30.77
+    growthRate: 0
+    turgorPressure: 0
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 2
+    inheritanceWeight: 0
+    childType: 0
+    auxinGenerationRate: 0
+    auxinTransportRate: 1.05
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0
+    auxinThreshold: 2
+  - mass: 2.06
+    drag: 9.12
+    growthRate: 1.87
+    turgorPressure: 0.4
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 1
+    inheritanceWeight: 1
+    childType: 0
+    auxinGenerationRate: 0.6
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.66
+    auxinStealRate: 0
+    auxinThreshold: 0
+  - mass: 2.06
+    drag: 1.78
+    growthRate: 0.9
+    turgorPressure: 0.4
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 2
+    inheritanceWeight: 2
+    childType: 3
+    auxinGenerationRate: 0.19
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.23
+    auxinStealRate: 0
+    auxinThreshold: 33.76
+  - mass: 2.06
+    drag: 30.77
+    growthRate: 0
+    turgorPressure: 0
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 3
+    inheritanceWeight: 0
+    childType: 3
+    auxinGenerationRate: -0.73
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0.38
+    auxinThreshold: 50.32
+  computeRunner: {fileID: 2174501}
+--- !u!4 &2174506
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2174500}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.28851977, y: -0.04293516, z: 0.020564094}
+  m_LocalScale: {x: 7.13, y: 7.13, z: 7.13}
+  m_ConstrainProportionsScale: 1
+  m_Children: []
+  m_Father: {fileID: 801181583}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &18305532
 GameObject:
   m_ObjectHideFlags: 0
@@ -260,6 +444,7 @@ MonoBehaviour:
   spatialHashEdgeRunner: {fileID: 0}
   spatialHashFaceRunner: {fileID: 0}
   enableSplitting: 1
+  selfCollisions: 1
   enableDebugLogs: 0
   defaultShapeType: 0
   debug_totalAuxin: 0
@@ -306,7 +491,7 @@ GameObject:
   m_Component:
   - component: {fileID: 51667901}
   m_Layer: 0
-  m_Name: Grower_flower2
+  m_Name: Grower_flower thing
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -327,6 +512,39 @@ Transform:
   m_Children:
   - {fileID: 696636875}
   - {fileID: 1584528940}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &157661268
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 157661269}
+  m_Layer: 0
+  m_Name: Grower_tree (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &157661269
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 157661268}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1307367335}
+  - {fileID: 1602524958}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &330585543
@@ -516,6 +734,7 @@ MonoBehaviour:
   spatialHashEdgeRunner: {fileID: 0}
   spatialHashFaceRunner: {fileID: 0}
   enableSplitting: 1
+  selfCollisions: 1
   enableDebugLogs: 0
   defaultShapeType: 2
   debug_totalAuxin: 0
@@ -558,7 +777,8 @@ MonoBehaviour:
     childType: 2
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   - mass: 5
     drag: 1.32
@@ -571,7 +791,8 @@ MonoBehaviour:
     childType: 3
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   - mass: 6.51
     drag: 47.1
@@ -584,7 +805,8 @@ MonoBehaviour:
     childType: 3
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   - mass: 20
     drag: 100
@@ -597,7 +819,8 @@ MonoBehaviour:
     childType: 3
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   computeRunner: {fileID: 433824274}
 --- !u!4 &433824277
@@ -615,6 +838,161 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2141731675}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &594660555
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 594660556}
+  - component: {fileID: 594660562}
+  - component: {fileID: 594660561}
+  - component: {fileID: 594660560}
+  - component: {fileID: 594660559}
+  - component: {fileID: 594660558}
+  - component: {fileID: 594660557}
+  m_Layer: 0
+  m_Name: Grower Renderer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &594660556
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 594660555}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 801181583}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!23 &594660557
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 594660555}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 8c25c98306d58924c864e4212ebb95b9, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &594660558
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 594660555}
+  m_Mesh: {fileID: 0}
+--- !u!114 &594660559
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 594660555}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d206e9fb8126ae246a85c019f54be2f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  edgeMaterial: {fileID: 2100000, guid: f37636735fc4ce44dbadc5ddf5a872fd, type: 2}
+  maxVelocity: 5
+--- !u!114 &594660560
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 594660555}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32daf2006198a6649b16aaa8c600bc71, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  particleMaterial: {fileID: 2100000, guid: bbfe7e2d319719d48a93e1b8a2f6fa47, type: 2}
+  particleMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+  radius: 1
+  maxVelocity: 5
+--- !u!114 &594660561
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 594660555}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3aefc08abe830c44c986057b5381d9ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  particleMaterial: {fileID: 2100000, guid: 7b05ee14c78fa1c45b0ed936ed2864ed, type: 2}
+  particleMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+  radius: 1
+  maxVelocity: 5
+  computeRunner: {fileID: 2174501}
+--- !u!114 &594660562
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 594660555}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9573214f0c40d0644b48ac33d7a1e32a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  computeRunner: {fileID: 2174501}
+  subdivisions: 1
+  particleRenderer: {fileID: 594660561}
+  edgeRenderer: {fileID: 594660559}
+  nodeHoardMeshFilter: {fileID: 594660558}
+  debugNodeTypes: 1
 --- !u!1 &610078302
 GameObject:
   m_ObjectHideFlags: 0
@@ -653,20 +1031,21 @@ MonoBehaviour:
   faceCount: 0
   halfEdgeCount: 0
   genotype: {fileID: 610078305}
-  separationForce: 5
+  separationForce: 1.25
   separationDistance: 7.6
   gravity: 0
-  baseRestLength: 4
-  springStiffness: 10
+  baseRestLength: 2
+  springStiffness: 5.99
   springDamping: 1
   lateralDamping: 1
-  splitDistanceThreshold: 8
+  splitDistanceThreshold: 4
   computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
   splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
   spatialHashRunner: {fileID: 610078307}
   spatialHashEdgeRunner: {fileID: 610078309}
   spatialHashFaceRunner: {fileID: 610078308}
   enableSplitting: 1
+  selfCollisions: 0
   enableDebugLogs: 0
   defaultShapeType: 1
   debug_totalAuxin: 0
@@ -690,26 +1069,56 @@ MonoBehaviour:
     turgorPressure: 0
     laplacianSmoothing: 1.38
     switchTime: -1
-    targetType: 0
+    targetType: 2
     inheritanceWeight: 0
     childType: 0
-    auxinGenerationRate: 0.1
-    auxinTransportRate: 0
-    auxinAbsorptionRate: 0
-    auxinThreshold: 0
+    auxinGenerationRate: 0
+    auxinTransportRate: 1.05
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0
+    auxinThreshold: 2
   - mass: 2.06
     drag: 2.19
-    growthRate: 0.26
+    growthRate: 1.87
     turgorPressure: 0.4
     laplacianSmoothing: 1.38
     switchTime: -1
     targetType: 1
     inheritanceWeight: 1
-    childType: 1
-    auxinGenerationRate: 0
+    childType: 0
+    auxinGenerationRate: 0.6
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0.66
+    auxinStealRate: 0
     auxinThreshold: 0
+  - mass: 2.06
+    drag: 1.78
+    growthRate: 1.73
+    turgorPressure: 0.4
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 2
+    inheritanceWeight: 2
+    childType: 3
+    auxinGenerationRate: 0.19
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.23
+    auxinStealRate: 0
+    auxinThreshold: 33.76
+  - mass: 2.06
+    drag: 30.77
+    growthRate: 0
+    turgorPressure: 0
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 3
+    inheritanceWeight: 0
+    childType: 3
+    auxinGenerationRate: -0.73
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0.38
+    auxinThreshold: 50.32
   computeRunner: {fileID: 610078303}
 --- !u!4 &610078306
 Transform:
@@ -820,6 +1229,7 @@ MonoBehaviour:
   spatialHashEdgeRunner: {fileID: 696636878}
   spatialHashFaceRunner: {fileID: 696636876}
   enableSplitting: 1
+  selfCollisions: 1
   enableDebugLogs: 0
   defaultShapeType: 2
   debug_totalAuxin: 0
@@ -848,7 +1258,8 @@ MonoBehaviour:
     childType: 2
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   - mass: 5
     drag: 15.7
@@ -861,7 +1272,8 @@ MonoBehaviour:
     childType: 3
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   - mass: 2.6
     drag: 12
@@ -874,7 +1286,8 @@ MonoBehaviour:
     childType: 4
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   - mass: 20
     drag: 100
@@ -887,7 +1300,8 @@ MonoBehaviour:
     childType: 3
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   - mass: 2.6
     drag: 27.6
@@ -900,7 +1314,8 @@ MonoBehaviour:
     childType: 4
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   computeRunner: {fileID: 696636872}
 --- !u!4 &696636875
@@ -1010,6 +1425,7 @@ MonoBehaviour:
   spatialHashEdgeRunner: {fileID: 0}
   spatialHashFaceRunner: {fileID: 0}
   enableSplitting: 1
+  selfCollisions: 1
   enableDebugLogs: 0
   defaultShapeType: 1
   debug_totalAuxin: 0
@@ -1052,7 +1468,8 @@ MonoBehaviour:
     childType: 0
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   - mass: 1
     drag: 3
@@ -1065,7 +1482,8 @@ MonoBehaviour:
     childType: 0
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   - mass: 2.99
     drag: 5
@@ -1078,7 +1496,8 @@ MonoBehaviour:
     childType: 3
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   - mass: 1
     drag: 9.9
@@ -1091,7 +1510,8 @@ MonoBehaviour:
     childType: 0
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   - mass: 27.8
     drag: 19.1
@@ -1104,7 +1524,8 @@ MonoBehaviour:
     childType: 0
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   computeRunner: {fileID: 710712403}
 --- !u!4 &710712406
@@ -1132,7 +1553,7 @@ GameObject:
   m_Component:
   - component: {fileID: 739128564}
   m_Layer: 0
-  m_Name: Grower_flower2 (1)
+  m_Name: Grower_tree
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1153,6 +1574,39 @@ Transform:
   m_Children:
   - {fileID: 610078306}
   - {fileID: 1183562616}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &801181582
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 801181583}
+  m_Layer: 0
+  m_Name: Grower_tree 2
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &801181583
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 801181582}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2174506}
+  - {fileID: 594660556}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1183562615
@@ -1310,6 +1764,190 @@ MonoBehaviour:
   radius: 1
   maxVelocity: 5
   computeRunner: {fileID: 610078303}
+--- !u!1 &1307367329
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1307367335}
+  - component: {fileID: 1307367330}
+  - component: {fileID: 1307367333}
+  - component: {fileID: 1307367332}
+  - component: {fileID: 1307367331}
+  - component: {fileID: 1307367334}
+  m_Layer: 0
+  m_Name: Grower 3D Compute
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1307367330
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1307367329}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3de46defec812994083af36645060d6c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxNodes: 2000
+  nodeCount: 0
+  faceCount: 0
+  halfEdgeCount: 0
+  genotype: {fileID: 1307367334}
+  separationForce: 1.25
+  separationDistance: 7.6
+  gravity: 0
+  baseRestLength: 2
+  springStiffness: 5.99
+  springDamping: 1
+  lateralDamping: 1
+  splitDistanceThreshold: 4
+  computeShader: {fileID: 7200000, guid: 2a28bc7f51226f34c918a8a290a121e7, type: 3}
+  splitterShader: {fileID: 7200000, guid: 29e3d5bec3902f94fbf46f8682def9d1, type: 3}
+  spatialHashRunner: {fileID: 1307367333}
+  spatialHashEdgeRunner: {fileID: 1307367332}
+  spatialHashFaceRunner: {fileID: 1307367331}
+  enableSplitting: 1
+  selfCollisions: 0
+  enableDebugLogs: 0
+  defaultShapeType: 1
+  debug_totalAuxin: 0
+--- !u!114 &1307367331
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1307367329}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d931be86e058b8942b2f770f517cd39e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spatialHashCompute: {fileID: 7200000, guid: 70a715b15bc7f434caab87c84834540f, type: 3}
+  showDebugGrid: 0
+--- !u!114 &1307367332
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1307367329}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4dcb607a9d97f242ae1f96d5a4c315c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spatialHashCompute: {fileID: 7200000, guid: 22e0e142098cc82469601951d9bd4d34, type: 3}
+  showDebugGrid: 0
+--- !u!114 &1307367333
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1307367329}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2fe120f6d9ea0243996afe6732a40dc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spatialHashCompute: {fileID: 7200000, guid: 3e69aeeb657a8554d866d6b9563cf005, type: 3}
+  showDebugGrid: 0
+--- !u!114 &1307367334
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1307367329}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c04127b527fec24fb7d6827dfc66200, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  baseNodeTypes:
+  - mass: 1.98
+    drag: 30.77
+    growthRate: 0
+    turgorPressure: 0
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 2
+    inheritanceWeight: 0
+    childType: 0
+    auxinGenerationRate: 0
+    auxinTransportRate: 1.05
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0
+    auxinThreshold: 2
+  - mass: 2.06
+    drag: 2.19
+    growthRate: 1.87
+    turgorPressure: 0.4
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 1
+    inheritanceWeight: 1
+    childType: 0
+    auxinGenerationRate: 0.6
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.66
+    auxinStealRate: 0
+    auxinThreshold: 0
+  - mass: 2.06
+    drag: 1.78
+    growthRate: 1.73
+    turgorPressure: 0.4
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 2
+    inheritanceWeight: 2
+    childType: 3
+    auxinGenerationRate: 0.19
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.23
+    auxinStealRate: 0
+    auxinThreshold: 33.76
+  - mass: 2.06
+    drag: 30.77
+    growthRate: 0
+    turgorPressure: 0
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 3
+    inheritanceWeight: 0
+    childType: 3
+    auxinGenerationRate: -0.73
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0.38
+    auxinThreshold: 50.32
+  computeRunner: {fileID: 1307367330}
+--- !u!4 &1307367335
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1307367329}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.28851977, y: -0.04293516, z: 0.020564094}
+  m_LocalScale: {x: 7.13, y: 7.13, z: 7.13}
+  m_ConstrainProportionsScale: 1
+  m_Children: []
+  m_Father: {fileID: 157661269}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1540652528
 GameObject:
   m_ObjectHideFlags: 0
@@ -1705,6 +2343,161 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 87.89, y: 0, z: 0}
+--- !u!1 &1602524957
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1602524958}
+  - component: {fileID: 1602524964}
+  - component: {fileID: 1602524963}
+  - component: {fileID: 1602524962}
+  - component: {fileID: 1602524961}
+  - component: {fileID: 1602524960}
+  - component: {fileID: 1602524959}
+  m_Layer: 0
+  m_Name: Grower Renderer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1602524958
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1602524957}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 157661269}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!23 &1602524959
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1602524957}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 8c25c98306d58924c864e4212ebb95b9, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &1602524960
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1602524957}
+  m_Mesh: {fileID: 0}
+--- !u!114 &1602524961
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1602524957}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d206e9fb8126ae246a85c019f54be2f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  edgeMaterial: {fileID: 2100000, guid: f37636735fc4ce44dbadc5ddf5a872fd, type: 2}
+  maxVelocity: 5
+--- !u!114 &1602524962
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1602524957}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32daf2006198a6649b16aaa8c600bc71, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  particleMaterial: {fileID: 2100000, guid: bbfe7e2d319719d48a93e1b8a2f6fa47, type: 2}
+  particleMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+  radius: 1
+  maxVelocity: 5
+--- !u!114 &1602524963
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1602524957}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3aefc08abe830c44c986057b5381d9ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  particleMaterial: {fileID: 2100000, guid: 7b05ee14c78fa1c45b0ed936ed2864ed, type: 2}
+  particleMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+  radius: 1
+  maxVelocity: 5
+  computeRunner: {fileID: 1307367330}
+--- !u!114 &1602524964
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1602524957}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9573214f0c40d0644b48ac33d7a1e32a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  computeRunner: {fileID: 1307367330}
+  subdivisions: 1
+  particleRenderer: {fileID: 1602524963}
+  edgeRenderer: {fileID: 1602524961}
+  nodeHoardMeshFilter: {fileID: 1602524960}
+  debugNodeTypes: 1
 --- !u!1 &1946248732
 GameObject:
   m_ObjectHideFlags: 0
@@ -2111,6 +2904,7 @@ MonoBehaviour:
   spatialHashEdgeRunner: {fileID: 0}
   spatialHashFaceRunner: {fileID: 9206847156027151493}
   enableSplitting: 1
+  selfCollisions: 1
   enableDebugLogs: 0
   defaultShapeType: 1
   debug_totalAuxin: 0
@@ -2153,7 +2947,8 @@ MonoBehaviour:
     childType: 0
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   - mass: 1
     drag: 6.97
@@ -2166,7 +2961,8 @@ MonoBehaviour:
     childType: 0
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   - mass: 1
     drag: 30
@@ -2179,7 +2975,8 @@ MonoBehaviour:
     childType: 2
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinAbsorptionRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 0
   computeRunner: {fileID: 9206847156027151490}
 --- !u!114 &9206847156027151493
@@ -2207,4 +3004,6 @@ SceneRoots:
   - {fileID: 38157666}
   - {fileID: 2141731675}
   - {fileID: 51667901}
+  - {fileID: 157661269}
   - {fileID: 739128564}
+  - {fileID: 801181583}

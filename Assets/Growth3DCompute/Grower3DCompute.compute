@@ -235,7 +235,7 @@ void ResolveEdgeCollisions(uint3 id : SV_DispatchThreadID)
     
     HalfEdge3D myEdge = HalfEdges[edgeIndex];
     
-    // Prevent double-counting twins
+    // prevent double-counting twins
     if (myEdge.twin != UINT_MAX && edgeIndex > myEdge.twin)
         return;
     
@@ -245,10 +245,9 @@ void ResolveEdgeCollisions(uint3 id : SV_DispatchThreadID)
     float3 edgeCenter = (p1 + q1) * 0.5f;
     int3 currCell = PositionToCellCoord(edgeCenter, separationDistance);
     
-    float collisionRadius = separationDistance * 0.5f;
+    float collisionRadius = separationDistance * 0.1f;
     float collisionStiffness = 50.0f;
     
-    [loop]
     for (uint i = 0; i < 27; i++)
     {
         int3 offset = Offsets3D[i];
@@ -261,7 +260,6 @@ void ResolveEdgeCollisions(uint3 id : SV_DispatchThreadID)
         if (cellKey == UINT_MAX || startIndex == UINT_MAX)
             continue;
         
-        [loop]
         for (uint j = startIndex; j < paddedEdgeLookupCount; j++)
         {
             Entry entry = EdgeSpatialLookup[j];
@@ -398,7 +396,6 @@ void CalculateCurvatures(uint3 id : SV_DispatchThreadID)
 }
 
 
-// update node auxin levels
 [numthreads(64, 1, 1)]
 void UpdateAuxinLevels(uint3 id : SV_DispatchThreadID)
 {
@@ -411,89 +408,114 @@ void UpdateAuxinLevels(uint3 id : SV_DispatchThreadID)
     Node3D node = Nodes[index];
     NodeType info = node.type;
     int _;
+
+    float myCurrentAuxin = node.currAuxinLevel;
     
-    // increase auxin level
-    AtomicAddAuxin(index, info.auxinGenerationRate * deltaTime, _);
+    // GENERATION
+    float generation = info.auxinGenerationRate * deltaTime;
+    if (myCurrentAuxin + generation < 0)
+    {
+        generation = -myCurrentAuxin; // Prevent dropping below 0
+    }
+    myCurrentAuxin += generation;
     
-    // look around nearby and find the neighbor with the highest auxin level
+    // DIFFUSION (find the max neighbor for canalization)
     HalfEdge3D currEdge = HalfEdges[node.halfEdge];
-    float maxAuxinLevel = node.currAuxinLevel;
+    float maxAuxinLevel = node.currAuxinLevel; // We look at base levels for canalization
     int maxAuxinNeighborIndex = -1;
+    
+    float netDiffusionForMe = 0;
+    
+    float totalStolenForMe = 0; // Track our loot
     
     for (int j = 0; j < 64; j++)
     {
         uint neighborNodeIndex = currEdge.target;
         Node3D neighbor = Nodes[neighborNodeIndex];
         
+        // canalization
         if (neighbor.currAuxinLevel > maxAuxinLevel)
         {
             maxAuxinLevel = neighbor.currAuxinLevel;
             maxAuxinNeighborIndex = neighborNodeIndex;
         }
         
-        currEdge = HalfEdges[HalfEdges[currEdge.twin].next];
+        // PASSIVE DIFFUSION
+        float gradient = neighbor.currAuxinLevel - node.currAuxinLevel;
         
-            
-        // absorb auxin from neighbors (we ensure this doesnt generate new auxin)
-        float requestedAbsorption = info.auxinAbsorptionRate * deltaTime;
-
-        int oldAccumulator;
-        AtomicAddAuxin(
-            neighborNodeIndex,
-            -requestedAbsorption,
-            oldAccumulator
-        );
-
-        // Calculate how much auxin the neighbor actually had available
-        float previousPending =
-            (float) oldAccumulator / FLOAT_TO_INT_SCALE;
-
-        float availableBefore =
-            neighbor.currAuxinLevel + previousPending;
-
-
-        // If we tried to take too much, refund the excess
-        float actualAbsorption = min(requestedAbsorption, max(availableBefore, 0));
-
-        float refund = requestedAbsorption - actualAbsorption;
-
-        if (refund > 0)
+        float edgeDiffusionRate = (info.auxinDiffusionRate + neighbor.type.auxinDiffusionRate) * 0.5f;
+        // Multiply by 0.5 because the neighbor thread will apply the other half to itself
+        netDiffusionForMe += gradient * edgeDiffusionRate * 0.5f * deltaTime;
+        
+        // STEALING
+        if (info.auxinStealRate > 0)
         {
+            // absorb auxin from neighbors (we ensure this doesnt generate new auxin)
+            float requestedSteal = info.auxinStealRate * deltaTime;
+
+            int oldAccumulator;
             AtomicAddAuxin(
                 neighborNodeIndex,
-                refund,
+                -requestedSteal,
                 oldAccumulator
             );
-        }
 
-        // Give absorbed auxin to this node
-        AtomicAddAuxin(
-            index,
-            actualAbsorption,
-            oldAccumulator
-        );
+            // Calculate how much auxin the neighbor actually had available
+            float previousPending =
+                (float) oldAccumulator / FLOAT_TO_INT_SCALE;
+
+            float availableBefore =
+                neighbor.currAuxinLevel + previousPending;
+
+            // If we tried to take too much, refund the excess
+            float actualSteal = min(requestedSteal, max(availableBefore, 0));
+
+            float refund = requestedSteal - actualSteal;
+
+            if (refund > 0)
+            {
+                AtomicAddAuxin(
+                    neighborNodeIndex,
+                    refund,
+                    oldAccumulator
+                );
+            }
+
+            // Give absorbed auxin to this node
+            totalStolenForMe += actualSteal;
+        }
         
+        currEdge = HalfEdges[HalfEdges[currEdge.twin].next];
         if (currEdge.id == node.halfEdge)
-            break; // Closed mesh, full circle complete!
+            break;
     }
     
-    // if -1, then no neighbor has a higher auxin level, so this node is the "max" in its neighborhood
-    // otherwise, pump auxin to the neighbor with the highest level
-    if (maxAuxinNeighborIndex != -1)
+    // Clamp diffusion so this node can't give away more than it currently has
+    if (myCurrentAuxin + netDiffusionForMe < 0)
     {
-        // this node is not the max, so it will send auxin to the neighbor with the highest level
+        netDiffusionForMe = -myCurrentAuxin;
+    }
+    myCurrentAuxin += netDiffusionForMe;
+    myCurrentAuxin += totalStolenForMe;
+    
+    // Apply Generation and net Diffusion to THIS node atomically in one clean step
+    AtomicAddAuxin(index, generation + netDiffusionForMe + totalStolenForMe, _);
+    
+    // ACTIVE TRANSPORT
+    // Pump to the max neighbor
+    if (maxAuxinNeighborIndex != -1 && myCurrentAuxin > 0)
+    {
         float auxinTransfer = info.auxinTransportRate * deltaTime;
         
-        // ensure we don't transfer more than we have
-        auxinTransfer = min(auxinTransfer, node.currAuxinLevel);
+        auxinTransfer = min(auxinTransfer, myCurrentAuxin);
         
+        // Take from us, give to the max neighbor
         AtomicAddAuxin(index, -auxinTransfer, _);
-        
-        // atomically add to the neighbor's auxin level
         AtomicAddAuxin(maxAuxinNeighborIndex, auxinTransfer, _);
     }
     
-    Nodes[index] = node;
+    // Notice how Nodes[index] = node; is GONE. 
+    // We let the AtomicAddAuxin calls handle memory updates!
 }
 
 [numthreads(64, 1, 1)]
@@ -505,13 +527,18 @@ void ApplyAccumulatedAuxin(uint3 id : SV_DispatchThreadID)
         return;
     
     Node3D node = Nodes[index];
-    float auxinDelta = (float) AccumulatedAuxinInt[id.x] / FLOAT_TO_INT_SCALE;
+    float auxinDelta = (float) AccumulatedAuxinInt[index] / FLOAT_TO_INT_SCALE;
     
-    InterlockedAdd(TotalAuxin[0], AccumulatedAuxinInt[id.x]);
+    float newAuxinLevel = max(node.currAuxinLevel + auxinDelta, 0.0f);
     
-    node.currAuxinLevel = max(node.currAuxinLevel + auxinDelta, 0);
+    float actualDelta = newAuxinLevel - node.currAuxinLevel;
     
-    AccumulatedAuxinInt[id.x] = 0; // reset for next frame
+    int actualDeltaInt = (int) (actualDelta * FLOAT_TO_INT_SCALE);
+    InterlockedAdd(TotalAuxin[0], actualDeltaInt);
+    
+    node.currAuxinLevel = newAuxinLevel;
+    
+    AccumulatedAuxinInt[index] = 0; // reset for next frame
     Nodes[index] = node;
 }
 
@@ -742,7 +769,7 @@ void MoveParticles (uint3 id : SV_DispatchThreadID)
     Nodes[index].age += deltaTime;
     
     // switch types if the node has reached its switch time
-    if (Nodes[index].age > info.switchTime)
+    if (Nodes[index].currAuxinLevel > info.auxinThreshold || (info.switchTime > 0 && Nodes[index].age > info.switchTime))
     {
         if (Nodes[index].baseType != info.targetType)
         {

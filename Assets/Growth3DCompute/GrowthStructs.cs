@@ -20,7 +20,8 @@ public struct NodeType
 
     public float auxinGenerationRate;
     public float auxinTransportRate;
-    public float auxinAbsorptionRate;
+    public float auxinDiffusionRate;
+    public float auxinStealRate;
 
     public float auxinThreshold;
 }

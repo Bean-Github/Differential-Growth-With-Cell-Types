@@ -48,6 +48,7 @@ namespace Growth3DCompute
             public SpatialHashComputeRunner spatialHashFaceRunner;
 
             public bool enableSplitting = true;
+            public bool selfCollisions = true;
             public bool enableDebugLogs = false;
 
             public int defaultShapeType = 0; // 0 = plane, 1 = sphere
@@ -282,7 +283,7 @@ namespace Growth3DCompute
                     generator.LoadMesh(genotype.mesh);
                     break;
                 case 1:
-                    generator.CreateTestSphere(3.0f, 0);
+                    generator.CreateTestSphere(5.0f, 1);
                     break;
                 case 2:
                     generator.CreateTestHexagon(5.0f);
@@ -597,9 +598,12 @@ namespace Growth3DCompute
             );
 
             computeShader.Dispatch(updateEdgesKernel, finalThreadGroupsEdges, 1, 1);
-            computeShader.Dispatch(resolveFaceCollisionsKernel, finalThreadGroupsNodes, 1, 1);
-            //computeShader.Dispatch(resolveEdgeCollisionsKernel, finalThreadGroupsEdges, 1, 1);
-            //computeShader.Dispatch(applyAccumulatedVelocitiesKernel, finalThreadGroupsNodes, 1, 1);
+            if (selfCollisions)
+            {
+                computeShader.Dispatch(resolveFaceCollisionsKernel, finalThreadGroupsNodes, 1, 1);
+                computeShader.Dispatch(resolveEdgeCollisionsKernel, finalThreadGroupsEdges, 1, 1);
+                computeShader.Dispatch(applyAccumulatedVelocitiesKernel, finalThreadGroupsNodes, 1, 1);
+            }
             computeShader.Dispatch(calculateCurvaturesKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(updateAuxinLevelsKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(applyAccumulatedAuxinKernel, finalThreadGroupsNodes, 1, 1);

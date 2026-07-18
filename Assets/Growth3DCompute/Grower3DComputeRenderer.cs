@@ -69,7 +69,7 @@ namespace Growth3DCompute
             {
                 Handles.Label(
                     node.position + Vector3.up * 0.02f,
-                    $"Base: {node.baseType}\nAge: {node.age:F1}"
+                    $"Base: {node.baseType}\n Auxin: {node.currAuxinLevel:F1}"
                 );
             }
         }

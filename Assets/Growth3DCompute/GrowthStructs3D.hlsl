@@ -18,7 +18,8 @@ struct NodeType
     
     float auxinGenerationRate;
     float auxinTransportRate;
-    float auxinAbsorptionRate;
+    float auxinDiffusionRate;
+    float auxinStealRate;
     
     float auxinThreshold;
 };
@@ -53,7 +54,8 @@ NodeType BlendTypes(NodeType typeA, NodeType typeB, float blendFactor)
     
     blendedType.auxinGenerationRate = lerp(typeA.auxinGenerationRate, typeB.auxinGenerationRate, blendFactor);
     blendedType.auxinTransportRate = lerp(typeA.auxinTransportRate, typeB.auxinTransportRate, blendFactor);
-    blendedType.auxinAbsorptionRate = lerp(typeA.auxinAbsorptionRate, typeB.auxinAbsorptionRate, blendFactor);
+    blendedType.auxinDiffusionRate = lerp(typeA.auxinDiffusionRate, typeB.auxinDiffusionRate, blendFactor);
+    blendedType.auxinStealRate = lerp(typeA.auxinStealRate, typeB.auxinStealRate, blendFactor);
     
     blendedType.auxinThreshold = lerp(typeA.auxinThreshold, typeB.auxinThreshold, hardBlendFactor);
     
