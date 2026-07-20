@@ -20,6 +20,7 @@ namespace Growth3DCompute
 
         [Header("Debug")]
         public bool debugNodeTypes = true;
+        public bool debugShowDirs = true;
 
         private void Update()
         {
@@ -42,9 +43,6 @@ namespace Growth3DCompute
 
                 NodeHoardCompute nodeHoardCompute = new NodeHoardCompute(nodeData, halfEdgeData, faceData);
 
-                for (int i = 0; i < subdivisions; i++)
-                    nodeHoardCompute = SubdivideTriangles(nodeHoardCompute);
-
                 Mesh newMesh = NodeHoardMeshGenerator.GenerateMesh(nodeHoardCompute);
 
                 nodeHoardMeshFilter.mesh = newMesh;
@@ -54,9 +52,6 @@ namespace Growth3DCompute
 #if UNITY_EDITOR
         private void OnDrawGizmos()
         {
-            if (!debugNodeTypes)
-                return;
-
             if (computeRunner == null || computeRunner.nodeBuffer == null || computeRunner.nodeCount == 0)
                 return;
 
@@ -67,10 +62,22 @@ namespace Growth3DCompute
 
             foreach (Node3D node in nodeData)
             {
-                Handles.Label(
-                    node.position + Vector3.up * 0.02f,
-                    $"Base: {node.baseType}\n Auxin: {node.currAuxinLevel:F1}"
-                );
+                if (debugNodeTypes)
+                {
+                    Handles.Label(
+                        node.position + Vector3.up * 0.02f,
+                        $"Base: {node.baseType}\n Auxin: {node.currAuxinLevel:F1}"
+                    );
+                }
+
+                if (debugShowDirs)
+                {
+                    // draw a line showing the node's tangent
+                    Debug.DrawLine(node.position, node.position + node.tangent, Color.green);
+                    Debug.DrawLine(node.position, node.position + node.normal, Color.blue);
+                    Debug.DrawLine(node.position, node.position + node.binormal, Color.red);
+                }
+
             }
         }
 #endif

@@ -29,7 +29,7 @@ namespace Growth3D.Editor
             this.layoutAsset = layoutAsset;
             this.layoutEntry = layoutEntry;
 
-            title = layoutEntry.displayName;
+            title = (string.IsNullOrEmpty(layoutEntry.displayName) ? "Type " + index : layoutEntry.displayName) + " (" + index + ")";
             viewDataKey = "nodeType_" + index;
 
             style.left = layoutEntry.position.x;
@@ -89,6 +89,10 @@ namespace Growth3D.Editor
             AddFloatField(elementProp, "auxinDiffusionRate");
             AddFloatField(elementProp, "auxinStealRate");
             AddFloatField(elementProp, "auxinThreshold");
+            AddFloatField(elementProp, "auxinGrowthFactor");
+            AddVector3Field(elementProp, "growthTensor");
+            AddBoolField(elementProp, "useGravity");
+            AddColorField(elementProp, "color");
 
             // targetType and childType are intentionally NOT exposed as manual fields here —
             // they are driven entirely by the "Switches To" / "Child Type" output edges (see
@@ -103,6 +107,41 @@ namespace Growth3D.Editor
         {
             var prop = elementProp.FindPropertyRelative(propName);
             var field = new FloatField(ObjectNames.NicifyVariableName(propName));
+            field.BindProperty(prop);
+            mainContainer.Add(field);
+        }
+
+        void AddVector3Field(SerializedProperty elementProp, string propName)
+        {
+            var prop = elementProp.FindPropertyRelative(propName);
+            var field = new Vector3Field(ObjectNames.NicifyVariableName(propName));
+            field.BindProperty(prop);
+            mainContainer.Add(field);
+        }
+
+        void AddBoolField(SerializedProperty elementProp, string propName)
+        {
+            var prop = elementProp.FindPropertyRelative(propName);
+            var field = new Toggle(ObjectNames.NicifyVariableName(propName));
+
+            field.value = prop.uintValue > 0;
+
+            // manually map UI changes back to the uint property
+            field.RegisterValueChangedCallback(evt =>
+            {
+                prop.uintValue = evt.newValue ? 1u : 0u;
+
+                // Because we aren't using auto-binding, we must explicitly apply the change
+                prop.serializedObject.ApplyModifiedProperties();
+            });
+
+            mainContainer.Add(field);
+        }
+
+        void AddColorField(SerializedProperty elementProp, string propName)
+        {
+            var prop = elementProp.FindPropertyRelative(propName);
+            var field = new ColorField(ObjectNames.NicifyVariableName(propName));
             field.BindProperty(prop);
             mainContainer.Add(field);
         }

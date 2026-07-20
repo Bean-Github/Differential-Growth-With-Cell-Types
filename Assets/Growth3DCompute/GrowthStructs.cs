@@ -24,6 +24,14 @@ public struct NodeType
     public float auxinStealRate;
 
     public float auxinThreshold;
+
+    public float auxinGrowthFactor;
+
+    public Vector3 growthTensor;
+
+    public Color color;
+    
+    public uint useGravity;
 }
 
 // ALL STRUCTS
@@ -48,6 +56,11 @@ public unsafe struct Node3D
 
     // auxin
     public float currAuxinLevel;
+
+    // basis vectors defining local coordinate system
+    public Vector3 tangent; // up
+    public Vector3 normal; // forward
+    public Vector3 binormal; // right
 
     public int debug_int; // for debugging purposes only
 }

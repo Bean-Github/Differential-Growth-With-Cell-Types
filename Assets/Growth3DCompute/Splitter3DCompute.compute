@@ -47,13 +47,16 @@ Node3D AddNode(uint allocatedID, HalfEdge3D splitEdge)
     float weightSum = oldNodeInfo.inheritanceWeight + neighborInfo.inheritanceWeight;
     float t = (weightSum > 0.0001f) ? (neighborInfo.inheritanceWeight / weightSum) : 0.5f;
     
-    // preference the heavier one
+    Node3D spawningNode;
+    // preference the heavier one for the basetype
     if (t <= 0.5f)
     {
+        spawningNode = oldNode;
         node.baseType = oldNodeInfo.childType;
     }
     else
     {
+        spawningNode = neighbor;
         node.baseType = neighborInfo.childType;
     }
     
@@ -66,18 +69,15 @@ Node3D AddNode(uint allocatedID, HalfEdge3D splitEdge)
     node.type = BlendTypes(oldNodeChildType, neighborChildType, t);
     
     node.position = (oldNode.position + neighbor.position) / 2.0f;
-
-    // if same type as the dominant parent, inherit age, otherwise it remains 0.0f
-    if (t <= 0.5f)
-    {
-        if (node.baseType == oldNode.baseType)
-            node.age = oldNode.age;
-    }
-    else
-    {
-        if (node.baseType == neighbor.baseType)
-            node.age = neighbor.age;
-    }
+    
+    // point to spawningNode
+    float3 dir = normalize(spawningNode.position - node.position);
+    
+    node.tangent = dir;
+    node.normal = spawningNode.normal;
+    node.binormal = cross(node.normal, node.tangent);
+    
+    node.age = spawningNode.age;
 
     Nodes[node.id] = node;
     

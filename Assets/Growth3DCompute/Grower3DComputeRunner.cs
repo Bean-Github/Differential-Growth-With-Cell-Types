@@ -116,8 +116,23 @@ namespace Growth3DCompute
         protected int moveKernel;
         // ---
 
+
+        private bool wasFocused = true;
+
+        void OnApplicationFocus(bool focus)
+        {
+            wasFocused = focus;
+
+            if (!focus)
+            {
+                physicsAccumulator = 0;
+            }
+        }
+
         void Start()
         {
+            //genotype = Instantiate(genotype);
+
             hashTableSize = Mathf.NextPowerOfTwo(maxNodes);
 
             maxFaces = maxNodes * 2;
@@ -134,6 +149,10 @@ namespace Growth3DCompute
         float physicsAccumulator = 0.0f;
         private void Update()
         {
+            if (!wasFocused)
+                return;
+
+
             print("curr num nodes: " + nodeCount);
             print("curr num half-edges: " + halfEdgeCount);
             print("curr num faces: " + faceCount);
@@ -293,7 +312,7 @@ namespace Growth3DCompute
                     generator.LoadMesh(genotype.mesh);
                     break;
                 case 1:
-                    generator.CreateTestSphere(5.0f, 1);
+                    generator.CreateTestSphere(3.0f, 1);
                     break;
                 case 2:
                     generator.CreateTestHexagon(5.0f);
@@ -318,18 +337,29 @@ namespace Growth3DCompute
             // assign the starting cell types to the compute runner
             void AssignStartCellTypes(NodeHoardCompute nodeHoard)
             {
+                float maxY = float.MinValue;
+                int highestNodeIndex = -1;
                 for (int i = 0; i < nodeHoard.allNodes.Count; i++)
                 {
                     Node3D node = nodeHoard.allNodes[i];
 
-                    // change type based on condition
-                    if (i == 0) node.baseType = 1;
+                    // find the node with highest y position
+                    if (node.position.y > maxY)
+                    {
+                        maxY = node.position.y;
+                        highestNodeIndex = i;
+                    }
 
                     // set the type of the node based on its baseType
                     node.type = genotype.baseNodeTypes[node.baseType];
 
                     nodeHoard.allNodes[i] = node;
                 }
+
+                Node3D n = nodeHoard.allNodes[highestNodeIndex];
+                n.baseType = 1;
+                n.type = genotype.baseNodeTypes[n.baseType];
+                nodeHoard.allNodes[highestNodeIndex] = n;
             }
 
             AssignStartCellTypes(generator.nodeHoard);
@@ -634,8 +664,8 @@ namespace Growth3DCompute
             if (selfCollisions)
             {
                 computeShader.Dispatch(resolveFaceCollisionsKernel, finalThreadGroupsNodes, 1, 1);
-                computeShader.Dispatch(resolveEdgeCollisionsKernel, finalThreadGroupsEdges, 1, 1);
-                computeShader.Dispatch(applyAccumulatedVelocitiesKernel, finalThreadGroupsNodes, 1, 1);
+                //computeShader.Dispatch(resolveEdgeCollisionsKernel, finalThreadGroupsEdges, 1, 1);
+                //computeShader.Dispatch(applyAccumulatedVelocitiesKernel, finalThreadGroupsNodes, 1, 1);
             }
             computeShader.Dispatch(calculateCurvaturesKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(updateAuxinLevelsKernel, finalThreadGroupsNodes, 1, 1);

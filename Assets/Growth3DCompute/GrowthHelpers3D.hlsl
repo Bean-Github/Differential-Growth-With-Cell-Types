@@ -23,6 +23,20 @@ float remap01(float t, float oldMin, float oldMax)
     return (t - oldMin) * (1.0f / (oldMax - oldMin));
 }
 
+float3x3 Inverse3x3(float3x3 m)
+{
+    float3 c0 = cross(m[1], m[2]);
+    float3 c1 = cross(m[2], m[0]);
+    float3 c2 = cross(m[0], m[1]);
+
+    float det = dot(m[0], c0);
+
+    return float3x3(
+        c0 / det,
+        c1 / det,
+        c2 / det
+    );
+}
 
 // (Based on Christer Ericson's Real-Time Collision Detection, chapter 5, page 139)
 float3 ClosestPointOnTriangle(float3 p, float3 a, float3 b, float3 c)

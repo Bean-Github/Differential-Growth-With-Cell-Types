@@ -376,6 +376,11 @@ namespace Growth3DCompute
             newNode.id = (uint)allNodes.Count;
             newNode.baseType = (uint)type;
 
+            //// set node's normal, tangent, and binormal to default values
+            //newNode.normal = Vector3.up;
+            //newNode.tangent = Vector3.forward;
+            //newNode.binormal = Vector3.right;
+
             allNodes.Add(newNode);
             return newNode.id;
         }

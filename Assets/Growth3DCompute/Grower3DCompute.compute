@@ -111,9 +111,9 @@ void UpdateEdges(uint3 id : SV_DispatchThreadID)
     float growthRate = (info.growthRate + neighborInfo.growthRate) / 2.0f;
     edge.currRestLength += growthRate * deltaTime;
     
-    if (edge.currRestLength > separationDistance * 1.5f) 
+    if (edge.currRestLength > edge.splitDistanceThreshold * 1.5f) 
     {
-        edge.currRestLength = separationDistance * 1.5f; // clamp rest length to prevent runaway stretching before split can occur
+        edge.currRestLength = edge.splitDistanceThreshold * 1.5f; // clamp rest length to prevent runaway stretching before split can occur
     }
     
     HalfEdges[index] = edge;
@@ -721,27 +721,68 @@ void ApplyNaturalForces(uint3 id : SV_DispatchThreadID)
 
         node.velocity += laplacianVector * info.laplacianSmoothing * deltaTime;
     }
-
-    // Apply Turgor Pressure Force
+        
+    // ==========================================
+    // calculate turgor pressure
+    // ==========================================
     if (length(vertexNormal) > 0.0001f)
     {
         // Normalize the accumulated vectors to get the final smooth vertex normal
-        vertexNormal = normalize(vertexNormal);
+        vertexNormal = (vertexNormal);
         
-        // Push the node outward along its normal
-        totalForce += vertexNormal * info.turgorPressure;
+        if (length(node.normal) == 0.0f)
+            node.normal = normalize(vertexNormal);
     }
+
+    if (!(length(node.normal) == 0.0f || length(node.tangent) == 0.0f || length(node.binormal) == 0.0f))
+    {
+        // ==========================================
+        // ORTHOGONALIZE TBN (Gram-Schmidt)
+        // ==========================================
+        // keep the normal as the absolute source of truth (from faces/turgor)
+        float3 N = normalize(node.normal);
+    
+        // force the tangent to be perfectly 90 degrees to the normal
+        float3 rawT = length(node.tangent) > 0.001f ? normalize(node.tangent) : float3(1, 0, 0);
+        float3 T = normalize(rawT - dot(rawT, N) * N);
+    
+        // binormal is just the cross product, guaranteeing 100% orthogonality
+        float3 B = cross(N, T);
+    
+        // ==========================================
+        // APPLY TENSOR AS A MOBILITY CONSTRAINT
+        // ==========================================
+        // Because T, B, and N are now strictly orthogonal, transpose == inverse
+        float3x3 worldToLocal = float3x3(B, T, N);
+        float3x3 localToWorld = transpose(worldToLocal);
+
+        // Convert total physical force into the node's local coordinate space
+        float3 localForce = mul(worldToLocal, totalForce);
+
+        // Constrain the force. 
+        // Example: If info.growthTensor is (0.2, 2.0, 1.0), the node will resist 
+        // binormal movement, accelerate easily along the tangent, and act normally along the normal.
+        localForce *= info.growthTensor;
+    
+        // Convert back to world space
+        totalForce = mul(localToWorld, localForce);
+    }
+
+    // Push the node outward along its normal
+    totalForce += vertexNormal * info.turgorPressure;
     
     // ==========================================
     // APPLY FORCES
     // ==========================================
-    
     // F = m * a, so a = F / m
     float safeMass = max(info.mass, 0.001f);
     node.velocity += (totalForce / safeMass) * deltaTime;
     
-    // apply gravity
-    node.velocity += float3(0, -gravity * deltaTime, 0);
+    if (info.useGravity == 1)
+    {
+        // apply gravity
+        node.velocity += float3(0, -gravity * deltaTime, 0);
+    }
 
     // Apply drag as exponential decay (framerate independent and unconditionally stable)
     node.velocity *= exp(-info.drag * deltaTime);
@@ -762,26 +803,41 @@ void MoveParticles (uint3 id : SV_DispatchThreadID)
     if (id.x >= nodeCount)
         return;
     
-    NodeType info = Nodes[index].type;
-    
+    Node3D node = Nodes[index];
+    NodeType info = node.type;
+
     // age nodes
-    Nodes[index].age += deltaTime;
+    node.age += deltaTime;
     
     // switch types if the node has reached its switch time
-    if (Nodes[index].currAuxinLevel > info.auxinThreshold || (info.switchTime > 0 && Nodes[index].age > info.switchTime))
+    if ((info.auxinThreshold > 0 && node.currAuxinLevel > info.auxinThreshold) ||
+        (info.switchTime > 0 && node.age > info.switchTime))
     {
-        if (Nodes[index].baseType != info.targetType)
+        float4 oldColor = info.color;
+        
+        if (node.baseType != info.targetType)
         {
-            Nodes[index].age = 0.0f; // reset age when switching types
+            node.age = 0.0f; // reset age when switching types
         }
         
-        Nodes[index].baseType = info.targetType;
+        node.baseType = info.targetType;
         
-        GetCellInfo(Nodes[index].baseType, Nodes[index].type);
+        GetCellInfo(node.baseType, node.type);
+        
+        // set color based on lerping between the old color and the new color based on the alpha of the new color
+        float alphaBlendFactor = oldColor.a / (oldColor.a + node.type.color.a);
+        if (oldColor.a + node.type.color.a < 0.001f)
+        {
+            alphaBlendFactor = 0.5f; // If both are fully transparent, blend equally
+        }
+        node.type.color = lerp(node.type.color, oldColor, alphaBlendFactor);
     }
     
     // apply velocity
-    Nodes[index].position += Nodes[index].velocity * deltaTime;
+    node.position += node.velocity * deltaTime;
+    
+    Nodes[index] = node;
+
 }
 
 
