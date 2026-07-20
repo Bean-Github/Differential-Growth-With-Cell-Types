@@ -54,7 +54,7 @@ MonoBehaviour:
   - mass: 1.98
     drag: 30.77
     growthRate: 0
-    turgorPressure: 0.39
+    turgorPressure: 0
     laplacianSmoothing: 1.38
     switchTime: -1
     targetType: 0
@@ -92,7 +92,7 @@ MonoBehaviour:
     growthRate: 3.48
     turgorPressure: 0.38
     laplacianSmoothing: 1.38
-    switchTime: 9.55
+    switchTime: 10.11
     targetType: 4
     inheritanceWeight: 2
     childType: 3
@@ -215,7 +215,7 @@ MonoBehaviour:
     useGravity: 0
   - mass: 2.06
     drag: 0.4
-    growthRate: 4.6
+    growthRate: 12.09
     turgorPressure: 0.4
     laplacianSmoothing: 1.38
     switchTime: -1
@@ -226,7 +226,7 @@ MonoBehaviour:
     auxinTransportRate: 0
     auxinDiffusionRate: 0
     auxinStealRate: 0
-    auxinThreshold: 6.4
+    auxinThreshold: 7.14
     auxinGrowthFactor: 0
     growthTensor: {x: 1, y: 1, z: 1}
     color: {r: 0.17936328, g: 0.4188679, b: 0.071918815, a: 0.7882353}

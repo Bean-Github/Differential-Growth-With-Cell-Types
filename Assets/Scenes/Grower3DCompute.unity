@@ -681,7 +681,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3aefc08abe830c44c986057b5381d9ee, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  particleMaterial: {fileID: 2100000, guid: 7b05ee14c78fa1c45b0ed936ed2864ed, type: 2}
+  particleMaterial: {fileID: 2100000, guid: 5ff49308ae034534a9ede70f571b5b42, type: 2}
   particleMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   radius: 0.3
   maxVelocity: 5
@@ -792,7 +792,7 @@ Transform:
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 10, z: -26.52}
+  m_LocalPosition: {x: 0, y: 10, z: -30.6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

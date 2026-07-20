@@ -60,7 +60,7 @@ NodeType BlendTypes(NodeType typeA, NodeType typeB, float blendFactor)
     
     blendedType.inheritanceWeight = lerp(typeA.inheritanceWeight, typeB.inheritanceWeight, hardBlendFactor);
     
-    blendedType.auxinGenerationRate = lerp(typeA.auxinGenerationRate, typeB.auxinGenerationRate, blendFactor);
+    blendedType.auxinGenerationRate = lerp(typeA.auxinGenerationRate, typeB.auxinGenerationRate, hardBlendFactor);
     blendedType.auxinTransportRate = lerp(typeA.auxinTransportRate, typeB.auxinTransportRate, blendFactor);
     blendedType.auxinDiffusionRate = lerp(typeA.auxinDiffusionRate, typeB.auxinDiffusionRate, blendFactor);
     blendedType.auxinStealRate = lerp(typeA.auxinStealRate, typeB.auxinStealRate, blendFactor);
