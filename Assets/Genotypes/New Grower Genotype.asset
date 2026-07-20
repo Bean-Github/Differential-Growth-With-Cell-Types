@@ -215,7 +215,7 @@ MonoBehaviour:
     useGravity: 0
   - mass: 2.06
     drag: 0.4
-    growthRate: 12.09
+    growthRate: 5.1
     turgorPressure: 0.4
     laplacianSmoothing: 1.38
     switchTime: -1
