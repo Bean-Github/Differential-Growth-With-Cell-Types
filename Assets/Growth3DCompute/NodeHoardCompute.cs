@@ -247,8 +247,8 @@ namespace Growth3DCompute
             int sides = 6;
 
             // First ring
-            float innerY = 3.0f;
-            float outerY = 3.0f;
+            float innerY = 0.0f;
+            float outerY = 0.0f;
             float outerRadius = radius * 1.5f;
 
             int firstRingStart = vertices.Count;
@@ -261,16 +261,16 @@ namespace Growth3DCompute
                 vertices.Add(new Vector3(x, innerY, z));
             }
 
-            // Second ring
-            int secondRingStart = vertices.Count;
-            for (int i = 0; i < sides; i++)
-            {
-                float angle = i * Mathf.PI * 2f / sides;
-                float x = Mathf.Cos(angle) * outerRadius;
-                float z = Mathf.Sin(angle) * outerRadius;
+            //// Second ring
+            //int secondRingStart = vertices.Count;
+            //for (int i = 0; i < sides; i++)
+            //{
+            //    float angle = i * Mathf.PI * 2f / sides;
+            //    float x = Mathf.Cos(angle) * outerRadius;
+            //    float z = Mathf.Sin(angle) * outerRadius;
 
-                vertices.Add(new Vector3(x, outerY, z));
-            }
+            //    vertices.Add(new Vector3(x, outerY, z));
+            //}
 
             // Center fan
             for (int i = 0; i < sides; i++)
@@ -281,19 +281,19 @@ namespace Growth3DCompute
                 faces.Add(new int[] { 0, b, a });
             }
 
-            // Connect the two rings
-            for (int i = 0; i < sides; i++)
-            {
-                int innerA = firstRingStart + i;
-                int innerB = firstRingStart + ((i + 1) % sides);
+            //// Connect the two rings
+            //for (int i = 0; i < sides; i++)
+            //{
+            //    int innerA = firstRingStart + i;
+            //    int innerB = firstRingStart + ((i + 1) % sides);
 
-                int outerA = secondRingStart + i;
-                int outerB = secondRingStart + ((i + 1) % sides);
+            //    int outerA = secondRingStart + i;
+            //    int outerB = secondRingStart + ((i + 1) % sides);
 
-                // Quad split into two triangles
-                faces.Add(new int[] { innerA, innerB, outerB });
-                faces.Add(new int[] { innerA, outerB, outerA });
-            }
+            //    // Quad split into two triangles
+            //    faces.Add(new int[] { innerA, innerB, outerB });
+            //    faces.Add(new int[] { innerA, outerB, outerA });
+            //}
 
             // Add to NodeHoard
             List<uint> finalNodes = new List<uint>();
@@ -376,10 +376,10 @@ namespace Growth3DCompute
             newNode.id = (uint)allNodes.Count;
             newNode.baseType = (uint)type;
 
-            //// set node's normal, tangent, and binormal to default values
-            //newNode.normal = Vector3.up;
-            //newNode.tangent = Vector3.forward;
-            //newNode.binormal = Vector3.right;
+            // set node's normal, tangent, and binormal to default values
+            newNode.normal = Vector3.up;
+            newNode.tangent = Vector3.forward;
+            newNode.binormal = Vector3.right;
 
             allNodes.Add(newNode);
             return newNode.id;

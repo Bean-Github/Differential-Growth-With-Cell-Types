@@ -315,7 +315,7 @@ namespace Growth3DCompute
                     generator.CreateTestSphere(3.0f, 1);
                     break;
                 case 2:
-                    generator.CreateTestHexagon(5.0f);
+                    generator.CreateTestHexagon(baseRestLength);
                     break;
                 case 3:
                     generator.CreateTestPlane(10.0f, 10.0f, 0, 0);
@@ -664,8 +664,8 @@ namespace Growth3DCompute
             if (selfCollisions)
             {
                 computeShader.Dispatch(resolveFaceCollisionsKernel, finalThreadGroupsNodes, 1, 1);
-                //computeShader.Dispatch(resolveEdgeCollisionsKernel, finalThreadGroupsEdges, 1, 1);
-                //computeShader.Dispatch(applyAccumulatedVelocitiesKernel, finalThreadGroupsNodes, 1, 1);
+                computeShader.Dispatch(resolveEdgeCollisionsKernel, finalThreadGroupsEdges, 1, 1);
+                computeShader.Dispatch(applyAccumulatedVelocitiesKernel, finalThreadGroupsNodes, 1, 1);
             }
             computeShader.Dispatch(calculateCurvaturesKernel, finalThreadGroupsNodes, 1, 1);
             computeShader.Dispatch(updateAuxinLevelsKernel, finalThreadGroupsNodes, 1, 1);

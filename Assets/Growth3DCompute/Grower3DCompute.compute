@@ -107,13 +107,30 @@ void UpdateEdges(uint3 id : SV_DispatchThreadID)
     // update edges
     edge.age += deltaTime;
     
-    // edge growth is based on the average growth rate of the two nodes it connects
-    float growthRate = (info.growthRate + neighborInfo.growthRate) / 2.0f;
-    edge.currRestLength += growthRate * deltaTime;
+// 1. CALCULATE PHYSICAL CONSTRICTION
+    float actualLength = length(node.position - neighbor.position);
     
-    if (edge.currRestLength > edge.splitDistanceThreshold * 1.5f) 
+    // How compressed is this edge compared to its ideal rest length?
+    // 1.0 = relaxed/stretching, < 1.0 = compressed by collisions/boundaries
+    float compressionRatio = actualLength / max(edge.currRestLength, 1e-5f);
+    
+    // 2. APPLY GROWTH MULTIPLIER
+    // smoothstep creates a smooth falloff. 
+    // If the edge is compressed to 30% (0.3) of its rest length, growth becomes 0.
+    // If the edge is at 95% (0.95) or above, it grows normally (multiplier = 1).
+    float mechanicalInhibition = smoothstep(0.30f, 0.95f, compressionRatio);
+    
+    // edge growth is based on the average growth rate of the two nodes it connects
+    float baseGrowthRate = (info.growthRate + neighborInfo.growthRate) / 2.0f;
+    
+    // Scale growth by how constricted we are
+    float finalGrowthRate = baseGrowthRate * mechanicalInhibition;
+    
+    edge.currRestLength += finalGrowthRate * deltaTime;
+    
+    if (edge.currRestLength > edge.splitDistanceThreshold * 3.0f)
     {
-        edge.currRestLength = edge.splitDistanceThreshold * 1.5f; // clamp rest length to prevent runaway stretching before split can occur
+        edge.currRestLength = edge.splitDistanceThreshold * 3.0f; // clamp rest length to prevent runaway stretching
     }
     
     HalfEdges[index] = edge;
@@ -418,7 +435,7 @@ void UpdateAuxinLevels(uint3 id : SV_DispatchThreadID)
     }
     myCurrentAuxin += generation;
     
-    // DIFFUSION (find the max neighbor for canalization)
+    // LOOP THROUGH NEIGHBORS
     HalfEdge3D currEdge = HalfEdges[node.halfEdge];
     float maxAuxinLevel = node.currAuxinLevel; // We look at base levels for canalization
     int maxAuxinNeighborIndex = -1;
@@ -432,7 +449,7 @@ void UpdateAuxinLevels(uint3 id : SV_DispatchThreadID)
         uint neighborNodeIndex = currEdge.target;
         Node3D neighbor = Nodes[neighborNodeIndex];
         
-        // canalization
+        // find max neighbor
         if (neighbor.currAuxinLevel > maxAuxinLevel)
         {
             maxAuxinLevel = neighbor.currAuxinLevel;
