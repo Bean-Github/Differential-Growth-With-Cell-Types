@@ -78,7 +78,9 @@ Node3D AddNode(uint allocatedID, HalfEdge3D splitEdge)
     node.binormal = cross(node.normal, node.tangent);
     
     node.age = spawningNode.age;
-
+    
+    node.currCanalStrength = spawningNode.currCanalStrength;
+    
     Nodes[node.id] = node;
     
     return node;
@@ -94,6 +96,8 @@ HalfEdge3D AddEdge(uint allocatedID, HalfEdge3D copiedEdge)
     edge.currRestLength = copiedEdge.baseRestLength;
     edge.springStiffness = copiedEdge.springStiffness;
     edge.splitDistanceThreshold = copiedEdge.splitDistanceThreshold;
+    
+    edge.conductivity = copiedEdge.conductivity;
     
     HalfEdges[edge.id] = edge;
     

@@ -160,6 +160,7 @@ MonoBehaviour:
   separationForce: 1.25
   separationDistance: 7.6
   gravity: 0.6
+  faceFlatTurgor: 2
   baseRestLength: 2
   springStiffness: 5.99
   springDamping: 1
@@ -364,6 +365,7 @@ MonoBehaviour:
   separationForce: 0.5
   separationDistance: 3
   gravity: 0
+  faceFlatTurgor: 2
   baseRestLength: 2
   springStiffness: 3
   springDamping: 0.5
@@ -461,7 +463,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &106021464
 Transform:
   m_ObjectHideFlags: 0
@@ -620,11 +622,12 @@ MonoBehaviour:
   halfEdgeCount: 0
   simulationSpeed: 5
   genotype: {fileID: 11400000, guid: 586bc593e99f7f941adff23d2c1a5a51, type: 2}
-  separationForce: 0.29
-  separationDistance: 0.63
+  separationForce: 0.59
+  separationDistance: 1.38
   gravity: 1
+  faceFlatTurgor: 2
   baseRestLength: 1
-  springStiffness: 7.75
+  springStiffness: 7.91
   springDamping: 0.77
   lateralDamping: 0.34
   splitDistanceThreshold: 2
@@ -634,7 +637,7 @@ MonoBehaviour:
   spatialHashEdgeRunner: {fileID: 271330179}
   spatialHashFaceRunner: {fileID: 271330178}
   enableSplitting: 1
-  enableFlipping: 1
+  enableFlipping: 0
   selfCollisions: 1
   enableDebugLogs: 0
   defaultShapeType: 2
@@ -1029,6 +1032,7 @@ MonoBehaviour:
   separationForce: 1000
   separationDistance: 20
   gravity: 4
+  faceFlatTurgor: 2
   baseRestLength: 2
   springStiffness: 3.85
   springDamping: 0.5
@@ -1270,8 +1274,9 @@ MonoBehaviour:
   simulationSpeed: 3
   genotype: {fileID: 11400000, guid: 64bc26fb05f573441960be47207591be, type: 2}
   separationForce: 0.29
-  separationDistance: 0.63
-  gravity: 1
+  separationDistance: 0.74
+  gravity: 0.77
+  faceFlatTurgor: 0.88
   baseRestLength: 1
   springStiffness: 5.3
   springDamping: 0.77
@@ -1386,6 +1391,7 @@ MonoBehaviour:
   separationForce: 487.6
   separationDistance: 10.4
   gravity: 4
+  faceFlatTurgor: 2
   baseRestLength: 4
   springStiffness: 19.5
   springDamping: 0.5
@@ -1498,6 +1504,7 @@ MonoBehaviour:
   separationForce: 1000
   separationDistance: 20
   gravity: 0
+  faceFlatTurgor: 2
   baseRestLength: 4
   springStiffness: 4
   springDamping: 0.5
@@ -1558,7 +1565,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &739128564
 Transform:
   m_ObjectHideFlags: 0
@@ -1650,6 +1657,7 @@ MonoBehaviour:
   separationForce: 0.29
   separationDistance: 1.45
   gravity: 1
+  faceFlatTurgor: 2
   baseRestLength: 2
   springStiffness: 2.6
   springDamping: 0.77
@@ -2078,6 +2086,7 @@ MonoBehaviour:
   separationForce: 1.25
   separationDistance: 7.6
   gravity: 0
+  faceFlatTurgor: 2
   baseRestLength: 2
   springStiffness: 5.99
   springDamping: 1
@@ -3102,6 +3111,7 @@ MonoBehaviour:
   separationForce: 1000
   separationDistance: 20
   gravity: 0
+  faceFlatTurgor: 2
   baseRestLength: 4
   springStiffness: 4
   springDamping: 0.5

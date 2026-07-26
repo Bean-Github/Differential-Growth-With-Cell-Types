@@ -84,12 +84,16 @@ namespace Growth3D.Editor
             AddFloatField(elementProp, "laplacianSmoothing");
             AddFloatField(elementProp, "switchTime");
             AddFloatField(elementProp, "inheritanceWeight");
+
             AddFloatField(elementProp, "auxinGenerationRate");
             AddFloatField(elementProp, "auxinTransportRate");
             AddFloatField(elementProp, "auxinDiffusionRate");
             AddFloatField(elementProp, "auxinStealRate");
             AddFloatField(elementProp, "auxinThreshold");
             AddFloatField(elementProp, "auxinGrowthFactor");
+            AddFloatField(elementProp, "auxinFluxCanalization");
+
+            AddFloatField(elementProp, "flattenFactor");
             AddVector3Field(elementProp, "growthTensor");
             AddBoolField(elementProp, "useGravity");
             AddColorField(elementProp, "color");

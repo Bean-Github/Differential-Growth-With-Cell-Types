@@ -14,17 +14,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   entries:
   - displayName: Apical Meristem
-    position: {x: -475.50006, y: 290.85004}
-  - displayName: Stem
-    position: {x: 437.8185, y: 10.805511}
+    position: {x: -485.3201, y: 290.4001}
+  - displayName: idle
+    position: {x: 317.2, y: 290.40002}
   - displayName: Stem
     position: {x: -59.200005, y: 290.40005}
   - displayName: Apical Meristem
-    position: {x: -301, y: 878.92017}
+    position: {x: -485.59998, y: 894.6338}
   - displayName: Stem
-    position: {x: 45.68002, y: 836.9202}
+    position: {x: 11.809227, y: 857.9754}
   - displayName: Stem
     position: {x: 437.60004, y: 808.30237}
+  - displayName: Stem
+    position: {x: 211.99998, y: 1358.304}
+  - displayName: Apical Meristem
+    position: {x: -136.93042, y: 1401.0386}
+  - displayName: Stem
+    position: {x: 530.4, y: 1314.4}
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -41,7 +47,7 @@ MonoBehaviour:
   baseNodeTypes:
   - mass: 2.06
     drag: 10
-    growthRate: 22.44
+    growthRate: 6.59
     turgorPressure: 0
     laplacianSmoothing: 1.38
     switchTime: 14.5
@@ -54,25 +60,29 @@ MonoBehaviour:
     auxinStealRate: 0
     auxinThreshold: -1
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 2.97
     growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
     color: {r: 0.5849056, g: 0.026564008, b: 0.025382632, a: 0.76862746}
     useGravity: 0
   - mass: 1.98
-    drag: 10
+    drag: 30
     growthRate: 0
     turgorPressure: 0
     laplacianSmoothing: 1.38
-    switchTime: -1
+    switchTime: 0
     targetType: 1
-    inheritanceWeight: 4
+    inheritanceWeight: 0
     childType: 1
-    auxinGenerationRate: -3.61
+    auxinGenerationRate: -34.04
     auxinTransportRate: 0
-    auxinDiffusionRate: 0
+    auxinDiffusionRate: 0.84
     auxinStealRate: 0
-    auxinThreshold: 2
+    auxinThreshold: 0
     auxinGrowthFactor: 0
-    growthTensor: {x: 1, y: 0, z: 1}
+    auxinFluxCanalization: 5.17
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
     color: {r: 0.3132075, g: 0.3132075, b: 0.3132075, a: 0}
     useGravity: 0
   - mass: 1.98
@@ -84,67 +94,135 @@ MonoBehaviour:
     targetType: 2
     inheritanceWeight: 0
     childType: 2
-    auxinGenerationRate: -2.28
+    auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinDiffusionRate: 0
+    auxinDiffusionRate: 0.67
     auxinStealRate: 0
     auxinThreshold: 2
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 5.81
     growthTensor: {x: 1, y: 0, z: 0}
+    flattenFactor: 0
     color: {r: 0.4339623, g: 0.2324692, b: 0.045033775, a: 0}
     useGravity: 0
   - mass: 2.06
     drag: 10
-    growthRate: 2
+    growthRate: 4.5
     turgorPressure: 0
     laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 3
+    switchTime: 75.4
+    targetType: 7
     inheritanceWeight: 3
     childType: 4
-    auxinGenerationRate: 4.64
+    auxinGenerationRate: 3.71
     auxinTransportRate: 0
     auxinDiffusionRate: 1.06
     auxinStealRate: 0
     auxinThreshold: -1
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 2.35
     growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
     color: {r: 0.87503046, g: 0.89433956, b: 0.40329653, a: 0.76862746}
     useGravity: 0
   - mass: 1.98
     drag: 10
-    growthRate: 1.39
+    growthRate: 0.55
     turgorPressure: 0
     laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 4
+    switchTime: 48.4
+    targetType: 6
     inheritanceWeight: 2
     childType: 5
-    auxinGenerationRate: 0.56
+    auxinGenerationRate: 0.36
     auxinTransportRate: 0
-    auxinDiffusionRate: 0.37
+    auxinDiffusionRate: 1.16
+    auxinStealRate: 0
+    auxinThreshold: -1
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 1
+    growthTensor: {x: 1, y: 0, z: 0}
+    flattenFactor: 0
+    color: {r: 0.4281729, g: 0.5924529, b: 0.38788897, a: 0}
+    useGravity: 0
+  - mass: 1.98
+    drag: 10
+    growthRate: 0.08
+    turgorPressure: 0
+    laplacianSmoothing: 1.38
+    switchTime: 8.53
+    targetType: 8
+    inheritanceWeight: 0
+    childType: 5
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.65
     auxinStealRate: 0
     auxinThreshold: 2
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 1
     growthTensor: {x: 1, y: 0, z: 0}
-    color: {r: 0.4281729, g: 0.5924529, b: 0.38788897, a: 0}
+    flattenFactor: 0
+    color: {r: 0.3781399, g: 0.6981132, b: 0.15674609, a: 0}
     useGravity: 0
   - mass: 1.98
     drag: 10
     growthRate: 0
     turgorPressure: 0
     laplacianSmoothing: 1.38
-    switchTime: -1
-    targetType: 5
-    inheritanceWeight: 0
-    childType: 5
+    switchTime: 15.63
+    targetType: 6
+    inheritanceWeight: 2
+    childType: 6
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinDiffusionRate: 0.15
+    auxinDiffusionRate: 3.85
     auxinStealRate: 0
-    auxinThreshold: 2
+    auxinThreshold: -1
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 2
     growthTensor: {x: 1, y: 0, z: 0}
+    flattenFactor: 0
+    color: {r: 0.4281729, g: 0.5924529, b: 0.38788897, a: 0}
+    useGravity: 0
+  - mass: 2.06
+    drag: 10
+    growthRate: 0
+    turgorPressure: 0
+    laplacianSmoothing: 1.38
+    switchTime: 34.8
+    targetType: 7
+    inheritanceWeight: 3
+    childType: 7
+    auxinGenerationRate: 85.61
+    auxinTransportRate: 0
+    auxinDiffusionRate: 7.09
+    auxinStealRate: 0
+    auxinThreshold: -1
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 2
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.87503046, g: 0.89433956, b: 0.40329653, a: 0.76862746}
+    useGravity: 0
+  - mass: 1.98
+    drag: 10
+    growthRate: 0
+    turgorPressure: 0
+    laplacianSmoothing: 1.38
+    switchTime: 29.2
+    targetType: 8
+    inheritanceWeight: 0
+    childType: 8
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinDiffusionRate: 3.55
+    auxinStealRate: 0
+    auxinThreshold: -1
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 2
+    growthTensor: {x: 1, y: 0, z: 0}
+    flattenFactor: 0
     color: {r: 0.3781399, g: 0.6981132, b: 0.15674609, a: 0}
     useGravity: 0
 --- !u!114 &7364168805971651657

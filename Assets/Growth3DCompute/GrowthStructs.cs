@@ -27,7 +27,11 @@ public struct NodeType
 
     public float auxinGrowthFactor;
 
+    public float auxinFluxCanalization;
+
     public Vector3 growthTensor;
+
+    public float flattenFactor;
 
     public Color color;
     
@@ -56,6 +60,8 @@ public unsafe struct Node3D
 
     // auxin
     public float currAuxinLevel;
+
+    public float currCanalStrength; // for auxin transport
 
     // basis vectors defining local coordinate system
     public Vector3 tangent; // up
@@ -94,6 +100,10 @@ public unsafe struct HalfEdge3D
     public float baseRestLength; // starting rest length for this edge
     public float currRestLength;
     public float splitDistanceThreshold;
+
+    public float conductivity; // for auxin transport
+
+    public float flowLastFrame;
 };
 
 public unsafe struct Face3D

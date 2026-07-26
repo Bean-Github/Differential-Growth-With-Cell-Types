@@ -65,7 +65,9 @@ Shader "Custom/ParticleEdge"
                 // Color by average curvature
                 float colorT = saturate((source.curvature + target.curvature) * 0.5);
 
-                o.color = float4(_EdgeColor.rgba * colorT);
+                //o.color = float4(_EdgeColor.rgb * colorT, 1.0f);
+
+                o.color = _EdgeColor * (edge.conductivity);
 
                 return o;
             }

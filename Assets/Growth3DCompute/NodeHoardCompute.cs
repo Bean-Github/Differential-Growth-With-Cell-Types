@@ -394,6 +394,8 @@ namespace Growth3DCompute
             edge.springStiffness = globalSpringStiffness;
             edge.splitDistanceThreshold = globalSplitDistanceThreshold;
 
+            edge.conductivity = 0.5f; // default conductivity
+
             halfEdges.Add(edge);
             return edge.id;
         }
@@ -445,6 +447,22 @@ namespace Growth3DCompute
             if (nodeA.halfEdge == uint.MaxValue) nodeA.halfEdge = he1.id;
             if (nodeB.halfEdge == uint.MaxValue) nodeB.halfEdge = he2.id;
             if (nodeC.halfEdge == uint.MaxValue) nodeC.halfEdge = he3.id;
+
+
+            // get normal of face and set it to the nodes' normals
+            Vector3 normal = Vector3.Cross(nodeB.position - nodeA.position, nodeC.position - nodeA.position).normalized;
+            nodeA.normal = normal;
+            nodeB.normal = normal;
+            nodeC.normal = normal;
+
+            // adjust node tangent and binormal based on the normal, with tangent being the edge direction
+            nodeA.tangent = (nodeB.position - nodeA.position).normalized;
+            nodeA.binormal = Vector3.Cross(nodeA.normal, nodeA.tangent).normalized;
+            nodeB.tangent = (nodeC.position - nodeB.position).normalized;
+            nodeB.binormal = Vector3.Cross(nodeB.normal, nodeB.tangent).normalized;
+            nodeC.tangent = (nodeA.position - nodeC.position).normalized;
+            nodeC.binormal = Vector3.Cross(nodeC.normal, nodeC.tangent).normalized;
+
 
             // Write the modifications back to the master list!
             halfEdges[(int)he1.id] = he1;

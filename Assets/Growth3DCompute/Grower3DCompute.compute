@@ -1,5 +1,6 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel UpdateEdges
+#pragma kernel UpdateFaces
 
 #pragma kernel ResolveFaceCollisions
 #pragma kernel ResolveEdgeCollisions
@@ -35,12 +36,16 @@ float separationForce;
 
 float gravity;
 
+float faceFlatTurgor;
+
 float baseRestLength;
 
 float springStiffness;
 float springDamping;
 
 float lateralDamping;
+
+float faceConservationForce; // the force that pushes faces back to their original area (to look like equilateral triangles)
 
 StructuredBuffer<Entry> SpatialLookup;
 StructuredBuffer<uint> StartIndices;
@@ -58,7 +63,7 @@ RWByteAddressBuffer GlobalCounters;
 RWStructuredBuffer<int> TotalAuxin;
 RWStructuredBuffer<int> AccumulatedAuxinInt;
 
-void AtomicAddAuxin(uint nodeIndex, float auxinToAdd, out int previousValue)
+void AccumulateAuxin(uint nodeIndex, float auxinToAdd, out int previousValue)
 {
     int auxinInt = (int) (auxinToAdd * FLOAT_TO_INT_SCALE);
 
@@ -107,14 +112,14 @@ void UpdateEdges(uint3 id : SV_DispatchThreadID)
     // update edges
     edge.age += deltaTime;
     
-// 1. CALCULATE PHYSICAL CONSTRICTION
+    // CALCULATE PHYSICAL CONSTRICTION
     float actualLength = length(node.position - neighbor.position);
     
     // How compressed is this edge compared to its ideal rest length?
     // 1.0 = relaxed/stretching, < 1.0 = compressed by collisions/boundaries
     float compressionRatio = actualLength / max(edge.currRestLength, 1e-5f);
     
-    // 2. APPLY GROWTH MULTIPLIER
+    // APPLY GROWTH MULTIPLIER
     // smoothstep creates a smooth falloff. 
     // If the edge is compressed to 30% (0.3) of its rest length, growth becomes 0.
     // If the edge is at 95% (0.95) or above, it grows normally (multiplier = 1).
@@ -136,6 +141,77 @@ void UpdateEdges(uint3 id : SV_DispatchThreadID)
     HalfEdges[index] = edge;
 }
 
+// UPDATE FACES
+[numthreads(64, 1, 1)]
+void UpdateFaces(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x;
+    int faceCount = GlobalCounters.Load(8);
+    
+    if (index >= faceCount)
+        return;
+    
+    Face3D face = Faces[index];
+    
+    uint edges[3];
+    edges[0] = face.halfEdge;
+    edges[1] = HalfEdges[edges[0]].next;
+    edges[2] = HalfEdges[edges[1]].next;
+    
+    // Loop through the 3 edges to apply Normal-Angle matching forces
+    for (int i = 0; i < 3; i++)
+    {
+        uint currentEdge = edges[i];
+        uint twinEdge = HalfEdges[currentEdge].twin;
+        
+        // Only process each shared edge once to avoid doubling forces
+        if (twinEdge != 0xFFFFFFFF && currentEdge < twinEdge)
+        {
+            // 1. Get the two nodes of this edge
+            uint nA = HalfEdges[twinEdge].target; // Node A
+            uint nB = HalfEdges[currentEdge].target; // Node B
+            
+            float3 posA = Nodes[nA].position;
+            float3 posB = Nodes[nB].position;
+            
+            float3 normA = Nodes[nA].normal;
+            float3 normB = Nodes[nB].normal;
+            
+            // 2. Measure the bending error
+            // dot() gives the projection of the edge along the normal.
+            // If it's a flat plane, currentDotA should be 0.0. 
+            // If Node B has popped upward, currentDotA > 0.
+            float currentDotA = dot(posB - posA, normA);
+            float currentDotB = dot(posA - posB, normB);
+            
+            // 3. Define the "Correct Angle"
+            // If your base shape is curved (like a sphere), you would store the initial 
+            // dot products when the mesh is generated and load them here instead of 0.0f.
+            float targetDotA = 0.0f;
+            float targetDotB = 0.0f;
+            
+            float angleStiffness = Nodes[nA].type.flattenFactor; // Adjust to make the shape more rigid
+            
+            // 4. Calculate Restoring Forces
+            // Push Node B along Node A's normal to correct the angle
+            float3 forceB_from_A = -(currentDotA - targetDotA) * normA * angleStiffness;
+            
+            // Push Node A along Node B's normal to correct the angle
+            float3 forceA_from_B = -(currentDotB - targetDotB) * normB * angleStiffness;
+            
+            // 5. Newton's Third Law (Balance the forces so the mesh doesn't fly away)
+            // If Node B gets pushed by A, Node A takes the opposite reaction force.
+            float3 totalForceA = forceA_from_B - forceB_from_A;
+            float3 totalForceB = forceB_from_A - forceA_from_B;
+            
+            // 6. Apply via atomics
+            AtomicAddVelocity(nA, totalForceA * deltaTime);
+            AtomicAddVelocity(nB, totalForceB * deltaTime);
+        }
+    }
+    
+    Faces[index] = face;
+}
 // RESOLVE COLLISIONS
 [numthreads(64, 1, 1)]
 void ResolveFaceCollisions(uint3 id : SV_DispatchThreadID)
@@ -425,31 +501,43 @@ void UpdateAuxinLevels(uint3 id : SV_DispatchThreadID)
     NodeType info = node.type;
     int _;
 
-    float myCurrentAuxin = node.currAuxinLevel;
+    float myCurrentAuxin = max(0.0f, node.currAuxinLevel);
     
     // GENERATION
-    float generation = info.auxinGenerationRate * deltaTime;
+    float generation = (info.auxinGenerationRate) * deltaTime;
     if (myCurrentAuxin + generation < 0)
     {
         generation = -myCurrentAuxin; // Prevent dropping below 0
     }
     myCurrentAuxin += generation;
     
-    // LOOP THROUGH NEIGHBORS
+    // SCOUTING VARIABLES
     HalfEdge3D currEdge = HalfEdges[node.halfEdge];
-    float maxAuxinLevel = node.currAuxinLevel; // We look at base levels for canalization
+    
+    float maxAuxinLevel = node.currAuxinLevel; // For active transport
     int maxAuxinNeighborIndex = -1;
+
+    // Tracker for our single chosen path
+    int bestDownhillEdgeId = -1;
+    float bestEffectiveFlow = -1.0f;
+    float bestDownhillConductivity = -1.0f;
+    uint bestDownhillTargetIndex = 0;
+    float bestGradient = 0.0f;
+
+    float totalStolenForMe = 0;
     
-    float netDiffusionForMe = 0;
+    float totalDesiredPassiveFlow = 0.0f;
     
-    float totalStolenForMe = 0; // Track our loot
-    
+    // -----------------------------------------------------------------
+    // SCOUTING 
+    // Find max neighbor (for transport) AND best downhill edge (for diffusion)
+    // -----------------------------------------------------------------
     for (int j = 0; j < 64; j++)
     {
         uint neighborNodeIndex = currEdge.target;
         Node3D neighbor = Nodes[neighborNodeIndex];
         
-        // find max neighbor
+        // Find max neighbor (Active Transport)
         if (neighbor.currAuxinLevel > maxAuxinLevel)
         {
             maxAuxinLevel = neighbor.currAuxinLevel;
@@ -458,80 +546,149 @@ void UpdateAuxinLevels(uint3 id : SV_DispatchThreadID)
         
         // PASSIVE DIFFUSION
         float gradient = neighbor.currAuxinLevel - node.currAuxinLevel;
-        
-        float edgeDiffusionRate = (info.auxinDiffusionRate + neighbor.type.auxinDiffusionRate) * 0.5f;
-        // Multiply by 0.5 because the neighbor thread will apply the other half to itself
-        netDiffusionForMe += gradient * edgeDiffusionRate * 0.5f * deltaTime;
-        
+        float edgeDiffusionRate = info.auxinDiffusionRate;
+
+        // Find the single MOST canalized downhill edge
+        if (gradient <= 0)
+        {
+            totalDesiredPassiveFlow += -gradient * edgeDiffusionRate * 0.5f * deltaTime;
+            float steepness = -gradient; // Convert to a positive number for magnitude
+            
+            float effectiveFlow = steepness + node.currCanalStrength;
+            
+            if (effectiveFlow > bestEffectiveFlow)
+            {
+                bestDownhillEdgeId = currEdge.id;
+                bestEffectiveFlow = effectiveFlow;
+                bestDownhillConductivity = currEdge.conductivity;
+                bestDownhillTargetIndex = neighborNodeIndex;
+                bestGradient = gradient;
+            }
+        }
+
         // STEALING
         if (info.auxinStealRate > 0)
         {
-            // absorb auxin from neighbors (we ensure this doesnt generate new auxin)
             float requestedSteal = info.auxinStealRate * deltaTime;
-
             int oldAccumulator;
-            AtomicAddAuxin(
-                neighborNodeIndex,
-                -requestedSteal,
-                oldAccumulator
-            );
+            AccumulateAuxin(neighborNodeIndex, -requestedSteal, oldAccumulator);
 
-            // Calculate how much auxin the neighbor actually had available
-            float previousPending =
-                (float) oldAccumulator / FLOAT_TO_INT_SCALE;
-
-            float availableBefore =
-                neighbor.currAuxinLevel + previousPending;
-
-            // If we tried to take too much, refund the excess
+            float previousPending = (float) oldAccumulator / FLOAT_TO_INT_SCALE;
+            float availableBefore = neighbor.currAuxinLevel + previousPending;
+            
             float actualSteal = min(requestedSteal, max(availableBefore, 0));
-
             float refund = requestedSteal - actualSteal;
 
             if (refund > 0)
             {
-                AtomicAddAuxin(
-                    neighborNodeIndex,
-                    refund,
-                    oldAccumulator
-                );
+                AccumulateAuxin(neighborNodeIndex, refund, oldAccumulator);
             }
-
-            // Give absorbed auxin to this node
             totalStolenForMe += actualSteal;
         }
+
+        currEdge = HalfEdges[HalfEdges[currEdge.twin].next];
+        if (currEdge.id == node.halfEdge)
+            break;
+    }
+    
+    // -----------------------------------------------------------------
+    // CALCULATE OUTGOING FLOW
+    // Only happens if we actually found a valid downhill edge
+    // -----------------------------------------------------------------
+    float desiredCanalFlow = 0.0f;
+    if (bestDownhillEdgeId != -1)
+    {
+        // SUPPLY PRESSURE: We push based on how full this node is (myCurrentAuxin) 
+        // multiplied by how wide the pipe is (bestDownhillConductivity).
+        float desiredPush = myCurrentAuxin * bestDownhillConductivity * info.auxinDiffusionRate * deltaTime;
+        
+        // SAFETY CLAMP: Never push more than half the distance to the neighbor's level,
+        // otherwise they will have more than us next frame and shoot it right back (Ping-Pong).
+        float maxAllowedPush = -bestGradient * 0.5f;
+        
+        desiredCanalFlow = min(desiredPush, maxAllowedPush);
+    }
+    float totalAvailableBudget = myCurrentAuxin + totalStolenForMe;
+    float totalDesiredPush = totalDesiredPassiveFlow + desiredCanalFlow;
+    
+    float pushScale = 1.0f;
+    // If we are trying to push more than we have, scale everything down proportionally
+    if (totalDesiredPush > totalAvailableBudget && totalDesiredPush > 0)
+    {
+        pushScale = totalAvailableBudget / totalDesiredPush;
+    }
+    
+    float actualCanalFlow = desiredCanalFlow * pushScale;
+    float totalActuallyPushedOut = 0.0f; // Track exactly how much leaves this node
+
+    // -----------------------------------------------------------------
+    // EXECUTION & CANALIZATION
+    // -----------------------------------------------------------------
+    currEdge = HalfEdges[node.halfEdge]; // Reset loop
+    
+    for (int k = 0; k < 64; k++)
+    {
+        float gradient = Nodes[currEdge.target].currAuxinLevel - node.currAuxinLevel;
+        float flowToThisNeighbor = 0.0f;
+
+        // Apply Passive Diffusion (if downhill)
+        if (gradient <= 0)
+        {
+            float passive = -gradient * info.auxinDiffusionRate * 0.5f * deltaTime;
+            flowToThisNeighbor += (passive * pushScale);
+        }
+
+        // Apply Canalization (if this is the winner)
+        if (currEdge.id == bestDownhillEdgeId && actualCanalFlow > 0)
+        {
+            flowToThisNeighbor += actualCanalFlow;
+            
+            float buildUp = actualCanalFlow * info.auxinFluxCanalization;
+            currEdge.conductivity += buildUp;
+            Nodes[currEdge.target].currCanalStrength += actualCanalFlow;
+        }
+        else
+        {
+            // Decay losers
+            float decay = currEdge.conductivity * 0.1f * deltaTime;
+            currEdge.conductivity -= decay;
+        }
+        
+        // Send the Auxin
+        if (flowToThisNeighbor > 0)
+        {
+            AccumulateAuxin(currEdge.target, flowToThisNeighbor, _);
+            totalActuallyPushedOut += flowToThisNeighbor;
+        }
+        
+        // Clamp edge conductivity
+        currEdge.conductivity = clamp(currEdge.conductivity, 0.1f, 1.0f);
+        HalfEdges[currEdge.id] = currEdge;
         
         currEdge = HalfEdges[HalfEdges[currEdge.twin].next];
         if (currEdge.id == node.halfEdge)
             break;
     }
     
-    // Clamp diffusion so this node can't give away more than it currently has
-    if (myCurrentAuxin + netDiffusionForMe < 0)
-    {
-        netDiffusionForMe = -myCurrentAuxin;
-    }
-    myCurrentAuxin += netDiffusionForMe;
-    myCurrentAuxin += totalStolenForMe;
+    // Deduct what we successfully pushed out from our own accumulator
+    AccumulateAuxin(index, generation + totalStolenForMe - totalActuallyPushedOut, _);
+    // Update myCurrentAuxin for Active Transport step
+    myCurrentAuxin = totalAvailableBudget - totalActuallyPushedOut;
     
-    // Apply Generation and net Diffusion to THIS node atomically in one clean step
-    AtomicAddAuxin(index, generation + netDiffusionForMe + totalStolenForMe, _);
-    
+    // -----------------------------------------------------------------
     // ACTIVE TRANSPORT
     // Pump to the max neighbor
+    // -----------------------------------------------------------------
     if (maxAuxinNeighborIndex != -1 && myCurrentAuxin > 0)
     {
         float auxinTransfer = info.auxinTransportRate * deltaTime;
-        
         auxinTransfer = min(auxinTransfer, myCurrentAuxin);
         
-        // Take from us, give to the max neighbor
-        AtomicAddAuxin(index, -auxinTransfer, _);
-        AtomicAddAuxin(maxAuxinNeighborIndex, auxinTransfer, _);
+        AccumulateAuxin(index, -auxinTransfer, _);
+        AccumulateAuxin(maxAuxinNeighborIndex, auxinTransfer, _);
     }
     
-    // Notice how Nodes[index] = node; is GONE. 
-    // We let the AtomicAddAuxin calls handle memory updates!
+    Nodes[index] = node;
 }
 
 [numthreads(64, 1, 1)]

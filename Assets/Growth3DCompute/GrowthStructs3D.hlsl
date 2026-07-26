@@ -25,7 +25,11 @@ struct NodeType
     
     float auxinGrowthFactor; // how much 1 auxin contributes to the growth rate
     
+    float auxinFluxCanalization; // how much the auxin gets canalized instead of normally diffused
+    
     float3 growthTensor;
+    
+    float flattenFactor; // how much the growth is flattened along the tangent direction
     
     float4 color;
     
@@ -68,6 +72,8 @@ NodeType BlendTypes(NodeType typeA, NodeType typeB, float blendFactor)
     blendedType.auxinThreshold = lerp(typeA.auxinThreshold, typeB.auxinThreshold, hardBlendFactor);
     blendedType.auxinGrowthFactor = lerp(typeA.auxinGrowthFactor, typeB.auxinGrowthFactor, blendFactor);
     
+    blendedType.auxinFluxCanalization = lerp(typeA.auxinThreshold, typeB.auxinThreshold, hardBlendFactor);
+    
     blendedType.growthTensor = lerp(typeA.growthTensor, typeB.growthTensor, hardBlendFactor);
     
     blendedType.useGravity = hardBlendFactor < 0.5 ? typeA.useGravity : typeB.useGravity;
@@ -80,6 +86,8 @@ NodeType BlendTypes(NodeType typeA, NodeType typeB, float blendFactor)
     }
     
     blendedType.color = lerp(typeB.color, typeA.color, weightA);
+    
+    blendedType.flattenFactor = lerp(typeA.flattenFactor, typeB.flattenFactor, hardBlendFactor);
     
     return blendedType;
 }
@@ -108,6 +116,8 @@ struct Node3D
     
     float currAuxinLevel;
     
+    
+    float currCanalStrength;
     
     // basis vectors defining local coordinate system
     float3 tangent; // up
@@ -146,6 +156,9 @@ struct HalfEdge3D
     float baseRestLength; // starting rest length for this edge
     float currRestLength;
     float splitDistanceThreshold;
+    
+    float conductivity; // how much auxin can flow through this edge
+    float flowLastFrame;
 };
 
 struct Face3D

@@ -66,15 +66,17 @@ MonoBehaviour:
     auxinStealRate: 0
     auxinThreshold: 0
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
     growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
     color: {r: 0.23018861, g: 0.11815287, b: 0.015201102, a: 0}
     useGravity: 0
   - mass: 2.06
-    drag: 5.06
-    growthRate: 8.74
+    drag: 22.95
+    growthRate: 5.08
     turgorPressure: 0.4
     laplacianSmoothing: 1.38
-    switchTime: 20
+    switchTime: 46
     targetType: 5
     inheritanceWeight: 1
     childType: 11
@@ -84,15 +86,17 @@ MonoBehaviour:
     auxinStealRate: 0
     auxinThreshold: -1
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
     growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
     color: {r: 0.5849056, g: 0.026564008, b: 0.025382632, a: 0.76862746}
-    useGravity: 1
+    useGravity: 0
   - mass: 2.06
     drag: 0.4
     growthRate: 3.48
     turgorPressure: 0.38
     laplacianSmoothing: 1.38
-    switchTime: 10.11
+    switchTime: 7.95
     targetType: 4
     inheritanceWeight: 2
     childType: 3
@@ -102,7 +106,9 @@ MonoBehaviour:
     auxinStealRate: 0
     auxinThreshold: 33.76
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
     growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
     color: {r: 0.19573909, g: 0.3962264, b: 0.16073334, a: 0.6431373}
     useGravity: 1
   - mass: 2.22
@@ -120,7 +126,9 @@ MonoBehaviour:
     auxinStealRate: 0.23
     auxinThreshold: 50.32
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
     growthTensor: {x: 1, y: 0, z: 0}
+    flattenFactor: 0
     color: {r: 0.33115685, g: 0.7207546, b: 0.28150225, a: 0.56078434}
     useGravity: 0
   - mass: 13.88
@@ -138,12 +146,14 @@ MonoBehaviour:
     auxinStealRate: 0
     auxinThreshold: 0
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
     growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
     color: {r: 0.1377256, g: 0.6679245, b: 0.06931285, a: 0.050980393}
     useGravity: 0
   - mass: 1
     drag: 3.48
-    growthRate: 5.62
+    growthRate: 7.88
     turgorPressure: 0
     laplacianSmoothing: 1
     switchTime: 2.86
@@ -156,7 +166,9 @@ MonoBehaviour:
     auxinStealRate: 3.18
     auxinThreshold: -1
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
     growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
     color: {r: 0.735849, g: 0.22630823, b: 0.22630823, a: 0}
     useGravity: 1
   - mass: 1
@@ -174,7 +186,9 @@ MonoBehaviour:
     auxinStealRate: 0.31
     auxinThreshold: -1
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
     growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
     color: {r: 0.8415094, g: 0.31596288, b: 0.7749648, a: 0}
     useGravity: 0
   - mass: 1
@@ -192,7 +206,9 @@ MonoBehaviour:
     auxinStealRate: 0
     auxinThreshold: -1.68
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
     growthTensor: {x: 1, y: 0, z: 0}
+    flattenFactor: 0
     color: {r: 0.70254856, g: 0.33182627, b: 0.735849, a: 0}
     useGravity: 1
   - mass: 1
@@ -210,12 +226,14 @@ MonoBehaviour:
     auxinStealRate: 0
     auxinThreshold: 0
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
     growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
     color: {r: 0.6075471, g: 0.127241, b: 0.17561717, a: 0}
     useGravity: 0
   - mass: 2.06
     drag: 0.4
-    growthRate: 5.1
+    growthRate: 3.44
     turgorPressure: 0.4
     laplacianSmoothing: 1.38
     switchTime: -1
@@ -226,9 +244,11 @@ MonoBehaviour:
     auxinTransportRate: 0
     auxinDiffusionRate: 0
     auxinStealRate: 0
-    auxinThreshold: 7.14
+    auxinThreshold: 5.9
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
     growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
     color: {r: 0.17936328, g: 0.4188679, b: 0.071918815, a: 0.7882353}
     useGravity: 1
   - mass: 2.06
@@ -246,7 +266,9 @@ MonoBehaviour:
     auxinStealRate: 0
     auxinThreshold: 33.76
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
     growthTensor: {x: 1, y: 0, z: 0.1}
+    flattenFactor: 0
     color: {r: 0.5924529, g: 0.09725167, b: 0.35296547, a: 0}
     useGravity: 1
   - mass: 1.98
@@ -262,9 +284,11 @@ MonoBehaviour:
     auxinTransportRate: 1.05
     auxinDiffusionRate: 0.1
     auxinStealRate: 0
-    auxinThreshold: 2
+    auxinThreshold: 4.15
     auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
     growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
     color: {r: 0.4339623, g: 0.2324692, b: 0.045033775, a: 0}
     useGravity: 0
 --- !u!114 &7364168805971651657
