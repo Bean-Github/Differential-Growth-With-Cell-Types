@@ -58,6 +58,11 @@ namespace GoldenAngleAnimation
 
         void SplitAllCells()
         {
+            if (currCells.Count == 8)
+            {
+                gridWidth = 4;
+            }
+
             MoveCellsToSplitPositions();
 
             List<SplittableCell> oldCells = new List<SplittableCell>();

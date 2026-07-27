@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class Textbox : MonoBehaviour
@@ -22,14 +23,30 @@ public class Textbox : MonoBehaviour
         {
             ToggleTextbox();
 
-            animator.Play("Appear");
         }
     }
 
 
     void ToggleTextbox()
     {
-        textboxUI.SetActive(!textboxUI.activeSelf);
+        if (!textboxUI.activeSelf)
+        {
+            textboxUI.SetActive(true);
+            animator.Play("Appear");
+        }
+        else
+        {
+            StartCoroutine(DisableWithDelay());
+        }
+
+    }
+
+    IEnumerator DisableWithDelay()
+    {
+        animator.Play("Disappear");
+
+        yield return new WaitForSeconds(0.5f); // Adjust the delay as needed
+        textboxUI.SetActive(false);
     }
 
 
