@@ -34,6 +34,8 @@ struct NodeType
     float4 color;
     
     uint useGravity;
+    
+    float maxSpeed; // maximum speed of the node
 };
 
 
@@ -88,6 +90,8 @@ NodeType BlendTypes(NodeType typeA, NodeType typeB, float blendFactor)
     blendedType.color = lerp(typeB.color, typeA.color, weightA);
     
     blendedType.flattenFactor = lerp(typeA.flattenFactor, typeB.flattenFactor, hardBlendFactor);
+    
+    blendedType.maxSpeed = lerp(typeA.maxSpeed, typeB.maxSpeed, blendFactor);
     
     return blendedType;
 }

@@ -18,6 +18,7 @@ public struct NodeType
     public float inheritanceWeight;
     public uint childType;
 
+    // AUXIN
     public float auxinGenerationRate;
     public float auxinTransportRate;
     public float auxinDiffusionRate;
@@ -29,13 +30,17 @@ public struct NodeType
 
     public float auxinFluxCanalization;
 
+    // growth tensor
     public Vector3 growthTensor;
 
     public float flattenFactor;
 
     public Color color;
     
+    // other values
     public uint useGravity;
+
+    public float maxSpeed;
 }
 
 // ALL STRUCTS

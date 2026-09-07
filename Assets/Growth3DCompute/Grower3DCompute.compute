@@ -128,8 +128,12 @@ void UpdateEdges(uint3 id : SV_DispatchThreadID)
     // edge growth is based on the average growth rate of the two nodes it connects
     float baseGrowthRate = (info.growthRate + neighborInfo.growthRate) / 2.0f;
     
+    // influence by auxin growth factor
+    float auxinInfluence = (node.currAuxinLevel + neighbor.currAuxinLevel) * 0.5f;
+    float auxinGrowthFactor = auxinInfluence * info.auxinGrowthFactor;
+    
     // Scale growth by how constricted we are
-    float finalGrowthRate = baseGrowthRate * mechanicalInhibition;
+    float finalGrowthRate = baseGrowthRate * mechanicalInhibition + auxinGrowthFactor;
     
     edge.currRestLength += finalGrowthRate * deltaTime;
     
@@ -1008,7 +1012,9 @@ void MoveParticles (uint3 id : SV_DispatchThreadID)
     }
     
     // apply velocity
-    node.position += node.velocity * deltaTime;
+    float cappedVelocity = min(length(node.velocity), info.maxSpeed);
+    float3 cappedVelocityVec = (length(node.velocity) > 0.0001f) ? normalize(node.velocity) * cappedVelocity : float3(0, 0, 0);
+    node.position += cappedVelocityVec * deltaTime;
     
     Nodes[index] = node;
 

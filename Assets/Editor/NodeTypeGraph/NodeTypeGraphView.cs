@@ -119,6 +119,7 @@ namespace Growth3D.Editor
             elem.FindPropertyRelative("childType").uintValue = (uint)newIndex; // children default to itself
             elem.FindPropertyRelative("color").colorValue = Color.white;
             elem.FindPropertyRelative("flattenFactor").floatValue = 0f;
+            elem.FindPropertyRelative("maxSpeed").floatValue = 20f;
 
             genotypeSerializedObject.ApplyModifiedProperties();
 
@@ -330,7 +331,7 @@ namespace Growth3D.Editor
             public Vector2 position;
             public float mass, drag, growthRate, turgorPressure, laplacianSmoothing, switchTime,
                          inheritanceWeight, auxinGenerationRate, auxinTransportRate, auxinDiffusionRate,
-                         auxinStealRate, auxinThreshold, auxinGrowthFactor, auxinFluxCanalization, flattenFactor;
+                         auxinStealRate, auxinThreshold, auxinGrowthFactor, auxinFluxCanalization, flattenFactor, maxSpeed;
             public Vector3 growthTensor;
             public bool useGravity;
             public Color color;
@@ -390,6 +391,7 @@ namespace Growth3D.Editor
                     auxinFluxCanalization = elem.FindPropertyRelative("auxinFluxCanalization").floatValue,
                     useGravity = elem.FindPropertyRelative("useGravity").uintValue != 0,
                     flattenFactor = elem.FindPropertyRelative("flattenFactor").floatValue,
+                    maxSpeed = elem.FindPropertyRelative("maxSpeed").floatValue,
                     color = elem.FindPropertyRelative("color").colorValue,
                     targetType = (target != (uint)nodeView.Index && copiedIndices.Contains((int)target)) ? localIndex[(int)target] : -1,
                     childType = (child != (uint)nodeView.Index && copiedIndices.Contains((int)child)) ? localIndex[(int)child] : -1,
@@ -458,6 +460,7 @@ namespace Growth3D.Editor
                 elem.FindPropertyRelative("targetType").uintValue = (uint)newIndex; // resolved below once all pasted nodes exist
                 elem.FindPropertyRelative("childType").uintValue = (uint)newIndex;  // defaults to itself until resolved below
                 elem.FindPropertyRelative("flattenFactor").floatValue = copy.flattenFactor;
+                elem.FindPropertyRelative("maxSpeed").floatValue = 20f; // default to 0, user can edit later
             }
 
             genotypeSerializedObject.ApplyModifiedProperties();
