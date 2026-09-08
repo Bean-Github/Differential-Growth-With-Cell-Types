@@ -147,9 +147,9 @@ Finally, to make many different growers, a graph editor in Unity was created to 
 ![Cell Type Editor](graph.png)
 
 
-# Resources and References
+# Acknowledgements, Resources, and References
 
-Thank you to the resources used below. Also, thank you to my mentors Prof. Adam Mally, and Jessica Kimpel. 
+Thank you to the resources used below. Also, thank you to my mentors Prof. Adam Mally, and Jessica Kimpel. Also, thank you very much to the University of Pennsylvania Diane Chi Fund for the great research opportunity.
 
 ### Biology
 
