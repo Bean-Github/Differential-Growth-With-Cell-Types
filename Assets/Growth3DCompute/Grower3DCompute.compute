@@ -993,11 +993,12 @@ void MoveParticles (uint3 id : SV_DispatchThreadID)
     {
         float4 oldColor = info.color;
         
-        if (node.baseType != info.targetType)
+        if (node.baseType != info.targetType && info.resetAgeOnSwitch)
         {
             node.age = 0.0f; // reset age when switching types
         }
         
+        // change types
         node.baseType = info.targetType;
         
         GetCellInfo(node.baseType, node.type);

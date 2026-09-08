@@ -96,6 +96,7 @@ namespace Growth3D.Editor
             AddFloatField(elementProp, "flattenFactor");
             AddVector3Field(elementProp, "growthTensor");
             AddBoolField(elementProp, "useGravity");
+            AddBoolField(elementProp, "resetAgeOnSwitch");
             AddFloatField(elementProp, "maxSpeed");
             AddColorField(elementProp, "color");
 

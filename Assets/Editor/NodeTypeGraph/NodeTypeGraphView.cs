@@ -115,6 +115,7 @@ namespace Growth3D.Editor
             elem.FindPropertyRelative("auxinFluxCanalization").floatValue = 0f;
             elem.FindPropertyRelative("growthTensor").vector3Value = new Vector3(1f, 1f, 1f);
             elem.FindPropertyRelative("useGravity").uintValue = 1; // true
+            elem.FindPropertyRelative("resetAgeOnSwitch").uintValue = 0; // false
             elem.FindPropertyRelative("targetType").uintValue = (uint)newIndex; // no "switches to" yet
             elem.FindPropertyRelative("childType").uintValue = (uint)newIndex; // children default to itself
             elem.FindPropertyRelative("color").colorValue = Color.white;
@@ -334,6 +335,7 @@ namespace Growth3D.Editor
                          auxinStealRate, auxinThreshold, auxinGrowthFactor, auxinFluxCanalization, flattenFactor, maxSpeed;
             public Vector3 growthTensor;
             public bool useGravity;
+            public bool resetAgeOnSwitch;
             public Color color;
 
             // Index into the copied set itself (not the original genotype), or -1 for "none" /
@@ -390,6 +392,7 @@ namespace Growth3D.Editor
                     growthTensor = elem.FindPropertyRelative("growthTensor").vector3Value,
                     auxinFluxCanalization = elem.FindPropertyRelative("auxinFluxCanalization").floatValue,
                     useGravity = elem.FindPropertyRelative("useGravity").uintValue != 0,
+                    resetAgeOnSwitch = elem.FindPropertyRelative("resetAgeOnSwitch").uintValue != 0,
                     flattenFactor = elem.FindPropertyRelative("flattenFactor").floatValue,
                     maxSpeed = elem.FindPropertyRelative("maxSpeed").floatValue,
                     color = elem.FindPropertyRelative("color").colorValue,
@@ -456,6 +459,7 @@ namespace Growth3D.Editor
                 elem.FindPropertyRelative("growthTensor").vector3Value = copy.growthTensor;
                 elem.FindPropertyRelative("auxinFluxCanalization").floatValue = copy.auxinFluxCanalization;
                 elem.FindPropertyRelative("useGravity").uintValue = copy.useGravity ? 1u : 0u;
+                elem.FindPropertyRelative("resetAgeOnSwitch").uintValue = copy.resetAgeOnSwitch ? 1u : 0u;
                 elem.FindPropertyRelative("color").colorValue = copy.color;
                 elem.FindPropertyRelative("targetType").uintValue = (uint)newIndex; // resolved below once all pasted nodes exist
                 elem.FindPropertyRelative("childType").uintValue = (uint)newIndex;  // defaults to itself until resolved below

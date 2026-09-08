@@ -33,7 +33,6 @@ Node3D AddNode(uint allocatedID, HalfEdge3D splitEdge)
     
     Node3D node = (Node3D) 0;
     node.id = allocatedID;
-    node.age = 0.0f;
     
     NodeType oldNodeInfo;
     GetCellInfo(oldNode.baseType, oldNodeInfo);
@@ -77,7 +76,7 @@ Node3D AddNode(uint allocatedID, HalfEdge3D splitEdge)
     node.normal = spawningNode.normal;
     node.binormal = cross(node.normal, node.tangent);
     
-    node.age = spawningNode.age;
+    node.age = max(oldNode.age, neighbor.age);
     
     node.currCanalStrength = spawningNode.currCanalStrength;
     

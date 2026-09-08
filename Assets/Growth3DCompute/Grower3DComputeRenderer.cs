@@ -22,31 +22,49 @@ namespace Growth3DCompute
         public bool debugNodeTypes = true;
         public bool debugShowDirs = true;
 
+        public bool renderParticles = true;
+
+        public bool renderMeshEveryFrame = false;
+
         private void Update()
         {
             // get the information back from the shader to render
-            particleRenderer.RenderParticles(computeRunner.nodeBuffer, computeRunner.nodeCount);
-            edgeRenderer.RenderEdges(computeRunner.nodeBuffer, computeRunner.halfEdgeBuffer, computeRunner.nodeCount, computeRunner.halfEdgeCount);
+            if (renderParticles)
+            {
+                particleRenderer.RenderParticles(computeRunner.nodeBuffer, computeRunner.nodeCount);
+                edgeRenderer.RenderEdges(computeRunner.nodeBuffer, computeRunner.halfEdgeBuffer, computeRunner.nodeCount, computeRunner.halfEdgeCount);
+            }
 
             if (Input.GetKeyDown(KeyCode.M))
             {
-                // convert to mesh
-                // extract the data back to CPU and log it for debugging
-                Node3D[] nodeData = new Node3D[computeRunner.nodeCount];
-                computeRunner.nodeBuffer.GetData(nodeData, 0, 0, computeRunner.nodeCount);
-
-                HalfEdge3D[] halfEdgeData = new HalfEdge3D[computeRunner.halfEdgeCount];
-                computeRunner.halfEdgeBuffer.GetData(halfEdgeData, 0, 0, computeRunner.halfEdgeCount);
-
-                Face3D[] faceData = new Face3D[computeRunner.faceCount];
-                computeRunner.faceBuffer.GetData(faceData, 0, 0, computeRunner.faceCount);
-
-                NodeHoardCompute nodeHoardCompute = new NodeHoardCompute(nodeData, halfEdgeData, faceData);
-
-                Mesh newMesh = NodeHoardMeshGenerator.GenerateMesh(nodeHoardCompute);
-
-                nodeHoardMeshFilter.mesh = newMesh;
+                RenderMesh();
             }
+
+            if (renderMeshEveryFrame)
+            {
+                RenderMesh();
+            }
+        }
+
+        void RenderMesh()
+        {
+            // convert to mesh
+            // extract the data back to CPU and log it for debugging
+            Node3D[] nodeData = new Node3D[computeRunner.nodeCount];
+            computeRunner.nodeBuffer.GetData(nodeData, 0, 0, computeRunner.nodeCount);
+
+            HalfEdge3D[] halfEdgeData = new HalfEdge3D[computeRunner.halfEdgeCount];
+            computeRunner.halfEdgeBuffer.GetData(halfEdgeData, 0, 0, computeRunner.halfEdgeCount);
+
+            Face3D[] faceData = new Face3D[computeRunner.faceCount];
+            computeRunner.faceBuffer.GetData(faceData, 0, 0, computeRunner.faceCount);
+
+            NodeHoardCompute nodeHoardCompute = new NodeHoardCompute(nodeData, halfEdgeData, faceData);
+
+            Mesh newMesh = NodeHoardMeshGenerator.GenerateMesh(nodeHoardCompute);
+
+            nodeHoardMeshFilter.mesh = newMesh;
+
         }
 
 #if UNITY_EDITOR

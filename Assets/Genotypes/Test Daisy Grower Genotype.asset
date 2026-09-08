@@ -14,21 +14,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   entries:
   - displayName: seed
-    position: {x: -148.00002, y: 594.17694}
+    position: {x: -64.79994, y: -238.83304}
   - displayName: Apical Meristem
-    position: {x: -670.2713, y: 158.40007}
+    position: {x: -796.3285, y: 158.4}
   - displayName: Leaf Apex Spawner
-    position: {x: 818.5453, y: 52.79999}
+    position: {x: 1157.5999, y: 506.39996}
   - displayName: Leaf
-    position: {x: 1207.209, y: 0.00001893485}
+    position: {x: 1563.9996, y: -137.07205}
   - displayName: leaf inner
-    position: {x: 1267.9417, y: 733.0401}
+    position: {x: 1960.8, y: 367.6001}
   - displayName: Flower Apex
-    position: {x: -67.880005, y: -545.60016}
+    position: {x: -68.00002, y: -908.0002}
   - displayName: Leaf Apex
-    position: {x: 452.6234, y: 52.2831}
+    position: {x: 791.99976, y: 506.39996}
   - displayName: Stem
-    position: {x: 113.83001, y: 52.799988}
+    position: {x: 452.8, y: 506.39996}
   - displayName: Apical Meristem
     position: {x: -430.39996, y: -411.5998}
   - displayName: Flower Apex
@@ -36,15 +36,15 @@ MonoBehaviour:
   - displayName: dead
     position: {x: 248.96542, y: -1134.8835}
   - displayName: dead
-    position: {x: 725.388, y: -1268.8254}
+    position: {x: 668.9256, y: -1619.356}
   - displayName: Petal Apex Spawner
-    position: {x: 1579.3605, y: -1134.3955}
+    position: {x: 1680.8, y: -1495.6001}
   - displayName: Petal
     position: {x: 2200.8, y: -1219.7783}
   - displayName: petal inner
-    position: {x: 1960.8, y: -567.04297}
+    position: {x: 2489.5996, y: -550.3508}
   - displayName: Petal Apex
-    position: {x: 1251.6501, y: -866.01666}
+    position: {x: 1209.6001, y: -939.16797}
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -133,10 +133,10 @@ MonoBehaviour:
     childType: 4
     auxinGenerationRate: -0.22
     auxinTransportRate: 0
-    auxinDiffusionRate: 0.1
-    auxinStealRate: 0.95
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
     auxinThreshold: 50.32
-    auxinGrowthFactor: 7.6
+    auxinGrowthFactor: 0
     auxinFluxCanalization: 0.52
     growthTensor: {x: 1, y: 0, z: 0}
     flattenFactor: 9.06
@@ -154,7 +154,7 @@ MonoBehaviour:
     childType: 4
     auxinGenerationRate: 0
     auxinTransportRate: 0
-    auxinDiffusionRate: 0.1
+    auxinDiffusionRate: 0
     auxinStealRate: 0
     auxinThreshold: 0
     auxinGrowthFactor: 0
@@ -172,7 +172,7 @@ MonoBehaviour:
     switchTime: 9.4
     targetType: 10
     inheritanceWeight: 7.68
-    childType: 5
+    childType: 10
     auxinGenerationRate: -1.1
     auxinTransportRate: 0
     auxinDiffusionRate: 0
@@ -224,7 +224,7 @@ MonoBehaviour:
     auxinFluxCanalization: 0
     growthTensor: {x: 1, y: 1, z: 1}
     flattenFactor: 0
-    color: {r: 0.4339623, g: 0.2324692, b: 0.045033775, a: 0}
+    color: {r: 0.3132075, g: 0.17461611, b: 0.046685614, a: 0}
     useGravity: 0
     maxSpeed: 20
   - mass: 2.06

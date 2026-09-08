@@ -34,6 +34,7 @@ struct NodeType
     float4 color;
     
     uint useGravity;
+    uint resetAgeOnSwitch;
     
     float maxSpeed; // maximum speed of the node
 };
@@ -79,6 +80,7 @@ NodeType BlendTypes(NodeType typeA, NodeType typeB, float blendFactor)
     blendedType.growthTensor = lerp(typeA.growthTensor, typeB.growthTensor, hardBlendFactor);
     
     blendedType.useGravity = hardBlendFactor < 0.5 ? typeA.useGravity : typeB.useGravity;
+    blendedType.resetAgeOnSwitch = hardBlendFactor < 0.5 ? typeA.resetAgeOnSwitch : typeB.resetAgeOnSwitch;
     
     // blend the colors based on the relative opacities
     float totalOpacity = max(0.001f, typeA.color.a + typeB.color.a);

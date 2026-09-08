@@ -39,6 +39,7 @@ public struct NodeType
     
     // other values
     public uint useGravity;
+    public uint resetAgeOnSwitch;
 
     public float maxSpeed;
 }

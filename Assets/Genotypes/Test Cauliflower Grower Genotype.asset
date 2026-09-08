@@ -1,0 +1,461 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c04127b527fec24fb7d6827dfc66200, type: 3}
+  m_Name: Test Cauliflower Grower Genotype
+  m_EditorClassIdentifier: 
+  mesh: {fileID: 0}
+  baseNodeTypes:
+  - mass: 1
+    drag: 67.7
+    growthRate: 0
+    turgorPressure: 0
+    laplacianSmoothing: 1
+    switchTime: 10
+    targetType: 17
+    inheritanceWeight: 0
+    childType: 0
+    auxinGenerationRate: 0
+    auxinTransportRate: 7.38
+    auxinDiffusionRate: 5.5
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.5471698, g: 0.3334748, b: 0.11872545, a: 1}
+    useGravity: 0
+    resetAgeOnSwitch: 0
+    maxSpeed: 1
+  - mass: 1
+    drag: 10
+    growthRate: 14.26
+    turgorPressure: 2.42
+    laplacianSmoothing: 1
+    switchTime: 7.83
+    targetType: 2
+    inheritanceWeight: 0
+    childType: 7
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.89433956, g: 0.18055533, b: 0.18055533, a: 1}
+    useGravity: 0
+    resetAgeOnSwitch: 0
+    maxSpeed: 20
+  - mass: 1
+    drag: 10
+    growthRate: 3.14
+    turgorPressure: 0
+    laplacianSmoothing: 1
+    switchTime: 55.1
+    targetType: 0
+    inheritanceWeight: 0
+    childType: 5
+    auxinGenerationRate: 11.41
+    auxinTransportRate: 1.15
+    auxinDiffusionRate: 0.32
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.89433956, g: 0.18055533, b: 0.18055533, a: 1}
+    useGravity: 0
+    resetAgeOnSwitch: 1
+    maxSpeed: 20
+  - mass: 1.98
+    drag: 0
+    growthRate: 0.47
+    turgorPressure: 0.91
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 3
+    inheritanceWeight: 0
+    childType: 3
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.7207546, g: 0.03127795, b: 0.5829081, a: 0}
+    useGravity: 0
+    resetAgeOnSwitch: 0
+    maxSpeed: 20
+  - mass: 2.06
+    drag: 22.95
+    growthRate: 0.76
+    turgorPressure: 0.4
+    laplacianSmoothing: 1.38
+    switchTime: 55.6
+    targetType: 12
+    inheritanceWeight: 1
+    childType: 12
+    auxinGenerationRate: 1.99
+    auxinTransportRate: 0
+    auxinDiffusionRate: 1.04
+    auxinStealRate: 0
+    auxinThreshold: -1
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.5849056, g: 0.026564008, b: 0.025382632, a: 0.76862746}
+    useGravity: 0
+    resetAgeOnSwitch: 0
+    maxSpeed: 20
+  - mass: 1.98
+    drag: 30.77
+    growthRate: 0
+    turgorPressure: -0.1
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 4
+    inheritanceWeight: 0.96
+    childType: 5
+    auxinGenerationRate: 0
+    auxinTransportRate: 3.93
+    auxinDiffusionRate: 1.09
+    auxinStealRate: 1.46
+    auxinThreshold: 4.01
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 2.61
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.8445038, g: 0.90943396, b: 0.8356497, a: 0}
+    useGravity: 0
+    resetAgeOnSwitch: 0
+    maxSpeed: 20
+  - mass: 1
+    drag: 67.7
+    growthRate: 0
+    turgorPressure: 0
+    laplacianSmoothing: 1
+    switchTime: -1
+    targetType: 6
+    inheritanceWeight: 0
+    childType: 6
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.5471698, g: 0.3334748, b: 0.11872545, a: 1}
+    useGravity: 1
+    resetAgeOnSwitch: 0
+    maxSpeed: 20
+  - mass: 1
+    drag: 67.7
+    growthRate: 0
+    turgorPressure: 7.03
+    laplacianSmoothing: 1
+    switchTime: 3.74
+    targetType: 0
+    inheritanceWeight: 0
+    childType: 7
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.5471698, g: 0.3334748, b: 0.11872545, a: 1}
+    useGravity: 0
+    resetAgeOnSwitch: 1
+    maxSpeed: 20
+  - mass: 1.98
+    drag: 30.77
+    growthRate: 0
+    turgorPressure: -0.1
+    laplacianSmoothing: 1.38
+    switchTime: -1
+    targetType: 10
+    inheritanceWeight: 2
+    childType: 8
+    auxinGenerationRate: 0.08
+    auxinTransportRate: 3.93
+    auxinDiffusionRate: 2.09
+    auxinStealRate: 1.46
+    auxinThreshold: 5.66
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 7.12
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.4339623, g: 0.2324692, b: 0.045033775, a: 0}
+    useGravity: 0
+    resetAgeOnSwitch: 0
+    maxSpeed: 20
+  - mass: 1
+    drag: 10
+    growthRate: 3.14
+    turgorPressure: 0
+    laplacianSmoothing: 1
+    switchTime: 55.1
+    targetType: 7
+    inheritanceWeight: 0
+    childType: 8
+    auxinGenerationRate: 11.41
+    auxinTransportRate: 1.15
+    auxinDiffusionRate: 0.32
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.89433956, g: 0.18055533, b: 0.18055533, a: 1}
+    useGravity: 0
+    resetAgeOnSwitch: 0
+    maxSpeed: 20
+  - mass: 1
+    drag: 10
+    growthRate: 4.78
+    turgorPressure: 2.42
+    laplacianSmoothing: 1
+    switchTime: 39.7
+    targetType: 0
+    inheritanceWeight: 0
+    childType: 0
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 0.4, y: 1, z: 0.4}
+    flattenFactor: 0
+    color: {r: 0.89433956, g: 0.18055533, b: 0.18055533, a: 1}
+    useGravity: 0
+    resetAgeOnSwitch: 0
+    maxSpeed: 20
+  - mass: 1
+    drag: 10
+    growthRate: 9.71
+    turgorPressure: 2.42
+    laplacianSmoothing: 1
+    switchTime: 7.83
+    targetType: 2
+    inheritanceWeight: 0
+    childType: 7
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.89433956, g: 0.18055533, b: 0.18055533, a: 1}
+    useGravity: 0
+    resetAgeOnSwitch: 1
+    maxSpeed: 20
+  - mass: 1
+    drag: 655.5
+    growthRate: 0
+    turgorPressure: 0
+    laplacianSmoothing: 1
+    switchTime: 3.74
+    targetType: 12
+    inheritanceWeight: 0
+    childType: 12
+    auxinGenerationRate: 0
+    auxinTransportRate: 7.38
+    auxinDiffusionRate: 5.5
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.9245283, g: 0.83556426, b: 0.8951942, a: 1}
+    useGravity: 0
+    resetAgeOnSwitch: 0
+    maxSpeed: 20
+  - mass: 1
+    drag: 10
+    growthRate: 9.71
+    turgorPressure: 2.42
+    laplacianSmoothing: 1
+    switchTime: 7.71
+    targetType: 14
+    inheritanceWeight: 0
+    childType: 11
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.89433956, g: 0.18055533, b: 0.18055533, a: 1}
+    useGravity: 0
+    resetAgeOnSwitch: 0
+    maxSpeed: 20
+  - mass: 1
+    drag: 10
+    growthRate: 9.71
+    turgorPressure: 2.42
+    laplacianSmoothing: 1
+    switchTime: 15.52
+    targetType: 15
+    inheritanceWeight: 0
+    childType: 7
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.89433956, g: 0.18055533, b: 0.18055533, a: 1}
+    useGravity: 0
+    resetAgeOnSwitch: 0
+    maxSpeed: 20
+  - mass: 1
+    drag: 10
+    growthRate: 9.71
+    turgorPressure: 2.42
+    laplacianSmoothing: 1
+    switchTime: 17.5
+    targetType: 16
+    inheritanceWeight: 0
+    childType: 11
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.89433956, g: 0.18055533, b: 0.18055533, a: 1}
+    useGravity: 0
+    resetAgeOnSwitch: 0
+    maxSpeed: 20
+  - mass: 1
+    drag: 10
+    growthRate: 9.71
+    turgorPressure: 2.42
+    laplacianSmoothing: 1
+    switchTime: 46.5
+    targetType: 3
+    inheritanceWeight: 0
+    childType: 7
+    auxinGenerationRate: 0
+    auxinTransportRate: 0
+    auxinDiffusionRate: 0.1
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.89433956, g: 0.18055533, b: 0.18055533, a: 1}
+    useGravity: 0
+    resetAgeOnSwitch: 1
+    maxSpeed: 20
+  - mass: 1
+    drag: 277.7
+    growthRate: 0
+    turgorPressure: 0
+    laplacianSmoothing: 1
+    switchTime: 3.74
+    targetType: 17
+    inheritanceWeight: 0
+    childType: 17
+    auxinGenerationRate: 0
+    auxinTransportRate: 7.38
+    auxinDiffusionRate: 5.5
+    auxinStealRate: 0
+    auxinThreshold: 0
+    auxinGrowthFactor: 0
+    auxinFluxCanalization: 0
+    growthTensor: {x: 1, y: 1, z: 1}
+    flattenFactor: 0
+    color: {r: 0.5471698, g: 0.3334748, b: 0.11872545, a: 1}
+    useGravity: 0
+    resetAgeOnSwitch: 0
+    maxSpeed: 20
+--- !u!114 &7282627939596198621
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ad05ed8dc3005934ebd72faf22121ee3, type: 3}
+  m_Name: NodeTypeGraphLayout
+  m_EditorClassIdentifier: 
+  entries:
+  - displayName: dead
+    position: {x: -854.72095, y: 1916.36}
+  - displayName: Apical Meristem
+    position: {x: -2667.126, y: 1222.996}
+  - displayName: Branch Thing
+    position: {x: -1862.255, y: 687.5271}
+  - displayName: seed
+    position: {x: -2875.2, y: 2999.8083}
+  - displayName: Leaf tip
+    position: {x: -546.0866, y: 487.99997}
+  - displayName: Leaf
+    position: {x: -816.5261, y: 503.3912}
+  - displayName: Type 0
+    position: {x: 69.18483, y: 1913.2941}
+  - displayName: Burst then die
+    position: {x: -1587.1997, y: 1806.3999}
+  - displayName: Stem
+    position: {x: -2149.6, y: 2602.4}
+  - displayName: Type 1
+    position: {x: -2475.2002, y: 2689.5999}
+  - displayName: Type 1
+    position: {x: -1609.6, y: 2651.2}
+  - displayName: Branch Thing
+    position: {x: -3768.7039, y: 1500.7998}
+  - displayName: dead
+    position: {x: -305.5999, y: 1000.0833}
+  - displayName: Apical Meristem
+    position: {x: -5036.5757, y: 2528.8}
+  - displayName: Apical Meristem
+    position: {x: -4573.376, y: 2562.4001}
+  - displayName: Apical Meristem
+    position: {x: -4156.5757, y: 2616.8}
+  - displayName: Apical Meristem
+    position: {x: -3796.5757, y: 2656.8}
+  - displayName: dead
+    position: {x: -385.38455, y: 1882.7141}
