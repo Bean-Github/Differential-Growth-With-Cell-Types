@@ -41,7 +41,7 @@ My system employs a half-edge mesh data structure, using compute shaders to reso
 
 The core separation and attraction forces between cells is similar to particle-based fluid simulations. I used a spatial hash with grid sized by the radius of separation forces. The hash optimized the O(N^2) naive separation force calculation by only needing to check neighboring cells. 
 
-![Spatial Hashing](spatialhashing.png)
+![Spatial Hashing](spatialhashing.jpg)
 
 
 ### Edge Splitting
