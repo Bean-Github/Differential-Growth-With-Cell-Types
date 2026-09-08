@@ -32,7 +32,7 @@ MonoBehaviour:
     auxinFluxCanalization: 0
     growthTensor: {x: 1, y: 1, z: 1}
     flattenFactor: 0
-    color: {r: 0.2830189, g: 0.1512834, b: 0.01655392, a: 1}
+    color: {r: 0.6981132, g: 0.2812369, b: 0.051370516, a: 1}
     useGravity: 0
     resetAgeOnSwitch: 0
     maxSpeed: 1
