@@ -3,7 +3,7 @@
 ![Diff Growth Gif](diffgrowthgif.gif)
 
 This project is a GPU-accelerated implementation of mesh-based differential growth. The research expands on existing implementations of 3D differential growth by introducing cell differentiation, where cells are able to change behavior and take on different cell types or produce children of different cell types. 
-![Cell Type Screenshot](celltypescreenshot.png)
+![Cell Type Screenshot](celltypesscreenshot.png)
 
 Cell differentiation mitigates several drawbacks of naive differential growth. For example, pure differential growth struggles with creating sharp shapes, asymmetrical stems, discretized regions, and customizability. But defining specific cell types can create these shapes quite easily, as well as allowing you to edit the growth beforehand by defining relationships between cell types. Additionally, by having cell types that give rise to different cell types, the model turns out to be a kind of L-system, and can produce interesting fractal-like growth structures.  
 
@@ -11,7 +11,7 @@ Furthermore, the research simulates the transfer of growth hormones in plants to
 
 Finally, the project improved on some existing 3D differential growth algorithms by utilizing several techniques to parallelize processes such as edge splitting, edge flipping, and self collisions. 
 
-
+![Edge Splitting Example](diffgrowthgif2.gif)
 
 # What is differential growth?
 
@@ -65,7 +65,7 @@ My entire algorithm would be as so:
 
 3) Loop again, running LUBY'S again over the new graph and splitting until all the edges that WANT TO SPLIT become split and there are no more pending edge splits.
 
-![Edge Splitting](edgesplit.png)
+![Edge Splitting](edgesplit.jpg)
 
 
 ### Edge Flipping
@@ -74,7 +74,7 @@ Delaunay flipping was used to keep mesh triangles well-shaped. Thissimilarly als
 
 Delaunay flipping ensures there are no super thin triangles while growing. 
 
-![Edge Flipping](edgeflip.png)
+![Edge Flipping](edgeflip.jpg)
 
 
 ### Self collisions
